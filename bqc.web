@@ -2,10 +2,12 @@
 
 @n
 
-@* INTRODUCTION. This testbench program is the test for UHF (rather DODS)
-calculation of H2O, including generation of 1- and 2-electron integrals.
-The ERI are stored in the file |fort.17| which is a binary file of size 8K.
-The working molecule is water in STO3G minimal basis set.
+@* INTRODUCTION. This simple program performs LCAO-MO-SCF calculations
+for an arbitrary molecule with GTF-type basis set size not larger than
+256. Generation of 1-electron integrals is performed directly during calculation.
+2-electron integrals are stored in the file |fort.17| which is a binary file.
+This program reads input file +inp+ which contains basis set structure information
+about the molecule.
 
 @
 
