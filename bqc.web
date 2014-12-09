@@ -51,7 +51,7 @@ about the molecule.
 @a 
       program LCAO_MO_SCF
 /*
-      TESTBENCH FOR WATER MOLECULE - GENERATING INTEGRALS AND CALCULATION OF WFN
+      GENERATING INTEGRALS AND CALCULATION OF WFN AND ENERGY
 */
       double precision vlist(MAX_CENTRES,4)
       double precision eta(MAX_PRIMITIVES,5)
