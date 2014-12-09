@@ -1242,10 +1242,10 @@ as it is usually written $(ij,k\ell)$).
          end do
       end do
                                                                      
-      do 100 i1 = 1, i1max
+      do i1 = 1, i1max
          sfab = sf(i1, isf)
                                                                      
-         if ( sfab .EQ. zero ) go to 100
+         if ( sfab .EQ. zero ) cycle
                                                                      
          ir1max = (i1-1)/2 + 1
          bbb = sfab * fact(i1)/t1**(i1-1)
@@ -1254,7 +1254,7 @@ as it is usually written $(ij,k\ell)$).
             xleft(ir1, i1) = bbb*(t1**(ir1-1))/(fact(ir1)*fact(jt2))
          end do
                                                                      
- 100  continue
+      end do
                                                                      
       return
       end
@@ -1299,28 +1299,28 @@ of them is given by
                                                                                           
       twodel = two*delta; fordel = two*twodel
                                                                                           
-      do 200 i1 = 1, i1max
+      do i1 = 1, i1max
                                                                                           
          sfab = sf(i1,isf)
-         if ( sfab .EQ. zero ) go to 200
+         if ( sfab .EQ. zero ) cycle
          ir1max = (i1-1)/2 + 1
-                                                                                          
-         do 210 i2 = 1, i2max
+
+         do i2 = 1, i2max
                                                                                           
             sfcd = sf(i2,isf+3)
-            if ( sfcd .EQ. zero ) go to 210
+            if ( sfcd .EQ. zero ) cycle
             jt1 = i1 + i2 -2
             ir2max = (i2-1)/2 + 1
             bbc = ((-one)**(i2-1))*sfcd*fact(i2)
      &                            /(t2**(i2-1)*(fordel**jt1))
                                                                                           
-            do 220 ir1 = 1, ir1max
+            do ir1 = 1, ir1max
                                                                                           
                jt2 = i1 + 2 - ir1 - ir1
                bbd = bbc*xleft(ir1, i1)
-               if ( bbd .EQ. zero ) go to 220
+               if ( bbd .EQ. zero ) cycle
                                                                                           
-               do 230 ir2 = 1, ir2max
+               do ir2 = 1, ir2max
                                                                                           
                   jt3 = i2 + 2 - ir2 - ir2
                   jt4 = jt2 + jt3 -2
@@ -1330,11 +1330,11 @@ of them is given by
                   bbe = bbd*(t2**(ir2-1))*(twodel**jt1)*fact(jt4+1)
      &                                  /(fact(ir2)*fact(jt3))
                                                                                           
-                  do 240 iru = 1, irumax
+                  do iru = 1, irumax
                                                                                           
                      jt5 = jt4 -iru - iru + 3
                      ppqq = ppx(jt5)
-                     if( ppqq .EQ. zero ) go to 240
+                     if( ppqq .EQ. zero ) cycle
                                                                                           
                      bbf = bbe*((-delta)**(iru-1))*ppqq
      &                                 /(fact(iru)*fact(jt5))
@@ -1351,11 +1351,11 @@ of them is given by
                      nux = jt4 - iru + 2
                      bbx(nux) = bbx(nux) + bbf
                                                                                           
- 240              continue
- 230           continue
- 220        continue
- 210     continue
- 200  continue
+                  end do  
+               end do  
+            end do  
+         end do   
+      end do
                                                                                           
       return
       end
@@ -1534,9 +1534,9 @@ aborted.
          a = a + one
          term = term * x/a
          partialsum = partialsum + term
-         if (term/partialsum < crit) go to 111
+         if (term/partialsum < crit) exit
       end do
- 111  continue
+
       if (i.EQ.maxone) then
          write(ERROR_OUTPUT_UNIT,200)
 200      format('i > 50 in fmch')
@@ -1698,28 +1698,28 @@ C
  
       /* one electron integrals */
  
-      DO i=1, nbfns
-         DO j=1, i
+      do i=1, nbfns
+         do j=1, i
             ij = (j-1)*nbfns+i; ji = (i-1)*nbfns+j
             H(ij) = genoei(i,j,eta,ngmx,nfirst,nlast,ntype,
      &               nr,NO_OF_TYPES,vlist,noc,ncmx,ovltot,kintot)
             H(ji) = H(ij)
             S(ij) = ovltot; S(ji) = ovltot
-         END DO
-      END DO
+         end do
+      end do
       write(*,*) " ONE ELECTRON INTEGRALS COMPUTED"
 C
       rewind nfile; pointer = 0
       last = NO
       i = 1; j = 1; k = 1; l = 0
 
-      DO 10 WHILE (next_label(i,j,k,l,nbfns).EQ.YES)
-         IF (l.EQ.nbfns) last = YES
+      do while (next_label(i,j,k,l,nbfns).EQ.YES)
+         if (l.EQ.nbfns) last = YES
          val = generi(i,j,k,l,0,eta,ngmx,nfirst,nlast,ntype,nr,
      &                        NO_OF_TYPES)
-         IF (dabs(val).LT.crit) go to 10
+         if (dabs(val).LT.crit) cycle
          CALL putint(nfile,i,j,k,l,mu,val,pointer,last)
- 10   CONTINUE
+      end do
 C
       return
       end
