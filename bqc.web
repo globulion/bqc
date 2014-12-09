@@ -37,7 +37,7 @@ about the molecule.
 @m MAX_PRIMITIVES           1000
 @m MAX_CENTRES              50
 
-@m MAX_ITERATIONS             150
+@m MAX_ITERATIONS             400
 
 @m UHF_CALCULATION            11
 @m CLOSED_SHELL_CALCULATION   21
@@ -1686,8 +1686,8 @@ C
      &     0,0,0,1,0,0,2,0,1,1,0,0,3,0,1,0,1,2,2,1/
       data crit,half,onep5,one,zero/1.0D-08,0.5D+00,1.5D+00,
      &                              1.0D+00,0.0D+00/
-      data dfact/1.0,3.0,15.0,105.0,945.0,10395.0,
-     &           135135.0,2027025.0,12*0.0/
+      data dfact/1.0D00,3.0D00,15.0D00,105.0D00,945.0D00,10395.0D00,
+     &           135135.0D00,2027025.0D00,12*0.0D00/
       data gtoC/MAX_PRIMITIVES*0.0D+00/
 
       mu = 0
