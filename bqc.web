@@ -82,7 +82,7 @@ about the molecule.
 
       @< Generate Molecular Integrals @>
 
-      @< Orthogonalizing The Basis @>
+      @< Orthogonalize The Basis @>
 
       @< Perform SCF @> 
 
@@ -118,7 +118,7 @@ about the molecule.
      &            vlist,ncmx,ncmx,S,H,nfile)
 @
 
-@< Orthogonalizing The Basis @>=
+@< Orthogonalize The Basis @>=
       call shalf(S,R,Cbar,nbfns)
 @
 
