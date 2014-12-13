@@ -38,6 +38,8 @@ about the molecule.
 @m MAX_CENTRES              50
 
 @m MAX_ITERATIONS             400
+@m CRIT_ERI                 1.00D-10
+@m CRIT_FMCH                1.00D-09
 
 @m UHF_CALCULATION            11
 @m CLOSED_SHELL_CALCULATION   21
@@ -1520,8 +1522,6 @@ aborted.
       integer m, i, numberofterms, maxone, maxtwo
       data zero,half,one,rootpi4,ten
      & /0.0D00,0.5D00,1.0D00,0.88622692D00,10.0D00/
-      /* |crit| is required accuracy of the series expansion */
-      data crit/1.0D-08/
       /* |maxone| */
       data maxone/50/, maxtwo/200/
 @
@@ -1534,7 +1534,7 @@ aborted.
          a = a + one
          term = term * x/a
          partialsum = partialsum + term
-         if (term/partialsum < crit) exit
+         if (term/partialsum < CRIT_FMCH) exit
       end do
 
       if (i.EQ.maxone) then
@@ -1572,7 +1572,7 @@ aborted.
       do i=2, numberofterms
          term = term * a * xd
          partialsum = partialsum + term
-         if (dabs(term*fiprop/partialsum).LE.crit) then
+         if (dabs(term*fiprop/partialsum).LE.CRIT_FMCH) then
              fmch = approx - fimult*partialsum
              return
          end if
@@ -1675,7 +1675,7 @@ C
       double precision generi, genoei
       integer pointer, last
       double precision ovltot, kintot
-      double precision val, crit, alpha, t, t1, t2, t3, sum, pitern
+      double precision val, alpha, t, t1, t2, t3, sum, pitern
       double precision SOO
       double precision gtoC(MAX_PRIMITIVES)
       double precision dfact(20)
@@ -1684,8 +1684,8 @@ C
      &     0,1,0,0,2,0,0,1,1,0,3,0,0,2,2,1,0,1,0,1,
      &     0,0,1,0,0,2,0,1,0,1,0,3,0,1,0,2,2,0,1,1,
      &     0,0,0,1,0,0,2,0,1,1,0,0,3,0,1,0,1,2,2,1/
-      data crit,half,onep5,one,zero/1.0D-08,0.5D+00,1.5D+00,
-     &                              1.0D+00,0.0D+00/
+      data half,onep5,one,zero/0.5D+00,1.5D+00,
+     &                         1.0D+00,0.0D+00/
       data dfact/1.0D00,3.0D00,15.0D00,105.0D00,945.0D00,10395.0D00,
      &           135135.0D00,2027025.0D00,12*0.0D00/
       data gtoC/MAX_PRIMITIVES*0.0D+00/
@@ -1717,7 +1717,7 @@ C
          if (l.EQ.nbfns) last = YES
          val = generi(i,j,k,l,0,eta,ngmx,nfirst,nlast,ntype,nr,
      &                        NO_OF_TYPES)
-         if (dabs(val).LT.crit) cycle
+         if (dabs(val).LT.CRIT_ERI) cycle
          CALL putint(nfile,i,j,k,l,mu,val,pointer,last)
       end do
 C
