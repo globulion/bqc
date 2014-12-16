@@ -815,7 +815,6 @@ $$
                tiru=ai*(-one)**(iru-1)*at5*epsi**iq
      &             /(fact(ir)*fact(iru)*fact(ip+1))
                nux = ip + iru
-               if (nux.GT.4) write(*,*) nux
                Airu(nux) = Airu(nux) + tiru
             end do
          end do
