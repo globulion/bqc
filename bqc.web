@@ -102,11 +102,13 @@ about the molecule.
          @< Perform ROHF @>
 
       else if (task.EQ.DCI) then
- 
+
+         @< Perform SCF @> 
          @< Perform DCI @>
 
       else if (task.EQ.MCSCF) then
- 
+
+         @< Perform SCF @> 
          @< Perform MCSCF @>
 
       end if
