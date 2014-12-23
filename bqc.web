@@ -13,8 +13,8 @@ about the molecule.
 
 @* LCAO MO SCF PROGRAM. 
 
-@m YES                      0
-@m NO                       100
+@m YES                      1
+@m NO                       0
 
 @m ERR                     -10
 @m OK                       10
@@ -46,6 +46,10 @@ about the molecule.
 
 @m UHF_CALCULATION            11
 @m CLOSED_SHELL_CALCULATION   21
+@m PURE_SCF                  90
+@m ROHF                      91
+@m DCI                       92
+@m MCSCF                     93
 
 @m MATRIX_SIZE                262144
 
@@ -75,16 +79,13 @@ about the molecule.
       double precision C(MATRIX_SIZE),Cbar(MATRIX_SIZE),V(MATRIX_SIZE)
       double precision crit, damp, E
       double precision epsilon(MAX_BASIS_FUNCTIONS)
-      integer scf
-      integer i
+      integer scf, grhf
+      integer i, task, read_eri
 
       @< nr list @>
 
       nfile = ERI_UNIT
       irite = 12
-      interp = 30
-      crit = 1.00D-07
-      damp = 0.33D+00
 
       @< Read Structure Input @>
 
@@ -92,7 +93,23 @@ about the molecule.
 
       @< Orthogonalize The Basis @>
 
-      @< Perform SCF @> 
+      if (task.EQ.PURE_SCF) then
+
+         @< Perform SCF @> 
+  
+      else if (task.EQ.ROHF) then
+
+         @< Perform ROHF @>
+
+      else if (task.EQ.DCI) then
+ 
+         @< Perform DCI @>
+
+      else if (task.EQ.MCSCF) then
+ 
+         @< Perform MCSCF @>
+
+      end if
 
       STOP
       END
@@ -107,8 +124,11 @@ about the molecule.
 @
 
 @< Read Structure Input @>=
-      open(unit=INPUT_UNIT,file='inp',access='SEQUENTIAL')
-      read(INPUT_UNIT,*) nelec
+      open(unit=INPUT_UNIT,file="inp",access="SEQUENTIAL")
+      read(INPUT_UNIT,*) task                /* The task integer identifier */
+      read(INPUT_UNIT,*) crit, damp, interp  /* SCF parmeters */
+      read(INPUT_UNIT,*) read_eri            /* Flag of reading eri */
+      read(INPUT_UNIT,*) nelec               /* number of electrons */
       read(INPUT_UNIT,*) ncmx, nbfns, ngmx
       read(INPUT_UNIT,*) (vlist(i,1), vlist(i,2), vlist(i,3), 
      &                    vlist(i,4), i=1,ncmx)
@@ -123,20 +143,34 @@ about the molecule.
 @< Generate Molecular Integrals @>=
       write(*,*) " CALCULATION OF MOLECULAR INTEGRALS"
       call genint(ngmx,nbfns,eta,ntype,ncntr,nfirst,nlast,
-     &            vlist,ncmx,ncmx,S,H,nfile)
+     &            vlist,ncmx,ncmx,S,H,nfile,read_eri)
 @
-
 @< Orthogonalize The Basis @>=
       call shalf(S,R,Cbar,nbfns)
 @
-
 @< Perform SCF @>=
       if (scf(H,S,nbfns,nelec,nfile,irite,damp,interp,E,HF,V,R,Rold,
-     &         Cbar,epsilon,crit).EQ.YES) then
+     &         Cbar,epsilon,crit).EQ.OK) then
           write(*,*) " SCF DONE."
       else
           write(*,*) " SCF FAILED. "
       end if
+@
+@< Perform ROHF @>=
+      if (grhf(H,S,nbfns,2,norbs,noclst,nfile,nu,x,y,alpha,b,en,HF,R,
+     &             epsilon,Work,Hbar,U,initial_scf,irite).EQ.OK) then
+          write(*,*) " SCF DONE."
+      else
+          write(*,*) " SCF FAILED. "
+      end if
+@
+@< Perform DCI @>=
+      write(*,*) "NOT IMPLEMENTED YET"
+      STOP
+@
+@< Perform MCSCF @>=
+      write(*,*) "NOT IMPLEMENTED YET"
+      STOP
 @
 
 @* RHF and UHF. 
@@ -283,7 +317,7 @@ Happy!
       do i = 1, mm
          R(i) = zero; Rold(i) = zero
       end do
-      SCF    = YES
+      SCF    = OK
       kount = 0
       icon = 100
 @   
@@ -329,7 +363,7 @@ Happy!
 
       if ((kount.EQ.MAX_ITERATIONS).AND.(icon.NE.0)) then
           write(ERROR_OUTPUT_UNIT, 204)
-          SCF = NO
+          SCF = ERR
       else
          write(ERROR_OUTPUT_UNIT, 202) kount
          write(ERROR_OUTPUT_UNIT, 203) (epsilon(i), i=1, nocc)
@@ -545,73 +579,74 @@ C
 @* GRHF. This is an implementation of the General Energy Functional
 which can be succesfully used in the diverse methods such as ROHF, MCSCF
 and others.
-%A rather cursory manual page is prepended. \ \\
-%\newcommand{\nmat}[1]{\mbox{\large \boldmath $ #1$}}
-%\newcommand{\nmatt}[1]{\mbox{\boldmath $ #1$}}
-%\begin{boxedminipage}{4.5in}
-%%\ \\
-%\begin{description}
-%\item[NAME] grhf
-%
-%\item[SYNOPSIS] \ \\
-%\begin{verbatim}
-%   subroutine grhf(H,V,nbasis,number_of_shells,norbs,noclst,
-%                  nfile,nu,x,y,alpha,b,en,HF,R,eps,
-%                  Work,Hbar,U, initial_scf,irite);
-%\end{verbatim}
-%\item[DESCRIPTION] \ \\
-%Solves the spin-restricted many-shell ``Hartree-Fock'' problem.
-%\item[ARGUMENTS] \ \\
-%\begin{description}
-%\item[H] Input: One-electron Hamiltonian. 
-%\item[V] Input: Orthogonalistion Matrix.
-%\item[nbasis] Input: Number of basis functions.
-%\item[number\_of\_shells] Input: self explanatory
-%\item[norbs] Input: |norbs(i), i=1,number_of_shells| are the number
-%of MOs in each shell.
-%\item[noclst] Input: |noclst(j,i), i = 1,norbs(j), j= 1,number_of_shells|
-%are the sequence numbers of the orbitals in each shell.
-%\item[nfile] Input: Logical file for repulsion integrals.
-%\item[nu] Input: |nu(i), i = 1, number_of_shells| are
-%the shell occupation  numbers.
-%\item[x,y] Input: Symmetric matrices 
-%(|number_of_shells|$\times$|number_of_shells|) of coupling coefficients. 
-%\item[alpha] Input |alpha(i), i=1,number_of_shells| are ``level
-%shifters'' for the shells.
-%\item[b] Input: an 
-%(|number_of_shells|$\times$|number_of_shells|) 
-%anti-symmetric  matrix of ``damp factors''
-%\item[HF] Workspace:  Large enough for a stack of
-%|number_of_shells| Fock matrices.
-%\item[R] Workspace: Must be large enough for a stack of
-%|number_of_shells| density matrices.
-%\item[Work] Workspace: Large enough for a stack of
-%|number_of_shells|  matrices.
-%\item[Hbar] Workspace:  The McWeenyan.
-%\item[eps] Output: Eigenvalues of McWeenyan.
-%\item[U] Input/Output: An initial set of MO
-%coefficients if |initial_scf = NO|. On output final MO coefficients.
-%
-%\end{description}
-%
-%\item[DIAGNOSTICS] \  \\
-%Routine output of Energy and convergence information
-%as calculation proceeds. Message on convergence failure.
-%\end{description}
-%%\ \\ \ \\
-%\end{boxedminipage}
-%\clearpage
-%
+A rather cursory manual page is prepended. \ \\
+\newcommand{\nmat}[1]{\mbox{\large \boldmath $ #1$}}
+\newcommand{\nmatt}[1]{\mbox{\boldmath $ #1$}}
+\begin{minipage}{4.5in}
+\ \\
+\begin{description}
+\item[NAME] grhf
+
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+   subroutine grhf(H,V,nbasis,number_of_shells,norbs,noclst,
+                  nfile,nu,x,y,alpha,b,en,HF,R,eps,
+                  Work,Hbar,U, initial_scf,irite);
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+Solves the spin-restricted many-shell ``Hartree-Fock'' problem.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[H] Input: One-electron Hamiltonian. 
+\item[V] Input: Orthogonalistion Matrix.
+\item[nbasis] Input: Number of basis functions.
+\item[number\_of\_shells] Input: self explanatory
+\item[norbs] Input: |norbs(i), i=1,number_of_shells| are the number
+of MOs in each shell.
+\item[noclst] Input: |noclst(j,i), i = 1,norbs(j), j= 1,number_of_shells|
+are the sequence numbers of the orbitals in each shell.
+\item[nfile] Input: Logical file for repulsion integrals.
+\item[nu] Input: |nu(i), i = 1, number_of_shells| are
+the shell occupation  numbers.
+\item[x,y] Input: Symmetric matrices 
+(|number_of_shells|$\times$|number_of_shells|) of coupling coefficients. 
+\item[alpha] Input |alpha(i), i=1,number_of_shells| are ``level
+shifters'' for the shells.
+\item[b] Input: an 
+(|number_of_shells|$\times$|number_of_shells|) 
+anti-symmetric  matrix of ``damp factors''
+\item[HF] Workspace:  Large enough for a stack of
+|number_of_shells| Fock matrices.
+\item[R] Workspace: Must be large enough for a stack of
+|number_of_shells| density matrices.
+\item[Work] Workspace: Large enough for a stack of
+|number_of_shells|  matrices.
+\item[Hbar] Workspace:  The McWeenyan.
+\item[eps] Output: Eigenvalues of McWeenyan.
+\item[U] Input/Output: An initial set of MO
+coefficients if |initial_scf = NO|. On output final MO coefficients.
+
+\end{description}
+
+\item[DIAGNOSTICS] \  \\
+Routine output of Energy and convergence information
+as calculation proceeds. Message on convergence failure.
+\end{description}
+\ \\ \ \\
+\end{minipage}
+\clearpage
+
 
 @a
-      subroutine grhf(H,V,nbasis,number_of_shells,norbs,noclst, 
-     &                nfile,nu,x,y,alpha,b,en,HF,R,eps,              
-     &                Work,Hbar,U,initial_scf,irite)                 
+      integer function grhf(H,V,nbasis,number_of_shells,norbs,noclst, 
+     &                      nfile,nu,x,y,alpha,b,en,HF,R,eps,              
+     &                      Work,Hbar,U,initial_scf,irite)                 
       @< Grhf Interface Declarations @>
 
       @< Grhf Local Declarations @>
 
       n = nbasis ; nn = n*n
+      grhf = OK
 
       @< Choose which effective Fock matrix @>
       
@@ -791,8 +826,8 @@ is stored in |Hbar| and orthogonalized.
       call eigen(Hbar,Work,n,0)
 
       do i = 1, n
-        ii = (i-1)*n+i
-        eps(i) = Hbar(ii)
+         ii = (i-1)*n+i
+         eps(i) = Hbar(ii)
       end do
 /*REMOVE THE SHIFTERS when they are passed back to the caller!!*/
 
@@ -824,7 +859,7 @@ If the cycle limit is hit, quit with a message.
       if (irite .GT. 0) write(irite, 200) icon,en,iteration
 
       if (iteration .GT. max_iteration ) then
-         write( ERROR_OUTPUT_UNIT , 201)
+         grhf = ERR
          return
       end if
 
@@ -876,7 +911,6 @@ local to |grhf| and some required initialisations.
 @< Grhf Formats @>=
  200  format(I4,"  Elements of T Changing ",/,
      &          "  Energy is ",E20.10,"  Iteration  ",I4)
- 201  format(" CONVERGENCE FAILURE:  STOPPING ")
 @
 
 @*1 grhfR. Forms the grhf `R' matrices from the single MO matrix
@@ -2423,8 +2457,9 @@ from the |file|.
 
 @a
       subroutine genint (ngmx, nbfns, eta, ntype, ncntr, nfirst, 
-     &                   nlast, vlist, ncmx, noc, S, H, nfile)
+     &                   nlast, vlist, ncmx, noc, S, H, nfile, read_eri)
       integer ngmx, nbfns, noc, ncmx
+      integer read_eri
       double precision eta(MAX_PRIMITIVES, 5), vlist(MAX_CENTRES, 4)
       double precision S(ARB), H(ARB)
       integer ntype(ARB), nfirst(ARB), nlast(ARB), ncntr(ARB), nfile
@@ -2467,21 +2502,23 @@ C
       end do
       write(*,*) " ONE ELECTRON INTEGRALS COMPUTED"
 C
-      rewind nfile; pointer = 0
-      last = NO
-      i = 1; j = 1; k = 1; l = 0
-
-      do while (next_label(i,j,k,l,nbfns).EQ.YES)
-         if (l.EQ.nbfns) last = YES
-         val = generi(i,j,k,l,0,eta,ngmx,nfirst,nlast,ntype,nr,
-     &                        NO_OF_TYPES)
-         if (dabs(val).LT.CRIT_ERI) cycle
-         CALL putint(nfile,i,j,k,l,mu,val,pointer,last)
-      end do
+      /* two electron integrals */
+      if (read_eri.EQ.NO) then
+          rewind nfile; pointer = 0                                 
+          last = NO
+          i = 1; j = 1; k = 1; l = 0
+                                                                    
+          do while (next_label(i,j,k,l,nbfns).EQ.YES)
+             if (l.EQ.nbfns) last = YES
+             val = generi(i,j,k,l,0,eta,ngmx,nfirst,nlast,ntype,nr,
+     &                            NO_OF_TYPES)
+             if (dabs(val).LT.CRIT_ERI) cycle
+             CALL putint(nfile,i,j,k,l,mu,val,pointer,last)
+          end do
+      end if
 C
       return
       end
-
 @
 
 @< Copy GTO contraction coeffs to gtoC @>=
