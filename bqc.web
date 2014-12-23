@@ -33,6 +33,8 @@ about the molecule.
 @m NO_OF_TYPES              20
 @m INT_BLOCK_SIZE           1000
 
+@m WORK_MINV                100
+
 @m MAX_BASIS_FUNCTIONS      256
 @m MAX_PRIMITIVES           1000
 @m MAX_CENTRES              50
@@ -40,6 +42,7 @@ about the molecule.
 @m MAX_ITERATIONS             400
 @m CRIT_ERI                 1.00D-10
 @m CRIT_FMCH                1.00D-09
+@m CRIT_SCF                 1.00D-06
 
 @m UHF_CALCULATION            11
 @m CLOSED_SHELL_CALCULATION   21
@@ -49,6 +52,9 @@ about the molecule.
 @m ERROR_OUTPUT_UNIT          61
 @m ERI_UNIT                   17
 @m INPUT_UNIT                 16
+
+@m FOCK_GENERAL               1234
+@m FOCK_HALF_CLOSED           2345
 
 @a 
       program LCAO_MO_SCF
@@ -133,7 +139,7 @@ about the molecule.
       end if
 @
 
-@* SCF. 
+@* RHF and UHF. 
 
 This is  Version 1 of the Hartree-Fock theory implemented
 for closed shells (RHF) and open shells (UHF-DODS) calculations.
@@ -338,7 +344,39 @@ Happy!
  204  format(" SCF did not converged... quitting")
 @
 
-@*1 scfGR. 
+
+@*1 scfR. 
+
+@a
+      subroutine scfR (C, R, m, nocc)
+      double precision C(ARB), R(ARB)
+      integer m, nocc
+C
+      double precision suma, zero
+      integer i, j, k, ij, ji, kk, ik, jk
+      data zero/0.0D+00/
+C
+      do i = 1, m
+         do j = 1, i
+            suma = zero
+            do k = 1, nocc
+               kk = m*(k-1)
+               ik = kk + i
+               jk = kk + j
+               suma = suma + C(ik)*C(jk)
+            enddo
+            ij = m*(j-1) + i
+            ji = m*(i-1) + j
+            R(ij) = suma
+            R(ji) = suma
+         enddo
+      enddo
+C
+      return
+      end
+@
+
+@*1 scfGR. Make the G-matrix from repulsion integrals - RHF/UHF case.
 
 @m  locGR(i,j) (m*(j-1) + i)
 @a
@@ -426,7 +464,7 @@ Happy!
       end do
 @
 
-@*2 GofR.
+@*2 GofR. Make the total G-matrix from current density matrix - RHF/UHF case.
 
 @m  locGR(i,j) (m*(j-1) + i)
 @a
@@ -504,36 +542,756 @@ Happy!
       end
 @
 
-@*1 scfR. 
+@* GRHF. This is an implementation of the General Energy Functional
+which can be succesfully used in the diverse methods such as ROHF, MCSCF
+and others.
+%A rather cursory manual page is prepended. \ \\
+%\newcommand{\nmat}[1]{\mbox{\large \boldmath $ #1$}}
+%\newcommand{\nmatt}[1]{\mbox{\boldmath $ #1$}}
+%\begin{boxedminipage}{4.5in}
+%%\ \\
+%\begin{description}
+%\item[NAME] grhf
+%
+%\item[SYNOPSIS] \ \\
+%\begin{verbatim}
+%   subroutine grhf(H,V,nbasis,number_of_shells,norbs,noclst,
+%                  nfile,nu,x,y,alpha,b,en,HF,R,eps,
+%                  Work,Hbar,U, initial_scf,irite);
+%\end{verbatim}
+%\item[DESCRIPTION] \ \\
+%Solves the spin-restricted many-shell ``Hartree-Fock'' problem.
+%\item[ARGUMENTS] \ \\
+%\begin{description}
+%\item[H] Input: One-electron Hamiltonian. 
+%\item[V] Input: Orthogonalistion Matrix.
+%\item[nbasis] Input: Number of basis functions.
+%\item[number\_of\_shells] Input: self explanatory
+%\item[norbs] Input: |norbs(i), i=1,number_of_shells| are the number
+%of MOs in each shell.
+%\item[noclst] Input: |noclst(j,i), i = 1,norbs(j), j= 1,number_of_shells|
+%are the sequence numbers of the orbitals in each shell.
+%\item[nfile] Input: Logical file for repulsion integrals.
+%\item[nu] Input: |nu(i), i = 1, number_of_shells| are
+%the shell occupation  numbers.
+%\item[x,y] Input: Symmetric matrices 
+%(|number_of_shells|$\times$|number_of_shells|) of coupling coefficients. 
+%\item[alpha] Input |alpha(i), i=1,number_of_shells| are ``level
+%shifters'' for the shells.
+%\item[b] Input: an 
+%(|number_of_shells|$\times$|number_of_shells|) 
+%anti-symmetric  matrix of ``damp factors''
+%\item[HF] Workspace:  Large enough for a stack of
+%|number_of_shells| Fock matrices.
+%\item[R] Workspace: Must be large enough for a stack of
+%|number_of_shells| density matrices.
+%\item[Work] Workspace: Large enough for a stack of
+%|number_of_shells|  matrices.
+%\item[Hbar] Workspace:  The McWeenyan.
+%\item[eps] Output: Eigenvalues of McWeenyan.
+%\item[U] Input/Output: An initial set of MO
+%coefficients if |initial_scf = NO|. On output final MO coefficients.
+%
+%\end{description}
+%
+%\item[DIAGNOSTICS] \  \\
+%Routine output of Energy and convergence information
+%as calculation proceeds. Message on convergence failure.
+%\end{description}
+%%\ \\ \ \\
+%\end{boxedminipage}
+%\clearpage
+%
 
 @a
-      subroutine scfR (C, R, m, nocc)
-      double precision C(ARB), R(ARB)
-      integer m, nocc
-C
-      double precision suma, zero
-      integer i, j, k, ij, ji, kk, ik, jk
-      data zero/0.0D+00/
-C
-      do i = 1, m
-         do j = 1, i
-            suma = zero
-            do k = 1, nocc
-               kk = m*(k-1)
-               ik = kk + i
-               jk = kk + j
-               suma = suma + C(ik)*C(jk)
-            enddo
-            ij = m*(j-1) + i
-            ji = m*(i-1) + j
-            R(ij) = suma
-            R(ji) = suma
-         enddo
-      enddo
-C
+      subroutine grhf(H,V,nbasis,number_of_shells,norbs,noclst, 
+     &                nfile,nu,x,y,alpha,b,en,HF,R,eps,              
+     &                Work,Hbar,U,initial_scf,irite)                 
+      @< Grhf Interface Declarations @>
+
+      @< Grhf Local Declarations @>
+
+      n = nbasis ; nn = n*n
+
+      @< Choose which effective Fock matrix @>
+      
+      @< Invert the orthogonalisation matrix @> 
+      
+      @< Compute total number of occupied orbitals @>
+      
+      @< Calculate the R matrices if the input U is a sensible one @>
+
+      iteration = 0
+      icon = 10000
+ 
+      do while( icon.NE.0 )
+
+         @< One iteration of GRHF-SCF cycle @>
+
+      end do
+
+      @< Grhf Formats @>
+
+      return 
+      end
+
+@ First, decide which form of the single effective
+Fock-like matrix is to be used; both are due to McWeeny
+and are known (at least in Sheffield) as McWeenyans.
+
+@< Choose which effective Fock matrix @>= 
+ 
+/*  decide path i.e. which form of "Fock Operator" */
+      iw1 = int(nu(1) + 0.1)
+      iw2 = int(nu(2) + 0.1)
+      path = FOCK_GENERAL
+      if ( (number_of_shells.EQ.2).AND.(iw1.EQ.2).AND.(iw2.EQ.1) ) then
+         path = FOCK_HALF_CLOSED
+      end if
+
+@ We only have the shell occupation numbers in the arguments,
+get the total.
+
+@< Compute total number of occupied orbitals @>=
+      total_occupied_orbitals = 0                                     
+      do i = 1, number_of_shells
+         total_occupied_orbitals = total_occupied_orbitals + norbs(i)
+      end do
+
+@ We need the orthogonalisation matrix {\em and} its inverse.
+The orthogonaliser comes in via the interface, so invert a copy
+and add it to the end of the original.
+
+@< Invert the orthogonalisation matrix @>= 
+      do i = 1, nn                                               
+         V(nn+i) = V(i)  /*  a copy to invert */
+      end do
+      call minv(V(nn+1),n,det,lwork,mwork) /*V**-1 in V(nn+1) */
+
+@ If, by chance, the incoming matrix is a guess
+at the MO coefficients, not just an orthogonaliser,
+form the corresponding R matrices.
+
+@< Calculate the R matrices if the input U is a sensible one @>=
+      if (initial_scf .NE. YES ) then                     
+          call grhfR(U,R,n,noclst,norbs,number_of_shells)
+      end if
+
+@ Here is the ``inner'' code for one complete SCF cycle.
+It is further broken down into smaller modules as appropriate.
+
+@< One iteration of GRHF-SCF cycle @> = 
+      icon = 0
+      iteration = iteration + 1
+
+      en = zero /* accumulator for total energy */
+ 
+      if ( (initial_scf) .EQ. NO .AND. ( iteration .EQ. 1 ) ) then
+
+         @< Start first cycle from one-electron Hamiltonian @>
+
+      else
+
+         @< Put one-electron Hamiltonian into each Fock matrix @>
+         
+         @< Use the repulsion integrals to form the Fock matrices @>
+         
+         @< Scale the Fock matrices by occupation number @>
+         
+         @< Choose the appropriate form of the effective Fock matrix @>
+         
+         @< Transpose the inverse-orthogonaliser for convenience @>
+
+      end if
+
+      @< Transform and diagonalise the single Fock matrix @>
+      
+      @< Transform back to the original basis and form the new R @>
+      
+      @< Check for convergence and prepare to re-cycle @>
+
+@ If no guess at the R matrices is available, set the
+effective Hamiltonian to the one-electron Hamiltonian to
+start the process off.
+
+@< Start first cycle from one-electron Hamiltonian @>= 
+      do i = 1, nn
+          Hbar(i) = H(i)
+          R(i) = V(i)
+      end do
+
+@ Each shell Fock matrix must contain the one-electron
+Hamiltonian, so put it there. Here is a good place to start
+accumulating the total electronic energy in |en|. The one-electron
+contribution is entered here; note the occupation number is
+used to scale |R|.
+
+@< Put one-electron Hamiltonian into each Fock matrix @>= 
+      do shell = 1, number_of_shells
+         shell_offset = (shell-1)*nn
+         do i = 1, nn
+            ioffset = shell_offset + i
+            HF(ioffset) = H(i)  /* put H into each `HF' */
+            en = en + nu(shell)*HF(i)*R(ioffset)
+         end do
+      end do
+
+@ Now that each Fock matrix contains the one-electron
+Hamiltonian, use |grhfGR| to add in the relevant 
+electron-repulsion contributions. Also set up the ``virtual''
+Fock matrix.
+
+@< Use the repulsion integrals to form the Fock matrices @>= 
+      virtual_offset = number_of_shells*nn
+      do i = 1, nn
+         HF(virtual_offset+i) = zero
+      end do
+      call grhfGR(R,HF,n,nfile,nu,x,y,number_of_shells,Work)
+
+@ If the calculation is the simplest case, a closed shell plus
+one shell of parallel-spin singly occupied orbitals, use
+McWeeny's original form of the effective Fock matrix; otherwise
+use the general case. The general case will also work for the
+special case but convergence is poorer.
+
+@< Choose the appropriate form of the effective Fock matrix @>= 
+      if (path.EQ.FOCK_HALF_CLOSED) then
+         call Hhalf(HF,R,n,Work,Work(nn+1),Hbar)
+                 /* ``half-closed case'' use RMcW form */   
+      else
+         call Hone(HF,R,n,alpha,b,nu,number_of_shells,
+     &             Work,Work(nn+1),Hbar)
+        /* general case; display stationary conditions */
+      end if
+
+@ It is convenient to transpose the transformation matrix
+in order to use |gtprd| and |gmprd| to transform the
+effective Fock matrix to the orthogonal basis.
+
+@< Transpose the inverse-orthogonaliser for convenience @>=
+      do i = 1, n
+         do j = 1, n
+            ij = (j-1)*n+i
+            ji = (i-1)*n + j
+            R(ij) = V(nn+ji)     /* R has V**-1 transposed */   
+         end do
+      end do
+
+@ Use the inverse-orthogonaliser to transform the single
+Fock matrix to the orthogonalised basis, diagonalise it
+and save the eigenvalues. Notice that, if inter-shell
+level shifters have been used, this is the place to
+remove them from the eigenvalues if the eigenvalues are
+to be interpreted as orbital energies. The single Hamiltonian
+is stored in |Hbar| and orthogonalized.
+
+@< Transform and diagonalise the single Fock matrix @>=
+      call gtprd(R,Hbar,HF,n,n,n) /* HF now work space */
+      call gmprd(HF,R,Hbar,n,n,n)
+      call eigen(Hbar,Work,n,0)
+
+      do i = 1, n
+        ii = (i-1)*n+i
+        eps(i) = Hbar(ii)
+      end do
+/*REMOVE THE SHIFTERS when they are passed back to the caller!!*/
+
+@ The R matrices must always be in the original 
+non-orthogonal basis because they must be compatible with the
+basis over which the
+repulsion integrals are available, so transform the 
+eigenvectors back to this basis and form the new R matrices.
+
+@< Transform back to the original basis and form the new R @>=
+      call gmprd(V,Work,U,n,n,n) /* HF now contains new U */
+      call grhfR(U,R,n,noclst,norbs,number_of_shells)
+
+@ Compare the new eigenvector matrix with the saved one 
+from the previous cycle and, if covergence has not
+been achieved, set things up for the next cycle.
+If the cycle limit is hit, quit with a message.
+
+@< Check for convergence and prepare to re-cycle @>=
+      do i = 1, n
+         do j = 1, total_occupied_orbitals
+            ij = (j-1)*n + i
+            test = dabs(U(ij) - U(nn+ij))
+            U(nn+ij) = U(ij)      /*  replace old U by new U */
+            if ( test .GT. crit ) icon = icon + 1
+         end do
+      end do
+
+      if (irite .GT. 0) write(irite, 200) icon,en,iteration
+
+      if (iteration .GT. max_iteration ) then
+         write( ERROR_OUTPUT_UNIT , 201)
+         return
+      end if
+
+
+@ We have factored out the shell occupation numbers from
+the numerical factors in the energy expression
+(``coupling coefficients''), so multiply the individual shell
+Fock matrices by these occupation numbers before using
+the coupling coefficients. This is also a convenient place to 
+finish  the energy accumulation.
+
+@< Scale the Fock matrices by occupation number @>=
+      do shell = 1, number_of_shells
+         shell_offset = (shell-1)*nn
+         do i = 1, nn
+            ioffset = shell_offset + i
+            HF(ioffset) = nu(shell) * HF(ioffset)
+            en = en + HF(ioffset) * R(ioffset)
+         end do
+      end do
+      en = half*en          /*   all energy terms added */   
+@ 
+
+@< Grhf Interface Declarations @>=
+      double precision H(*),U(*),HF(*),R(*),Work(*),Hbar(*),eps(*)
+      double precision V(*)
+      double precision nu(number_of_shells),alpha(number_of_shells)
+      double precision x(number_of_shells,number_of_shells)
+      double precision y(number_of_shells,number_of_shells)
+      double precision b(nbasis,nbasis)
+      double precision en
+      integer nbasis, nfile, irite, initial_scf
+      integer number_of_shells, norbs(nbasis),noclst(nbasis,nbasis)
+
+@ These are declarations of working space which are
+local to |grhf| and some required initialisations.
+
+@< Grhf Local Declarations @>=
+      integer lwork(WORK_MINV),mwork(WORK_MINV) /*  work space for minv */
+      integer path, iw1, iw2
+      integer iteration, max_iteration
+      integer shell_offset, ioffset, virtual_offset, shell
+      integer total_occupied_orbitals
+      double precision det
+      data zero,half,crit/0.0d00,0.5d00,CRIT_SCF/
+      data max_iteration/MAX_ITERATIONS/
+@
+
+@< Grhf Formats @>=
+ 200  format(I4,"  Elements of T Changing ",/,
+     &          "  Energy is ",E20.10,"  Iteration  ",I4)
+ 201  format(" CONVERGENCE FAILURE:  STOPPING ")
+@
+
+@*1 grhfR. Forms the grhf `R' matrices from the single MO matrix
+ |U|.
+@a
+      subroutine grhfR(U,R,n,noclst,norbs,number_of_shells)
+      implicit double precision (a-h,o-z)
+      dimension R(*), U(*)
+      integer n, number_of_shells
+      integer noclst(n,*), norbs(*)
+
+      integer shell, nshell, offset_ij, offset, offset_ji
+      data zero/0.0d0/
+
+      @< Form the virtual shell from unoccupied orbitals @>
+
+      nshell = number_of_shells + 1 /* include the virtual shell */ 
+      nn = n*n
+
+      do shell = 1, nshell
+
+         @< Form the R matrix for each shell using noclst @>
+
+      end do
+      return
+      end
+
+@ Use the information about the orbital structure of the
+shells to form the list of orbitals in the virtual shell.
+This could be done once and for all outside |grhfR| if
+the orbital shell structure is preserved throughout.
+
+@< Form the virtual shell from unoccupied orbitals @>=
+      nz = number_of_shells + 1
+
+/* First make the virtual shell all the orbitals */
+
+      do i = 1,n
+         noclst(nz,i) = i
+      end do
+
+/* Now, subtract each of the occupied orbitals in each
+shell from the full list; the remainder is the virtual shell */
+
+      do shell = 1, number_of_shells
+         ntop = norbs(shell)
+         do kd = 1, ntop
+            k = noclst(shell,kd)
+            noclst(nz,k) = 0
+         end do
+      end do
+
+/* Now reorder this random list and count the number of
+orbitals in the virtual shell */
+
+      iz = 0
+      do i = 1, n
+         kz = noclst(nz,i)
+         if ( kz .NE. 0 ) then
+            iz = iz + 1
+            noclst(nz,iz) = kz
+        end if
+      end do
+
+      norbs(nz) = iz
+
+@ The information about which orbitals belong to which shell
+is in |noclst| and so the |R| matrix for each shell is formed
+from the orbital coefficients and this information. All the
+R matrices are stored as contiguous arrays in |R|, each one
+is |nn| long; |offset| keeps track of where each one is
+to be put.
+
+@< Form the R matrix for each shell using noclst @>=
+      offset = (shell-1) * nn
+      do i=1,n
+         do j=1,i
+            ij=n*(j-1)+i ; ji = n*(i-1)+j
+            sum=zero
+            ntop = norbs(shell)
+            do kd=1,ntop
+               k = noclst(shell,kd)
+               kk= n * (k-1) 
+               ik= kk + i
+               jk= kk + j
+               sum = sum + U(ik)*U(jk)
+            end do
+            offset_ij = offset + ij
+            R(offset_ij) = sum
+            offset_ji = offset + ji
+            R(offset_ji) = sum
+         end do
+      end do
+
+@*1 grhfGR. Adds the G(R)s needed for grhf to the stack of copies
+of the one-electron Hamiltonian  by collecting together all
+the R matrices contributing to one Fock matrix and using the simple
+linear result
+\[
+\sum_i a_i \mbox{\large \boldmath{G}}( \mbox{\large \boldmath{R}}^i) = 
+   \mbox{\large \boldmath{G}} \left( \sum_i a_i \mbox{\large \boldmath{R}}^i \right)
+\]
+for any linear combination of $\mbox{\large \boldmath{G}}$ matrices.
+
+@a
+
+      subroutine grhfGR(R,G,n,nfile,nu,x,y,number_of_shells,Rwork)
+
+      @< GrhfGR Interface Declarations @>
+
+      @< GrhfGR Local Declarations @>
+
+      /* Loop over all shell G  matrices   */
+
+      do shellh = 1, number_of_shells
+
+         @< Set up the Combinations of R matrices @>
+
+         @< Obtain the repulsion integrals and form the Gs @>
+
+      end do
+
+      @< Now symmetrise all the Gs @>
+
+   return
+   end
+@ 
+
+@< GrhfGR Interface Declarations@>=
+      implicit double precision (a-h,o-z)
+      double precision G(*),R(*),nu(number_of_shells)
+      double precision x(number_of_shells,number_of_shells)
+      double precision y(number_of_shells,number_of_shells)
+      double precision  Rwork(*)
+@
+
+@< GrhfGR Local Declarations @>=
+      double precision zero
+      integer shellh,shellr,hoffset,roffset,nn,n,nfile
+      integer pointer
+      integer getint
+
+@m locg(i,j) (((j)-1)*n+(i)) /* macro for subscripting */
+
+      data zero/0.0d00/
+      nn = n*n
+@
+ 
+@<Set up the Combinations of R matrices@> =
+      hoffset = (shellh-1)*nn
+      do m = 1, nn
+         Rwork(m) = zero    /* initialise the "net" R matrix */           
+         Rwork(nn+m) = zero /*  and the one for K(R) */                 
+      end do
+      do shellr = 1, number_of_shells
+         roffset = (shellr-1)*nn
+         do m = 1, nn
+            Rwork(m) = Rwork(m) + 
+     &                 nu(shellr)*x(shellr,shellh)*R(roffset+m)
+            Rwork(nn+m) = Rwork(nn+m) + 
+     &                 nu(shellr)*y(shellr,shellh)*R(roffset+m)
+         end do
+      end do
+@ 
+
+@< Obtain the repulsion integrals and form the Gs @>=
+      rewind nfile; pointer = 0 /*  initialise the file*/         
+      do while ( getint(nfile,i,j,k,l,mu,val,pointer) .NE. END_OF_FILE )
+         call JofR (Rwork,G(hoffset+1),n,i,j,k,l,val)
+         call KofR (Rwork(nn+1),G(hoffset+1),n,i,j,k,l,val)
+      end do
+@ 
+
+@< Now symmetrise all the Gs @>=
+      do shellh = 1, number_of_shells                
+         hoffset = (shellh-1)*nn
+         do mi = 1, n
+            do mj = 1, mi
+               ij = locg (mi,mj); ji = locg (mj,mi)
+               if ( mi .EQ. mj ) cycle
+               G(hoffset+ji) = G(hoffset+ij)
+            end do
+         end do
+      end do
+@
+
+@*2 JofR. J(R) primitive; familiar from the Closed-Shell
+and UHF case.
+
+@a 
+      subroutine JofR(R,G,n,i,j,k,l,val)
+      implicit double precision (a-h,o-z)
+      dimension R(*), G(*)
+      integer i, j, k, l
+      double precision val
+/*  assumes that the matrix is already multiplied by the various
+   "coupling coefficients" */
+
+@m locj(i,j) (((j)-1)*n+(i)) /* macro for subscripting */
+
+      ij = locj(i,j) 
+      kl = locj(k,l)
+      t1 = R(ij) * val
+      t2 = R(kl) * val
+      if ( i .NE. j  ) t1 = t1 + t1
+      G(kl) = G(kl) + t1
+      if ( ij .NE. kl ) then
+         if ( k .NE. l ) t2 = t2 + t2
+         G(ij) = G(ij) + t2
+      end if
+
       return
       end
 @
+
+@*2 KofR. K(R) primitive. Forms the familar exchange contribution.
+
+@a
+      subroutine KofR(R,G,n,i,j,k,l,val)
+      implicit double precision (a-h,o-z)
+      dimension R(*), G(*)
+      integer i, j, k, l
+      double precision val
+/*  assumes that the matrix R is already multiplied by the
+  various "coupling coefficients" */
+
+@m lock(i,j) (((j)-1)*n+(i)) /* macro for subscripting */
+
+      ij = lock(i,j); kl = lock(k,l)
+      il = lock(i,l); ik = lock(i,k)
+      jk = lock(j,k); jl = lock(j,l)
+      if ( j .LT. k ) jk = lock(k,j)
+      if ( j .LT. l ) jl = lock(l,j)
+                                                                      
+      exch = val
+      if ( k.NE.l ) then
+         G(ik) = G(ik) - R(jl)*exch
+         if ( ( i.NE.j ).AND.( j.GE.k ) ) G(jk) = G(jk) - R(il)*exch
+      end if
+      G(il) = G(il) - R(jk)*exch                                     
+      if ( ( i.NE.j ).AND.( j.GE.l ) ) G(jl) = G(jl) - R(ik)*exch     
+      if ( ij != kl ) then                                            
+         if ( j.LE.k) then                                             
+            G(jk) = G(jk) - R(il)*exch                                  
+            if (( i.NE.j ).AND.( i.LE.k )) G(ik) = G(ik) - R(jl)*exch   
+            if (( k.NE.l ).AND.( j.LE.l )) G(jl) = G(jl) - R(ik)*exch   
+         end if                                                        
+      end if                                                          
+   return
+   end
+@
+
+@*1 Hone. Given a ``stack'' of individual shell Fock matrices in
+|H| and a stack of shell R matrices in |R|, forms the single effective
+Hamiltonian for the combined set of shells: the general McWeenyan.
+
+@a
+
+      subroutine Hone(H,R,n,alpha,b,nu,number_of_shells,
+     &                Work1,Work2,Hbar)
+
+      @< Hone Interface Declarations @>
+
+      @< Hone Local Declarations @>
+      
+      @< Hone initialisations @> 
+      
+      @< Add the off-diagonal projections @> 
+      
+      @< Now the diagonal terms including level shifters @> 
+      
+      return
+      end
+@ 
+ 
+@< Hone Interface Declarations @>=
+      implicit double precision (a-h,o-z)
+      double precision H(*),R(*),Work1(*),Work2(*),Hbar(*)
+      double precision alpha(number_of_shells)    /*  shifters; */
+      double precision    nu(number_of_shells)    /*  occupations */
+      double precision b(n,n)                     /*  dampers */
+      integer n, number_of_shells
+@ 
+
+@< Hone Local Declarations @>=
+      double precision damp_factor,shifter,half
+      double precision correct  /* used to divide by nu(shell1) */
+      integer shell1,shell2,nshell,number_of_shells
+      integer shell1_offset,shell2_offset
+      data one, zero, half/1.0d00, 0.0d00, 0.5d00/
+@ 
+
+@< Hone initialisations@>=
+      nshell = number_of_shells + 1  /*  allow for virtual shell */
+      nn = n*n
+      do i = 1, nn
+         Hbar(i) = zero /*  initialise Hbar since addprd cannot!*/
+      end do
+@ 
+
+@< Add the off-diagonal projections @>=
+      do shell1 = 1, nshell
+         shell1_offset = (shell1-1)*nn
+         do shell2 = 1, nshell
+            if ( shell1 .EQ. shell2 ) cycle
+            damp_factor = b(shell1,shell2)
+            shell2_offset = ( shell2 - 1)*nn
+            do i = 1, nn
+               Work1(i) = (H(shell2_offset + i) - H(shell1_offset +i))
+     &                     * damp_factor
+            end do
+            call gmprd(R(shell1_offset+1),Work1,Work2,n,n,n)
+            call addprd(Work2,R(shell2_offset+1),Hbar,n,n,n)
+         end do
+      end do
+@ 
+
+@< Now the diagonal terms including level shifters @>=
+      do shell1 = 1, number_of_shells
+         shell1_offset = (shell1-1)*nn
+         shifter = alpha(shell1)
+         /* correct = one/nu(shell1) */
+         correct = 1.0d00
+         do i = 1, nn
+            Work1(i) = correct * H(shell1_offset+i)
+         end do
+         do i = 1, n
+            ii = (i-1)*n + i   /*  add a diagonal level-shifter */
+            Work1(ii) = Work1(ii) + shifter
+         end do
+         call gmprd(R(shell1_offset+1),Work1,Work2,n,n,n)
+         call addprd(Work2,R(shell1_offset+1),Hbar,n,n,n)
+      end do
+      do i = 1, nn
+         Hbar(i) = half*Hbar(i) /*  get the eigenvalues right */
+      end do
+
+@*1 Hhalf. Special form for half-closed case of the effective
+many-shell Hamiltonian.
+Given a ``stack'' of individual shell Fock matrices in
+|H| and a stack of shell R matrices in |R|, forms the single effective
+Hamiltonian for the combined set of shells: the original McWeenyan.
+
+@a
+      subroutine Hhalf(HF,R,n,Work1,Work2,Hbar)
+
+      @< Hhalf Interface Declarations @> 
+
+      @< Hhalf Local Declarations @> 
+      
+      @< Hhalf initialisation @> 
+      
+      @< Form (R1+R2)(2H1-H2)(R1+R2) @> 
+      
+      @< Add in (R1+RZ)(H1)(R1+RZ) + (R2+RZ)(H2)(R2+RZ) @> 
+
+      return
+      end
+@ 
+
+@< Hhalf Interface Declarations @>=
+      double precision HF(*),R(*),Work1(*),Work2(*),Hbar(*)
+      integer n
+@ 
+
+@< Hhalf Local Declarations @>=
+      double precision half,zero
+      integer shell,offset,offset2,zoffset
+      data half,zero/0.5d00,0.0d00/
+@ 
+
+@< Hhalf initialisation @>=
+      nn = n*n; offset2 = nn; zoffset = nn+nn
+      do i = 1, nn
+         Hbar(i) = zero  /* initialise Hbar */
+      end do
+@ 
+
+@< Form (R1+R2)(2H1-H2)(R1+R2) @>=
+      do i = 1, nn
+         Work1(i) = R(i) + R(offset2 +i)  /* R1 + R2 */
+      end do
+      call gmprd(Work1,HF,Work2,n,n,n)
+      call addprd(Work2,Work1,Hbar,n,n,n) /* (R1+R2)(2H1)(R1+R2) */
+      call gmprd(Work1,HF(offset2+1),Work2,n,n,n)
+      do i = 1, nn
+         Work1(i) = -Work1(i)  /* to get -H2 */
+      end do
+      call addprd(Work2,Work1,Hbar,n,n,n)
+
+/*     (R1+R2)(-H2)(R1+R2) */                                                                      
+/*     so far Hbar = (R1+R2)(2H1-H2)(R1+R2) */
+
+      do i = 1, nn
+         HF(i) = half*HF(i) /*  correct for occupation number of 2 */
+      end do
+@ 
+
+@< Add in (R1+RZ)(H1)(R1+RZ) + (R2+RZ)(H2)(R2+RZ) @>=
+      do shell = 1,2                                 
+         offset = (shell-1)*nn
+         do i = 1, nn
+            Work1(i) = R(offset+i) + R(zoffset+i)
+         end do
+         call gmprd(Work1,HF(offset+1),Work2,n,n,n)
+         call addprd(Work2,Work1,Hbar,n,n,n)
+      end do
+
+/*    Hbar = as before + (R1+RZ)(H1)(R1+RZ) + (R2+RZ)(H2)(R2+RZ) */
+
+      do i = 1, nn
+         Hbar(i) = half*Hbar(i)  /* get eigenvalues right */
+      end do
+@
+
 
 @* INTEGRALS.
 
@@ -1841,6 +2599,34 @@ C
 
 @
 
+@*1 addprd. Matrix multiplier which {\bf adds} |A| $\times$ |B| into existing |R| 
+i.e. there is no initialisation of |R|, 
+otherwise this routine is identical to |gmprd|
+
+@a
+      subroutine addprd (A, B, R, n, m, l)
+      implicit double precision (a-h,o-z)
+      dimension A(*), B(*), R(*)
+      integer n, m, l
+      
+      ir=0
+      ik=-m
+      do k = 1, l
+         ik=ik+m
+         do j = 1, n
+            ir = ir + 1
+            ji = j - n
+            ib=ik
+            do i = 1, m
+               ji=ji+n; ib=ib+1
+               R(ir)=R(ir)+A(ji)*B(ib)
+            end do
+         end do
+      end do
+      return
+      end
+@
+
 @*1 eigen.
 
 @a
@@ -1919,6 +2705,113 @@ C
       return
       end
 @
+
+@*1 minv. Gauss-Jordan matrix inversion routine.
+
+@a
+      subroutine minv(A,n,d,l,m)                                            
+      implicit double precision (a-h,o-z)
+      double precision A(*), d
+      integer n, l(*), m(*)
+                                                                            
+      double precision hold, bigA, one, zero
+      integer  i,j,k,ij,nk,kk,ji,iz,jp,ik,ki,kj,jq,jr
+      data one/1.0d00/, zero/0.0d00/
+                                                                            
+      d  =  one
+      nk = -n
+      do k = 1, n /* main loop */
+         nk = nk + n; l(k) = k; m(k) = k; kk = nk + k
+         bigA = A(kk)
+         do j = k, n
+            iz = n*(j-1)
+            do i = k, n
+               ij = iz + i
+               if ( dabs(bigA)-dabs(A(ij)) .GE. zero ) cycle
+               bigA = A(ij); l(k) = i; m(k) = j
+            end do
+         end do
+/*    nw interchange rows */
+         j = l(k)
+         if ( j .GT. k ) then
+            ki = k-n
+            do i = 1, n
+               ki = ki + n
+               hold = -A(ki)
+               ji = ki - k + j
+               A(ki) = A(ji)
+               A(ji) = hold
+            end do
+         end if
+/*     interchange columns */
+         i = m(k)
+         if ( i .GT. k ) then
+            jp = n*(i - 1)
+            do j = 1, n
+               jk = nk + j; ji = jp + j
+               hold = -A(jk); A(jk) = A(ji); A(ji) = hold
+            end do
+         end if
+/*    test for singularity - zero determinant which is product of pivots */
+         if ( bigA .EQ. zero ) then
+              d = zero   /* zero pivot */
+              return  
+         end if
+/*d   ivide the column by (minus) pivot */
+         do i = 1, n
+            if ( i .EQ. k ) cycle
+            ik = nk + i; A(ik) = A(ik)/(-bigA)
+         end do
+/*    reduce the matrix */
+         do i = 1, n
+            ik = nk + i
+            hold = A(ik); ij = i - n
+            do j = 1, n
+               ij = ij + n
+               if ( i .EQ. k ) cycle
+               if ( j .EQ. k ) cycle
+               kj = ij - i + k
+               A(ij) = hold*A(kj) + A(ij)
+            end do
+         end do
+/*    divide row by pivot */
+         kj = k - n
+         do j = 1, n
+            kj = kj + n
+            if (i.EQ.k) cycle
+            A(kj) = A(kj)/bigA
+         end do
+         d = d*bigA  /*    accumulate the determinant as product
+                                  of pivots */
+         A(kk) = one/bigA
+      end do
+/*f   inal row and column interchange */
+      do k = n-1, 1, -1
+         i = l(k)
+         if ( i .GT. k ) then
+            jq = n*(k - 1)
+            jr = n*(i - 1)
+            do j = 1, n
+              jk = jq + j
+              hold = A(jk); ji = jr + j
+              A(jk) = -A(ji); A(ji) = hold
+            end do
+         end if
+         j = m(k)
+         if ( j .LE. k ) cycle
+         ki = k - n
+         do i = 1, n
+            ki = ki + n
+            hold = A(ki)
+            ji = ki - k + j
+            A(ki) = - A(ji); A(ji) = hold
+         end do
+      end do
+                                                                            
+      return
+      end
+@
+
 @*1 pack. Store the six electron repulsion labels.
 
 @a
