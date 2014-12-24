@@ -4,7 +4,7 @@
  the input basis file 'inp' in the current directory.
 
  Usage:
-  [xyz] [basis name] [number of electrons]
+  [xyz] [basis name]
 
 """
 from sys import argv, exit
@@ -19,7 +19,7 @@ a.open(argv[1],basis=argv[2],mol=True)
 mol = a.get_mol()
 bfs = mol.get_bfs()
 a.close()
-nelec = int(argv[3])
+nelec = mol.get_atno().sum()
 
 # types of GTOs
 ntypes = {'[0 0 0]':1 ,
