@@ -77,9 +77,10 @@ about the molecule.
       double precision S(MATRIX_SIZE),H(MATRIX_SIZE),HF(MATRIX_SIZE)
       double precision R(MATRIX_SIZE),Rold(MATRIX_SIZE)
       double precision C(MATRIX_SIZE),Cbar(MATRIX_SIZE),V(MATRIX_SIZE)
-      double precision crit, damp, E
+      double precision crit, damp, E, Enuc
       double precision epsilon(MAX_BASIS_FUNCTIONS)
       integer scf, grhf
+      double precision calnrp
       integer i, task, read_eri
 
       @< nr list @>
@@ -88,6 +89,8 @@ about the molecule.
       irite = 12
 
       @< Read Structure Input @>
+
+      @< Calculate Nuclear Repulsion Energy @>
 
       @< Generate Molecular Integrals @>
 
@@ -112,6 +115,8 @@ about the molecule.
          @< Perform MCSCF @>
 
       end if
+
+      @< Program Formats @>
 
       STOP
       END
@@ -141,6 +146,11 @@ about the molecule.
       read(INPUT_UNIT,*) (nlast (i), i=1, nbfns)
 @       
 
+@< Calculate Nuclear Repulsion Energy @>=
+      Enuc = CalNRP(vlist, ncmx)
+      write(ERROR_OUTPUT_UNIT,206) Enuc
+ 206  format(" NUCLEAR REPULSION ENERGY= ", f12.6)
+@
 @< Generate Molecular Integrals @>=
       write(*,*) " CALCULATION OF MOLECULAR INTEGRALS"
       call genint(ngmx,nbfns,eta,ntype,ncntr,nfirst,nlast,
@@ -153,6 +163,7 @@ about the molecule.
       if (scf(H,S,nbfns,nelec,nfile,irite,damp,interp,E,HF,V,R,Rold,
      &         Cbar,epsilon,crit).EQ.OK) then
           write(*,*) " SCF DONE."
+          write(ERROR_OUTPUT_UNIT,200) E+Enuc
       else
           write(*,*) " SCF FAILED. "
       end if
@@ -172,6 +183,9 @@ about the molecule.
 @< Perform MCSCF @>=
       write(*,*) "NOT IMPLEMENTED YET"
       STOP
+@
+@< Program Formats @>=
+  200 format(" FINAL TOTAL ENERGY= ",f16.8)
 @
 
 @* RHF and UHF. 
@@ -3156,6 +3170,32 @@ None
       write(ERROR_OUTPUT_UNIT,33) (eps(i),i=nocc+1,n)
  33   format ((7f13.6)) 
       return
+      end
+@
+
+@*1 CalNRP. Calculates the nuclear repulsion energy.
+
+@a
+      double precision function CalNRP(vlist, ncmx)
+      double precision vlist(MAX_CENTRES,4)
+      integer ncmx
+
+      double precision rij, zero, one, dx, dy, dz
+      integer i, j
+      data zero, one /0.0D+00, 1.0D+00/
+
+      CalNRP = zero
+      do i=1, ncmx
+         do j=1, i-1
+            dx = vlist(i,1)-vlist(j,1)
+            dy = vlist(i,2)-vlist(j,2)
+            dz = vlist(i,3)-vlist(j,3)
+            rij= dsqrt(dx*dx+dy*dy+dz*dz)
+            CalNRP = CalNRP + vlist(i,4) * vlist(j,4) / rij
+         end do
+      end do
+
+      return 
       end
 @
 
