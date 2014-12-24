@@ -53,9 +53,9 @@ about the molecule.
 
 @m MATRIX_SIZE                262144
 
-@m ERROR_OUTPUT_UNIT          61
+@m ERROR_OUTPUT_UNIT          6
 @m ERI_UNIT                   17
-@m INPUT_UNIT                 16
+@m INPUT_UNIT                 5
 
 @m FOCK_GENERAL               1234
 @m FOCK_HALF_CLOSED           2345
@@ -126,7 +126,6 @@ about the molecule.
 @
 
 @< Read Structure Input @>=
-      open(unit=INPUT_UNIT,file="inp",access="SEQUENTIAL")
       read(INPUT_UNIT,*) task                /* The task integer identifier */
       read(INPUT_UNIT,*) crit, damp, interp  /* SCF parmeters */
       read(INPUT_UNIT,*) read_eri            /* Flag of reading eri */
@@ -338,8 +337,6 @@ Happy!
 
       if (scftype.EQ.UHF_CALCULATION) E = half*E
                                                         
-      write(ERROR_OUTPUT_UNIT, 200) E
-                                                        
       call gtprd(C, HF, R, m, m, m)
       call gmprd(R, C, HF, m, m, m)
       call eigen(HF, Cbar, m)
@@ -358,6 +355,7 @@ Happy!
          Rsum = Rsum + term
          if (kount.LT.interp) R(i) = R(i) - damp*turm
       enddo
+      write(ERROR_OUTPUT_UNIT, 200) E, Rsum
 @
 
 @< Write the output result @>=
@@ -368,12 +366,12 @@ Happy!
           SCF = ERR
       else
          write(ERROR_OUTPUT_UNIT, 202) kount
-         write(ERROR_OUTPUT_UNIT, 203) (epsilon(i), i=1, nocc)
+         call porbe(epsilon, m, nocc)
       endif
 @
 
 @< Formats @>=
- 200  format(" Current Electronic Energy = ", f12.6)
+ 200  format(" Current Electronic Energy = ", f16.8, " Change = ",f16.8)
  201  format(" Convergence in R = ", f12.5,i6, "  Changing")
  202  format(" SCF converged in", i4, " iterations")
  203  format(" Orbital Energies ", (7f10.5))
@@ -3029,6 +3027,134 @@ C
          end do
       end do
 
+      return
+      end
+@
+@*1 Printing tools. 
+
+These subroutines print the various objects (vectors,
+matrices and tensors) in a special way.
+
+@*2 pvec. Print the entire vector as it stands.
+
+\begin{minipage}{4.5in}
+  \ \\
+\begin{description}
+\item[NAME] pvec \\
+  Print entire vector as it stands. Maximum number of text columns in one line is 8.
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+      subroutine pvec(vec, n)
+      double precision vec(*)
+      integer n
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+ None.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[vec]  Input: Vector to be printed
+\item[n]    Input: Length of the vector
+\end{description}
+\item[DIAGNOSTICS] \ \\
+None
+\end{description}
+\ \\
+\end{minipage}
+
+@a
+      subroutine pvec(vec,n)
+      /* n - length of the vector */
+      double precision vec(*)
+      integer n
+
+      write(ERROR_OUTPUT_UNIT,33) (vec(i),i=1,n)
+ 33   format ((8f13.6)) 
+      return
+      end
+@ 
+
+@*2 pmat. Print the entire matrix as it stands.
+
+\begin{minipage}{4.5in}
+  \ \\
+\begin{description}
+\item[NAME] pmat \\
+  Print entire matrix as it stands. Maximum number of text columns in one line is 8.
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+      subroutine pmat(mat, n, m)
+      double precision mat(*)
+      integer n, m
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+ None.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[mat]  Input: Matrix to be printed
+\item[n]    Input: Number of collumns in the matrix
+\item[m]    Input: Number of rows in the matrix
+\end{description}
+\item[DIAGNOSTICS] \ \\
+None
+\end{description}
+\ \\
+\end{minipage}
+
+@a
+      subroutine pmat(mat,n,m)
+      /* m - number of rows */
+      /* n - number of columns */
+      double precision mat(*)
+      integer n, m
+      integer i, j
+
+      do i = 1, m
+         write(ERROR_OUTPUT_UNIT,33) (mat(n*(j-1) + i),j=1,n)
+      end do
+33    format((8f13.6))
+      return
+      end
+@
+
+@*2 porbe. Prints the orbital energies.
+
+\begin{minipage}{4.5in}
+  \ \\
+\begin{description}
+\item[NAME] porbe \\
+  Print orbital energies on the screen.
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+      subroutine pvec(eps, n, nocc)
+      double precision eps(*)
+      integer n, nocc
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+ The output is devided into occupied orbitals and virtual orbitals.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[eps]  Input: Orbital energies
+\item[n]    Input: Basis size (total number of orbitals)
+\item[nocc] Input: Number of occupied orbitals
+\end{description}
+\item[DIAGNOSTICS] \ \\
+None
+\end{description}
+\ \\
+\end{minipage}
+
+@a
+      subroutine porbe(eps,n,nocc)
+      double precision eps(*)
+      integer n, nocc
+
+      write(ERROR_OUTPUT_UNIT,*) " --- ORBITAL ENERGIES ---"
+      write(ERROR_OUTPUT_UNIT,*)
+      write(ERROR_OUTPUT_UNIT,*) " OCCUPIED:"
+      write(ERROR_OUTPUT_UNIT,33) (eps(i),i=1,nocc)
+      write(ERROR_OUTPUT_UNIT,*) " VIRTUAL:"
+      write(ERROR_OUTPUT_UNIT,33) (eps(i),i=nocc+1,n)
+ 33   format ((7f13.6)) 
       return
       end
 @
