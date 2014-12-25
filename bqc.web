@@ -196,6 +196,7 @@ about the molecule.
 @< Transform Molecular Integrals @>=
       ntt = nbfns * (nbfns + 1) / 2
       write(ERROR_OUTPUT_UNIT,*) " TRANSFORMATION OF INTEGRALS TO MO BASIS"
+      call mkCvec(S,CT,nbfns)
       call tran2e(ERI_UNIT_AO,ERI_UNIT_MO,nbfns,ntt,CT,C,RS,VT)
 @
 
@@ -3506,6 +3507,29 @@ None
       end do
 
       return 
+      end
+@
+
+@*1 mkCvec. Generate the wavefunction coefficient matrix ${\bf C}$
+of size |nbasis| $\times$ |nbasis| from the matrix 1-D array stored
+in the memory.
+
+@a
+      subroutine mkCvec(C,CT,nbasis)
+      double precision C(*)
+      double precision CT(MAX_BASIS_FUNCTIONS,*)
+      integer nbfns
+
+      integer i, j, ij
+
+      do i = 1, nbasis
+         do j = 1, nbasis
+            ij = nbasis*(j-1) + i
+            CT(i,j) = C(ij)
+         end do
+      end do
+
+      return
       end
 @
 
