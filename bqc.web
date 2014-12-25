@@ -183,11 +183,11 @@ about the molecule.
       end if
 @
 @< Perform DCI @>=
-      write(*,*) "NOT IMPLEMENTED YET"
+      write(*,*) " DCI NOT IMPLEMENTED YET. QUITTING ..."
       STOP
 @
 @< Perform MCSCF @>=
-      write(*,*) "NOT IMPLEMENTED YET"
+      write(*,*) " MCSCF NOT IMPLEMENTED YET. QUITTING ..."
       STOP
 @
 @< Program Formats @>=
