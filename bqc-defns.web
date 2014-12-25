@@ -1,0 +1,47 @@
+@m YES                      1
+@m NO                       0
+
+@m ERR                     -10
+@m OK                       10
+
+@m END_OF_FILE             -1
+@m NOT_END_OF_FILE          55
+
+@m LAST_BLOCK               12
+@m NOT_LAST_BLOCK          -12
+
+@m ARB                      1  
+
+@m BYTES_PER_INTEGER        4
+@m LEAST_BYTE               1
+
+@m NO_OF_TYPES              20
+@m INT_BLOCK_SIZE           1000
+
+@m WORK_MINV                100
+
+@m MAX_BASIS_FUNCTIONS      256
+@m MAX_PRIMITIVES           1000
+@m MAX_CENTRES              50
+
+@m MAX_ITERATIONS             400
+@m CRIT_ERI                 1.00D-10
+@m CRIT_FMCH                1.00D-09
+@m CRIT_SCF                 1.00D-06
+
+@m UHF_CALCULATION            11
+@m CLOSED_SHELL_CALCULATION   21
+@m PURE_SCF                  90
+@m ROHF                      91
+@m DCI                       92
+@m MCSCF                     93
+
+@m MATRIX_SIZE                262144
+
+@m ERROR_OUTPUT_UNIT          6
+@m ERI_UNIT_AO                17
+@m ERI_UNIT_MO                18
+@m INPUT_UNIT                 5
+
+@m FOCK_GENERAL               1234
+@m FOCK_HALF_CLOSED           2345
