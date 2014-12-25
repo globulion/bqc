@@ -1,3 +1,3 @@
 #!/bin/bash
 #gfortran -o bqc -cpp -ffixed-line-length-none main.f 
-./do bqc && gfortran -o bqc -Wall -g bqc.f 
+./do bqc && gfortran -o bqc -Wall -ffixed-line-length-none -g bqc.f 
