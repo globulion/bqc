@@ -76,10 +76,13 @@ crit = 1.00E-07
 damp = 0.33
 interp = 30
 read_eri = 0 # NO. For YES set 1
+charge = 0
+multiplicity = 1
 # save basis set input file
 log = '%19d\n' % task
 log+= '%19.4E %19.4E %19d\n' % (crit, damp, interp)
 log+= '%19d\n' % read_eri
+log+= '%19d %19d\n' % (charge, multiplicity)
 log+= '%19d\n' % nelec
 log+= '%19d %19d %19d\n' % (ncmx, nbfns, ngmx)
 for i in range(ncmx):
