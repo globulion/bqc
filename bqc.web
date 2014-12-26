@@ -862,7 +862,7 @@ If the cycle limit is hit, quit with a message.
       do i = 1, n
          do j = 1, total_occupied_orbitals
             ij = (j-1)*n + i
-            test = dabs(U(ij) - U(nn+ij))
+            test = dabs(U(ij)-U(nn+ij))
             U(nn+ij) = U(ij)      /*  replace old U by new U */
             if ( test .GT. crit ) icon = icon + 1
          end do
