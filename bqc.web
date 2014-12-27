@@ -164,6 +164,7 @@ about the molecule.
       if (grhf(H,S,nbfns,2,norbs,noclst,ERI_UNIT_AO,nu,xc,yc,alpha,b,E,
      &        HF,R,epsilon,Cbar,V,C,initial_scf,irite).EQ.OK) then
           write(*,*) " SCF DONE."
+          call porbe(epsilon, nbfns, norbs(1)+norbs(2))
           write(ERROR_OUTPUT_UNIT,200) E+Enuc
       else
           write(*,*) " SCF FAILED. "
@@ -314,14 +315,14 @@ Happy!
           scftype = CLOSED_SHELL_CALCULATION
           nocc    = nelec/2
           m       = nbasis
-          WRITE(*,*) "RHF CALCULATION CHOSEN"
+          WRITE(*,*) " * RHF CALCULATION CHOSEN"
       else                /* open shell case */
           scftype = UHF_CALCULATION
           nocc    = abs(nelec)
           m       = nbasis * 2
           call spinor(H, nbasis)
           call spinor(C, nbasis)
-          WRITE(*,*) "UHF CALCULATION CHOSEN"
+          WRITE(*,*) " * UHF CALCULATION CHOSEN"
       end if
 @
 
