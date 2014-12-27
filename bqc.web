@@ -1339,7 +1339,37 @@ Hamiltonian for the combined set of shells: the original McWeenyan.
       end do
 @
 
+@* CI. Here we describe the Configuration Interaction
+method and its implementation in {\sc BQC}. The idea is very simple: 
+we have to construct the series of Slater determinants:
+%
+\newcommand{\eri}[4]{\left( {#1}{#2} \vert {#3}{#4} \right)}
+\begin{equation}
+\vert \Phi \rangle = \vert \Phi_0 \rangle + \sum_{ar} C_a^r \vert \Phi_a^r \rangle
+ + \sum_{abrs} C_{ab}^{rs} \vert \Phi_{ab}^{rs} \rangle + \ldots
+\end{equation}
+%
+Then, we evaluate the matrix $\langle \Phi \vert \mathcal{H} \vert \Phi \rangle$
+and diagonalize it to obtain the CI coefficients and eigenenergies.
 
+In {\sc BQC} package SCI and DCI are implemented as for now. 
+
+@*1 Implementation of CI Hamiltonian.
+
+For the evaluation of SCI matrix elements we need the following
+%
+\begin{eqnarray}
+\langle \Phi_0 \vert \mathcal{H} \vert \Phi_a^r \rangle &=& 0 \\
+\langle \Phi_a^r \vert \mathcal{H} - E_0\vert \Phi_b^s \rangle &=& 
+    \left( \varepsilon_r - \varepsilon_a \right) \delta_{rs} \delta_{ab} - \eri{r}{s}{b}{a} + 2\eri{r}{a}{b}{s}
+\end{eqnarray}
+%
+whereas for DCI matrix elements we must compute
+%
+\begin{eqnarray}
+\langle \Phi_0 \vert \mathcal{H} - E_0\vert {}^1\Phi_{ab}^{rs} \rangle &=& ?
+\end{eqnarray}
+%
 @* INTEGRALS.
 
 @
