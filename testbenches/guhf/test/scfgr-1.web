@@ -1,0 +1,171 @@
+@z
+ LCAOMO scfGR
+
+   March 1995
+
+ D B Cook
+
+@x
+
+@r
+
+@* scfGR.  
+One routine to form G(R) for closed shells and UHF
+
+@m OK 0
+@m YES 38
+@m END_OF_FILE 1
+@m CLOSED_SHELL_CALCULATION 145
+@m UHF_CALCULATION 2345
+
+@a
+    subroutine scfGR(R,G,n,nfile,ntype);
+
+/*     This routine adds (repeat adds) G(R) into the array |G| */
+
+    implicit double precision(a-h,o-z);
+    double precision R(*), G(*);
+    integer n, nfile, ntype;
+
+   {
+
+   integer pointer, spin, skip;
+   integer getint;    /* integral reading function */
+   data zero,one,two/0.0d0,1.0d0,2.0d0/;
+
+   rewind nfile; pointer = 0;  /* Initialize the repulsion integral file */
+
+@<Set up |J| and |K| multipliers@>
+
+/* Process the file  */
+
+   while ( getint(nfile,is,js,ks,ls,mu,va,pointer) != END_OF_FILE )
+
+      {
+
+      ijs = is*(is-1)/2+js;  kls=ks*(ks-1)/2+ls;
+
+@<Run over four spin Combinations@>
+
+      } 
+
+@<Symmetrise the G matrix@>
+
+       return;
+
+   }
+
+@ Depending on the two possible cases (closed-shell or
+UHF) there are two different formulae for the 
+electron-interaction matrix G(R) and there are two corresponding
+basis sizes; spatial orbitals for closed-shell and spin-orbitals
+for UHF. This code fragment uses |ntype| to make the
+appropriate chioces.
+
+@<Set up |J| and |K| multipliers@> =
+   if ( ntype == CLOSED_SHELL_CALCULATION )
+
+     {
+
+      n2 = n;   /* basis size is spatial basis size */
+      em = two;
+      en = one;   /* G(R) = 2J(R) - K(R) */
+
+     }
+
+   if ( ntype == UHF_CALCULATION )
+
+     {
+      n2 = 2 * n;      /* basis is spin-orbitals, twice spatial basis */
+      em = one;
+      en = one;   /* G(R) = J(R) - K(R) */
+
+     }
+@ The electron-repulsion integrals are over the spatial
+basis functions. If the calculation is of UHF type then
+each spatial repulsion integral must due duty for as many
+as four repulsion integrals over the spin-orbitals. This
+loop over the four cases is omitted if the 
+calculation is closed-shell. Notice that the whole
+algorithm depends on the spin-orbitals being
+in the order: $n$ $\alpha$-spin-orbitals them $n$
+$\beta$-spin-orbitals.
+
+The repulsion integrals are assumed to be labelled in
+standard order {\em but} this order may be disturbed
+by adding $n$ to pairs of the four labels. In practice,
+the order is only disturbed in case 4: but calling
+|subroutine order| in all cases would do no harm.
+
+@<Run over four spin Combinations@> =
+      do spin = 1, 4;
+
+        {  
+
+/* jump out of the loop if closed shell */
+
+        if((spin > 1 ) && ( ntype == CLOSED_SHELL_CALCULATION))   break;
+        skip = NO;   /* skip is a code used to avoid counting some 
+               contributions twice: see case 4: */
+
+        switch ( spin )
+
+          {
+
+           case 1: /* alpha - alpha */
+                   { i=is;@+ j=js;@+ k=ks;@+ l=ls;  break;}
+
+           case 2: /* beta - beta */
+                   {i=is+n;@+ j=js+n;@+ k=ks+n;@+ l=ls+n;  break;}
+                    
+           case 3: /* beta - alpha */
+                   {i=is+n;@+ j=js+n;@+ k=ks;@+ l=ls;   break;}
+                     
+           case 4: /* alpha - beta; adding |n| to |k| and |l|
+  upsets the standard order of |i,j,k,l| so they must be
+re-ordered */
+                    { if (ijs == kls )  skip= YES;
+                     i=is;@+ j=js;@+ k=ks+n;@+ l=ls+n;
+                     call order(i,j,k,l);   break;}
+                    
+
+           } /*end of "switch" */
+
+       if ( skip == YES ) next; /* This is a duplicate, skip it */
+
+         emm = em; enn = en;
+
+/* drop alpha-beta exchange in cases 3 and 4; 
+it is zero by spin integration */
+
+         if ( spin >= 3 ) enn = zero;  
+
+/* Now use the current (spin-)orbital integral to increment
+   G(R) */
+
+          call GofR(R,G,n2,emm,enn,i,j,k,l,va);
+
+      }  /* end of "spin" loop */
+
+@ Only the top triangle of the G matrix has been formed 
+explicitly, fill up the other half.
+
+@<Symmetrise the G matrix@> =
+   do i = 1,n2;
+
+      {
+
+      do j = 1,i;
+
+         { 
+         
+          ij = n2*(j-1) + i;  ji = n2*(i-1)+j;
+          if ( i == j ) next; /* omit the diagonals */
+          G(ji) = G(ij);
+
+         }
+      }
+
+
+
+@* INDEX.

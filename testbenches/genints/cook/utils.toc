@@ -1,0 +1,5 @@
+\contentsline {subsection}{}{1}
+\contentsline {subsection}{}{2}
+\contentsline {section}{\numberline {1}putint}{3}
+\contentsline {section}{\numberline {2}getint}{4}
+\contentsline {section}{\numberline {3}INDEX}{5}

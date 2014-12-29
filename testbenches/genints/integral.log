@@ -1,0 +1,179 @@
+This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=latex 2014.7.9)  7 DEC 2014 14:22
+entering extended mode
+ %&-line parsing enabled.
+**integral.tex
+(./integral.tex
+LaTeX2e <2009/09/24>
+Babel <v3.8l> and hyphenation patterns for english, usenglishmax, dumylang, noh
+yphenation, loaded.
+(/usr/share/texmf/tex/latex/litprog/fwebmac.sty
+\W@count=\count79
+\W@counta=\count80
+\W@tk=\toks14
+\pardimen=\skip41
+\TeXindent=\dimen102
+LaTeX Info: Redefining \# on input line 346.
+LaTeX Info: Redefining \$ on input line 347.
+LaTeX Info: Redefining \% on input line 348.
+LaTeX Info: Redefining \^ on input line 349.
+\rulebox=\box26
+\ruleno=\count81
+\notch=\dimen103
+\W@globalindent=\count82
+\W@ind=\count83
+\W@lastind=\count84
+\b@k=\box27
+\b@kk=\box28
+\W@nBK=\count85
+\Wuparindent=\skip42
+\W@ssmax=\count86
+\W@lsmax=\count87
+\secpenalty=\count88
+\c@subsubsubsection=\count89
+\W@ss=\count90
+\W@lastsect=\count91
+\b@dlevelhelp=\toks15
+LaTeX Info: Redefining \= on input line 1239.
+\dotbox=\box29
+\W@ARRAYarga=\toks16
+\W@ARRAYargb=\toks17
+\contentspageno=\count92
+\pagewidth=\dimen104
+\pageheight=\dimen105
+\fullpageheight=\dimen106
+\pageshift=\dimen107
+\Woutput=\toks18
+\minutes=\count93
+\hours=\count94
+\W@cont=\write3
+\W@ref=\count95
+\W@lpha=\count96
+\W@pmcount=\count97
+\Sbox=\box30
+\Lbox=\box31
+\ttglue=\skip43
+)
+(/usr/share/texmf-texlive/tex/latex/base/article.cls
+Document Class: article 2007/10/19 v1.4h Standard LaTeX document class
+(/usr/share/texmf-texlive/tex/latex/base/size10.clo
+File: size10.clo 2007/10/19 v1.4h Standard LaTeX file (size option)
+)
+\c@part=\count98
+\c@section=\count99
+\c@subsection=\count100
+\c@subsubsection=\count101
+\c@paragraph=\count102
+\c@subparagraph=\count103
+\c@figure=\count104
+\c@table=\count105
+\abovecaptionskip=\skip44
+\belowcaptionskip=\skip45
+\bibindent=\dimen108
+)
+\c@pagemodule=\count106
+\c@W@tempcounter=\count107
+ (./integral.aux)
+\openout1 = `integral.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <12> on input line 54.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <8> on input line 54.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <6> on input line 54.
+
+(./integral.toc)
+\tf@toc=\write4
+\openout4 = `integral.toc'.
+
+ [1] *1
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <7> on input line 66.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <5> on input line 66.
+LaTeX Font Info:    Try loading font information for OMS+cmr on input line 121.
+
+ (/usr/share/texmf-texlive/tex/latex/base/omscmr.fd
+File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
+)
+LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <10> not available
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 121.
+
+[1] [2] [3] *5
+Missing character: There is no ý in font cmr10!
+ [4] [5] *9 [6] *11 [7] [8] [9] [10] [11] [12] [13] *20 [14] *21
+[15] *22 [16] [17] *23 [18] *24 [19]
+Underfull \hbox (badness 10000) in paragraph at lines 1013--1014
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1018--1025
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1018--1025
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1034--1035
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1048--1049
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1048--1049
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1011--1051
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1011--1051
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1011--1051
+
+ []
+
+[20] [21] [22] *30 [23] (./INDEX.tex [24
+
+] [25]) (./MODULES.tex [26
+
+]) [27
+
+]
+(./integral.aux) ) 
+Here is how much of TeX's memory you used:
+ 944 strings out of 495062
+ 7691 string characters out of 1182645
+ 65129 words of memory out of 3000000
+ 4173 multiletter control sequences out of 15000+50000
+ 10095 words of font info for 36 fonts, out of 3000000 for 9000
+ 28 hyphenation exceptions out of 8191
+ 28i,8n,26p,164b,228s stack positions out of 5000i,500n,10000p,200000b,50000s
+
+Output written on integral.dvi (28 pages, 74592 bytes).

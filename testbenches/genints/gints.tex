@@ -1,0 +1,471 @@
+% FWEAVE v1.62 (September 23, 1998)
+
+% --- FWEB's macro package ---
+\input fwebmac.sty
+
+% --- Initialization parameters from FWEB's style file `fweb.sty' ---
+\Wbegin[;]
+  % #1 --- [LaTeX.class.options;LaTeX.package.options]
+{article;}
+  % #2 --- {LaTeX.class;LaTeX.package}
+{1em}
+  % #3 --- {indent.TeX}
+{1em}
+  % #4 --- {indent.code}
+{CONTENTS.tex}
+  % #5 --- {contents.TeX}
+{ % #6 ---
+ {\&\WRS}
+  % #1 --- {{format.reserved}{format.RESERVED}}
+ {\|}
+  % #2 --- {format.short_id}
+ {\>\WUC}
+  % #3 --- {{format.id}{format.ID}}
+ {\>\WUC}
+  % #4 --- {{format.outer_macro}{format.OUTER_MACRO}}
+ {\>\WUC}
+  % #5 --- {{format.WEB_macro}{format.WEB_MACRO}}
+ {\@}
+  % #6 --- {format.intrinsic}
+ {\.\.}
+  % #7 --- {{format.keyword}{format.KEYWORD}}
+ {\.}
+  % #8 --- {format.typewriter}
+ {}
+  % #9 --- (For future use)
+}
+{\M}
+  % #7 --- {encap.prefix}
+{;}
+  % #8 --- {doc.preamble;doc.postamble}
+{INDEX}
+  % #9 --- {index.name}
+
+
+% --- Beginning of user's limbo section ---
+
+\def\title{--- INTEGRAL STORAGE AND PROCESSING ---}
+
+
+
+
+
+% --- Limbo text from style-file parameter `limbo.end' ---
+\FWEBtoc
+
+\WN1.  getint. This function withdraws $(ij,kl)$ two-electron integral
+from the \WCD{ \.{file}}.
+
+\WY\WP \Wunnamed{defs}{gints.f}%
+\WMd{}\WUC{ARB}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\WUC{YES}\5
+$\WO{0}$\Wendd
+\WP\WMd{}\WUC{NO}\5
+$\WO{1}$\WY\Wendd
+\WP\WMd{}\.{ERR}\5
+${-}\WO{10}$\Wendd
+\WP\WMd{}\WUC{OK}\5
+$\WO{10}$\WY\Wendd
+\WP\WMd{}\WUC{BYTES\_PER\_INTEGER}\5
+$\WO{4}$\Wendd
+\WP\WMd{}\WUC{LEAST\_BYTE}\5
+$\WO{1}$\WY\Wendd
+\WP\WMd{}\WUC{END\_OF\_FILE}\5
+${-}\WO{1}$\WY\Wendd
+\WP\WMd{}\WUC{NO\_OF\_TYPES}\5
+$\WO{20}$\Wendd
+\WP\WMd{}\WUC{INT\_BLOCK\_SIZE}\5
+$\WO{20}$\WY\Wendd
+\WP\WMd{}\WUC{LAST\_BLOCK}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\WUC{NOT\_LAST\_BLOCK}\5
+$\WO{0}$\WY\Wendd
+\WP\WMd{}\WUC{ERROR\_OUTPUT\_UNIT}\5
+$\WO{6}$\WY\Wendd
+\WP\WMd{}\WUC{MAX\_BASIS\_FUNCTIONS}\5
+$\WO{255}$\Wendd
+\WP\WMd{}\WUC{MAX\_PRIMITIVES}\5
+$\WO{1000}$\Wendd
+\WP\WMd{}\WUC{MAX\_CENTRES}\5
+$\WO{50}$\WY\Wendd
+\WP\WMd{}\WUC{MAX\_ITERATIONS}\5
+$\WO{60}$\WY\Wendd
+\WP\WMd{}\WUC{UHF\_CALCULATION}\5
+$\WO{10}$\Wendd
+\WP\WMd{}\WUC{CLOSED\_SHELL\_CALCULATION}\5
+$\WO{20}$\WY\Wendd
+\WY\WP \Wunnamed{code}{gints.f}%
+\7
+\&{integer} \&{function} \1$\>{getint}(\.{file},\ \39\|i,\ \39\|j,\ \39\|k,\ %
+\39\|l,\ \39\>{mu},\ \39\>{val},\ \39\>{pointer})$\2\1\7
+\&{integer}~\1\.{file}$,$ \|i$,$ \|j$,$ \|k$,$ \|l$,$ \>{mu}$,$ \>{pointer}\2\6
+\&{double} \&{precision}~\1\>{val}\2\6
+\&{save}\1\2\7
+\&{integer}~\1\>{max\_pointer}$,$ \>{id}$,$ \>{iend}\2\6
+\&{double} \&{precision}~\1\>{zero}\2\6
+\&{double} \&{precision}~\1\>{labels}$(\WUC{INT\_BLOCK\_SIZE}),$ \>{value}$(%
+\WUC{INT\_BLOCK\_SIZE})$\2\6
+\&{data} ~\1\>{max\_pointer}${/}\WO{0}{/},$ \>{iend}{/}\WUC{NOT\_LAST%
+\_BLOCK}{/}$,$ \>{zero}${/}\WO{0.0\^D00}{/}$\2\7
+\WC{ File must be rewound before first use of this function           and
+pointer must be set to 0 }\7
+$\&{if}\,(\>{pointer}\WS\>{max\_pointer})$ \&{then}\1\6
+$\&{if}\,(\>{iend}\WS\WUC{LAST\_BLOCK})$ \&{then}\1\6
+$\>{val}=\>{zero};$\6
+$\|i=\WO{0};$\6
+$\|j=\WO{0};$\6
+$\|k=\WO{0};$\6
+$\|l=\WO{0}$\6
+$\>{max\_pointer}=\WO{0};$\6
+$\>{iend}=\WUC{NOT\_LAST\_BLOCK}$\6
+$\>{getint}=\WUC{END\_OF\_FILE}$\6
+\&{return}\2\6
+\&{end} \&{if}\6
+$\&{read}\,(\.{file})$ \>{max\_pointer}$,$ \>{iend}$,$ \>{labels}$,$ \>{value}\6
+$\>{pointer}=\WO{0}$\2\6
+\&{end} \&{if}\6
+$\>{pointer}=\>{pointer}+\WO{1}$\6
+\&{call} $\>{unpack}(\>{labels}(\>{pointer}),\ \39\|i,\ \39\|j,\ \39\|k,\ \39%
+\|l,\ \39\>{mu},\ \39\>{id})$\6
+$\>{val}=\>{value}(\>{pointer})$\6
+$\>{getint}=\WUC{OK}$\7
+\&{return}\2\6
+\&{end}\WY\Wendc
+\fi % End of section 1 (sect. 1, p. 1)
+
+\WM2.
+
+
+\fi % End of section 2 (sect. 1.1, p. 2a)
+
+\WN3.  putint. This function is just happy.
+
+\WY\WP \Wunnamed{code}{gints.f}%
+\7
+\&{subroutine} \1$\>{putint}(\>{nfile},\ \39\|i,\ \39\|j,\ \39\|k,\ \39\|l,\ %
+\39\>{mu},\ \39\>{val},\ \39\>{pointer},\ \39\>{last})$\2\1\6
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z)$\2\6
+\&{save}\1\2\7
+\&{integer}~\1\>{nfile}$,$ \|i$,$ \|j$,$ \|k$,$ \|l$,$ \>{mu}$,$ \>{pointer}$,$
+\>{last}\2\6
+\&{double} \&{precision}~\1\>{labels}$(\WUC{INT\_BLOCK\_SIZE}),$ \>{value}$(%
+\WUC{INT\_BLOCK\_SIZE})$\2\6
+\&{double} \&{precision}~\1\>{val}\2\6
+\&{data} ~\1\>{max\_pointer}{/}\WUC{INT\_BLOCK\_SIZE}{/}$,$ \>{id}${/}%
+\WO{0}{/}$\2\7
+\Wc{     id is now unused}\7
+$\&{if}\,(\>{last}\WS\.{ERR})$\1\6
+\&{go} \&{to} $\WO{100}$\2\6
+$\>{iend}=\WUC{NOT\_LAST\_BLOCK}$\6
+$\&{if}\,(\>{pointer}\WS\>{max\_pointer})$ \&{then}\1\6
+$\&{write}\,(\>{nfile})$ \>{pointer}$,$ \>{iend}$,$ \>{labels}$,$ \>{value}\6
+$\>{pointer}=\WO{0}$\2\6
+\&{end} \&{if}\6
+$\>{pointer}=\>{pointer}+\WO{1}$\6
+\&{call} $\>{pack}(\>{labels}(\>{pointer}),\ \39\|i,\ \39\|j,\ \39\|k,\ \39\|l,%
+\ \39\>{mu},\ \39\>{id})$\6
+$\>{value}(\>{pointer})=\>{val}$\6
+$\&{if}\,(\>{last}\WS\WUC{YES})$ \&{then}\1\6
+$\>{iend}=\WUC{LAST\_BLOCK}$\6
+$\>{last}=\.{ERR}$\6
+$\&{write}\,(\>{nfile})$ \>{pointer}$,$ \>{iend}$,$ \>{labels}$,$ \>{value}\2\6
+\&{end} \&{if}\7
+\Wlbl{\WO{100}\Colon\ }\&{return}\2\6
+\&{end}\WY\Wendc
+\fi % End of section 3 (sect. 2, p. 2b)
+
+\WM4.
+\fi % End of section 4 (sect. 2.1, p. 3)
+
+\WN5.  genint. This subroutine generates one- and two-electron integrals.
+
+\WY\WP \Wunnamed{code}{gints.f}%
+\7
+\&{subroutine} \1$\>{genint}(\>{ngmx},\ \39\>{nbfns},\ \39\>{eta},\ \39%
+\>{ntype},\ \39\>{ncntr},\ \39\>{nfirst},\ \39\>{nlast},\ \39\>{vlist},\ \39%
+\>{ncmx},\ \39\>{noc},\ \39\|S,\ \39\|H,\ \39\>{nfile})$\2 \&{integer}~\1%
+\>{ngmx}$,$ \>{nbfns}$,$ \>{noc}$,$ \>{ncmx}\2\6
+\&{double} \&{precision}~\1\>{eta}$(\WUC{MAX\_PRIMITIVES},\ \39\WO{5}),$ %
+\>{vlist}$(\WUC{MAX\_CENTRES},\ \39\WO{4})$\2\6
+\&{double} \&{precision}~\1\|S$(\WUC{ARB}),$ \|H$(\WUC{ARB})$\2\6
+\&{integer}~\1\>{ntype}$(\WUC{ARB}),$ \>{nfirst}$(\WUC{ARB}),$ \>{nlast}$(%
+\WUC{ARB}),$ \>{ncntr}$(\WUC{ARB}),$ \>{nfile}\2\7
+\&{integer}~\1\|i$,$ \|j$,$ \|k$,$ \|l$,$ \>{ltop}$,$ \>{ij}$,$ \>{ji}$,$ %
+\>{mu}$,$ \|m$,$ \|n$,$ \>{jtyp}$,$ \>{js}$,$ \>{jf}$,$ \>{ii}$,$ \>{jj}\2\6
+\&{double} \&{precision}~\1\>{generi}$,$ \>{genoei}\2\6
+\&{integer}~\1\>{pointer}$,$ \>{last}\2\6
+\&{double} \&{precision}~\1\>{ovltot}$,$ \>{kintot}\2\6
+\&{double} \&{precision}~\1\>{val}$,$ \>{crit}$,$ \>{alpha}$,$ \|t$,$ \>{t1}$,$
+\>{t2}$,$ \>{t3}$,$ \>{sum}$,$ \>{pitern}\2\6
+\&{double} \&{precision}~\1\WUC{SOO}\2\6
+\&{double} \&{precision}~\1\>{gtoC}$(\WUC{MAX\_PRIMITIVES})$\2\6
+\&{double} \&{precision}~\1\>{dfact}$(\WO{20})$\2\6
+\&{integer}~\1\>{nr}$(\WUC{NO\_OF\_TYPES},\ \39\WO{3})$\2\6
+\&{data} ~\1\>{nr}${/}\WO{0},\ \39\WO{1},\ \39\WO{0},\ \39\WO{0},\ \39\WO{2},\ %
+\39\WO{0},\ \39\WO{0},\ \39\WO{1},\ \39\WO{1},\ \39\WO{0},\ \39\WO{3},\ \39%
+\WO{0},\ \39\WO{0},\ \39\WO{2},\ \39\WO{2},\ \39\WO{1},\ \39\WO{0},\ \39\WO{1},%
+\ \39\WO{0},\ \39\WO{1},\ \39\WO{0},\ \39\WO{0},\ \39\WO{1},\ \39\WO{0},\ \39%
+\WO{0},\ \39\WO{2},\ \39\WO{0},\ \39\WO{1},\ \39\WO{0},\ \39\WO{1},\ \39\WO{0},%
+\ \39\WO{3},\ \39\WO{0},\ \39\WO{1},\ \39\WO{0},\ \39\WO{2},\ \39\WO{2},\ \39%
+\WO{0},\ \39\WO{1},\ \39\WO{1},\ \39\WO{0},\ \39\WO{0},\ \39\WO{0},\ \39\WO{1},%
+\ \39\WO{0},\ \39\WO{0},\ \39\WO{2},\ \39\WO{0},\ \39\WO{1},\ \39\WO{1},\ \39%
+\WO{0},\ \39\WO{0},\ \39\WO{3},\ \39\WO{0},\ \39\WO{1},\ \39\WO{0},\ \39\WO{1},%
+\ \39\WO{2},\ \39\WO{2},\ \39\WO{1}{/}$\2\6
+\&{data} ~\1\>{crit}$,$ \>{half}$,$ \>{onep5}$,$ \>{one}$,$ \>{zero}${/}\WO{1.0%
+\^D-08},\ \39\WO{0.5\^D+00},\ \39\WO{1.5\^D+00},\ \39\WO{1.0\^D+00},\ \39%
+\WO{0.0\^D+00}{/}$\2\6
+\&{data} ~\1\>{dfact}${/}\WO{1.0},\ \39\WO{3.0},\ \39\WO{15.0},\ \39\WO{105.0},%
+\ \39\WO{945.0},\ \39\WO{10395.0},\ \39\WO{135135.0},\ \39\WO{2027025.0},\ \39%
+\WO{12}\ast\WO{0.0}{/}$\2\6
+\&{data} ~\1\>{gtoC}${/}\WUC{MAX\_PRIMITIVES}\ast\WO{0.0\^D+00}{/}$\2\7
+$\>{mu}=\WO{0}$\7
+\WX{\M{6}}Copy GTO contraction coeffs to gtoC\X \X\7
+\WX{\M{7}}Normalize the primitives\X \X\7
+\WC{ one electron integrals }\7
+$\WRS{DO}\,\|i$  $=$ $\WO{1},\ \39\>{nbfns}$ $\WRS{DO}\,\|j$  $=$ $\WO{1},\ \39%
+\|i$\6
+$\>{ij}=(\|j-\WO{1})\ast\>{nbfns}+\|i;$\6
+$\>{ji}=(\|i-\WO{1})\ast\>{nbfns}+\|j$\6
+$\|H(\>{ij})=\>{genoei}(\|i,\ \39\|j,\ \39\>{eta},\ \39\>{ngmx},\ \39%
+\>{nfirst},\ \39\>{nlast},\ \39\>{ntype},\ \39\>{nr},\ \39\WUC{NO\_OF\_TYPES},\
+\39\>{vlist},\ \39\>{noc},\ \39\>{ncmx},\ \39\>{ovltot},\ \39\>{kintot})$\6
+$\|H(\>{ji})=\|H(\>{ij})$\6
+$\|S(\>{ij})=\>{ovltot};$\6
+$\|S(\>{ji})=\>{ovltot}$ \.{END} \WRS{DO} \.{END} \WRS{DO}\6
+$\&{write}\,(\ast,\ \39\ast)$ $\.{"\ ONE\ ELECTRON\ INTEGRALS\ C\0OMPUTED"}$\7
+\&{rewind} \>{nfile};\6
+$\>{pointer}=\WO{0}$\6
+$\>{last}=\WUC{NO}$\6
+$\|i=\WO{1};$\6
+$\|j=\WO{1};$\6
+$\|k=\WO{1};$\6
+$\|l=\WO{0}$\7
+$\WRS{DO}\,\WO{10}$ \1\6
+$\WUC{WHILE}(\>{next\_label}(\|i,\ \39\|j,\ \39\|k,\ \39\|l,\ \39\>{nbfns})\WS%
+\WUC{YES})$\2\6
+$\WUC{IF}(\|l\WS\>{nbfns})\>{last}=\WUC{YES}$\6
+$\>{val}=\>{generi}(\|i,\ \39\|j,\ \39\|k,\ \39\|l,\ \39\WO{0},\ \39\>{eta},\ %
+\39\>{ngmx},\ \39\>{nfirst},\ \39\>{nlast},\ \39\>{ntype},\ \39\>{nr},\ \39%
+\WUC{NO\_OF\_TYPES})$ $\WUC{IF}(\@{dabs}(\>{val})<\>{crit})$ \&{go} \&{to} $%
+\WO{10}$\6
+$\WUC{CALL}\>{putint}(\>{nfile},\ \39\|i,\ \39\|j,\ \39\|k,\ \39\|l,\ \39%
+\>{mu},\ \39\>{val},\ \39\>{pointer},\ \39\>{last})$\6
+\Wlbl{\WO{10}\Colon\ }\WUC{CONTINUE}\7
+\&{return} \&{end}\WY\Wendc
+\fi % End of section 5 (sect. 3, p. 4)
+
+\WM6.
+
+\WY\WP\4\4\WX{\M{6}}Copy GTO contraction coeffs to gtoC\X \X${}\WSQ{}$\7
+\&{do} $\|i=\WO{1},\ \39\>{ngmx}$\1\6
+$\>{gtoC}(\|i)=\>{eta}(\|i,\ \39\WO{5})$\2\6
+\&{end} \&{do}\WY\Wendc
+\WU section~\M{5}.
+\fi % End of section 6 (sect. 3.1, p. 5)
+
+\WM7.
+
+
+\WY\WP\4\4\WX{\M{7}}Normalize the primitives\X \X${}\WSQ{}$\7
+\WC{ First, normalize the primitives }\7
+$\>{pitern}=\WO{5.568327997\^D+00}$\5
+\WC{ pi**1.5 }\6
+\&{do} $\|j=\WO{1},\ \39\>{nbfns}$\1\6
+$\>{jtyp}=\>{ntype}(\|j);$\6
+$\>{js}=\>{nfirst}(\|j);$\6
+$\>{jf}=\>{nlast}(\|j)$\6
+$\|l=\>{nr}(\>{jtyp},\ \39\WO{1});$\6
+$\|m=\>{nr}(\>{jtyp},\ \39\WO{2});$\6
+$\|n=\>{nr}(\>{jtyp},\ \39\WO{3})$\6
+\&{do} $\|i=\>{js},\ \39\>{jf}$\1\6
+$\>{alpha}=\>{eta}(\|i,\ \39\WO{4});$\6
+$\WUC{SOO}=\>{pitern}\ast(\>{half}\WSl\>{alpha})\WEE{\WO{1.5}}+\WUC{D00}$\6
+$\>{t1}=\>{dfact}(\|l+\WO{1})\WSl\>{alpha}\WEE{\|l}$\6
+$\>{t2}=\>{dfact}(\|m+\WO{1})\WSl\>{alpha}\WEE{\|m}$\6
+$\>{t3}=\>{dfact}(\|n+\WO{1})\WSl\>{alpha}\WEE{\|n}$\6
+$\&{write}\,(\ast,\ \39\ast)$ $\>{dfact}(\|l+\WO{1}),$ $\>{dfact}(\|m+\WO{1}),$
+$\>{dfact}(\|n+\WO{1}),$ \|l$,$ \|m$,$ \|n\6
+$\>{eta}(\|i,\ \39\WO{5})=\>{one}\WSl\@{dsqrt}(\WUC{SOO}\ast\>{t1}\ast\>{t2}%
+\ast\>{t3})$\2\6
+\&{end} \&{do}\2\6
+\&{end} \&{do}\7
+\WC{ Now normalize the basis functions }\7
+\&{do} $\|j=\WO{1},\ \39\>{nbfns}$\1\6
+$\>{jtyp}=\>{ntype}(\|j);$\6
+$\>{js}=\>{nfirst}(\|j);$\6
+$\>{jf}=\>{nlast}(\|j)$\6
+$\|l=\>{nr}(\>{jtyp},\ \39\WO{1});$\6
+$\|m=\>{nr}(\>{jtyp},\ \39\WO{2});$\6
+$\|n=\>{nr}(\>{jtyp},\ \39\WO{3})$\7
+$\>{sum}=\>{zero}$\6
+\&{do} $\>{ii}=\>{js},\ \39\>{jf}$\1\6
+\&{do} $\>{jj}=\>{js},\ \39\>{jf}$\1\6
+$\|t=\>{one}\WSl(\>{eta}(\>{ii},\ \39\WO{4})+\>{eta}(\>{jj},\ \39\WO{4}))$\6
+$\WUC{SOO}=\>{pitern}\ast(\|t\WEE{\>{onep5}})\ast\>{eta}(\>{ii},\ \39\WO{5})%
+\ast\>{eta}(\>{jj},\ \39\WO{5})$\6
+$\|t=\>{half}\ast\|t$\6
+$\>{t1}=\>{dfact}(\|l+\WO{1})\WSl\|t\WEE{\|l}$\6
+$\>{t2}=\>{dfact}(\|m+\WO{1})\WSl\|t\WEE{\|m}$\6
+$\>{t3}=\>{dfact}(\|n+\WO{1})\WSl\|t\WEE{\|n}$\6
+$\>{sum}=\>{sum}+\>{gtoC}(\>{ii})\ast\>{gtoC}(\>{jj})\ast\WUC{SOO}\ast\>{t1}%
+\ast\>{t2}\ast\>{t3}$\2\6
+\&{end} \&{do}\2\6
+\&{end} \&{do}\6
+$\>{sum}=\>{one}\WSl\@{dsqrt}(\>{sum})$\6
+\&{do} $\>{ii}=\>{js},\ \39\>{jf}$\1\6
+$\>{gtoC}(\>{ii})=\>{gtoC}(\>{ii})\ast\>{sum}$\2\6
+\&{end} \&{do}\2\6
+\&{end} \&{do}\7
+\&{do} $\>{ii}=\WO{1},\ \39\>{ngmx}$\1\6
+$\>{eta}(\>{ii},\ \39\WO{5})=\>{eta}(\>{ii},\ \39\WO{5})\ast\>{gtoC}(\>{ii})$\2%
+\6
+\&{end} \&{do}\WY\Wendc
+\WU section~\M{5}.
+\fi % End of section 7 (sect. 3.2, p. 6)
+
+\WM8.
+
+
+\fi % End of section 8 (sect. 3.3, p. 7a)
+
+\WN9.  pack. Store the six electron repulsion labels.
+
+\WY\WP \Wunnamed{code}{gints.f}%
+\7
+\&{subroutine} \1$\>{pack}(\|a,\ \39\|i,\ \39\|j,\ \39\|k,\ \39\|l,\ \39\|m,\ %
+\39\|n)$\2\1\6
+\&{double} \&{precision}~\1\|a\2\6
+\&{integer}~\1\|i$,$ \|j$,$ \|k$,$ \|l$,$ \|m$,$ \|n\2\7
+\&{double} \&{precision}~\1\>{word}\2\6
+\&{integer}~\1\>{id}$(\WO{6})$\2\6
+$\&{character}{\ast\WO{1}}~$\1\>{chr1}$(\WO{8}),$ \>{chr2}$(\WO{24})$\2\6
+$\&{equivalence}\,(\>{word},\ \39\>{chr1}(\WO{1})),\,(\>{id}(\WO{1}),\ \39%
+\>{chr2}(\WO{1}))$\1\2\7
+$\>{id}(\WO{1})=\|i;$\6
+$\>{id}(\WO{2})=\|j;$\6
+$\>{id}(\WO{3})=\|k$\6
+$\>{id}(\WO{4})=\|l;$\6
+$\>{id}(\WO{5})=\|m;$\6
+$\>{id}(\WO{6})=\|n$\7
+\&{do} $\>{ii}=\WO{1},\ \39\WO{6}$\1\6
+$\>{chr1}(\>{ii})=\>{chr2}((\>{ii}-\WO{1})\ast\WUC{BYTES\_PER\_INTEGER}+%
+\WUC{LEAST\_BYTE})$\2\6
+\&{end} \&{do}\6
+$\|a=\>{word}$\6
+\&{return}\2\6
+\&{end}\Wendc
+\fi % End of section 9 (sect. 4, p. 7b)
+
+\WM10.
+
+\fi % End of section 10 (sect. 4.1, p. 7c)
+
+\WN11.  unpack. Regenerate the 6 electron repulsion labels.
+
+\WY\WP \Wunnamed{code}{gints.f}%
+\7
+\&{subroutine} \1$\>{unpack}(\|a,\ \39\|i,\ \39\|j,\ \39\|k,\ \39\|l,\ \39\|m,\
+\39\|n)$\2\1\6
+\&{double} \&{precision}~\1\|a\2\6
+\&{integer}~\1\|i$,$ \|j$,$ \|k$,$ \|l$,$ \|m$,$ \|n\2\7
+\&{double} \&{precision}~\1\>{word}\2\6
+\&{integer}~\1\>{id}$(\WO{6})$\2\6
+$\&{character}{\ast\WO{1}}~$\1\>{chr1}$(\WO{8}),$ \>{chr2}$(\WO{24})$\2\6
+$\&{equivalence}\,(\>{word},\ \39\>{chr1}(\WO{1})),\,(\>{id}(\WO{1}),\ \39%
+\>{chr2}(\WO{1}))$\1\2\7
+\&{do} $\>{ii}=\WO{1},\ \39\WO{6}$\1\6
+$\>{chr2}((\>{ii}-\WO{1})\ast\WUC{BYTES\_PER\_INTEGER}+\WUC{LEAST\_BYTE})=%
+\>{chr1}(\>{ii})$\2\6
+\&{end} \&{do}\7
+$\>{id}(\WO{1})=\|i;$\6
+$\>{id}(\WO{2})=\|j;$\6
+$\>{id}(\WO{3})=\|k$\6
+$\>{id}(\WO{4})=\|l;$\6
+$\>{id}(\WO{5})=\|m;$\6
+$\>{id}(\WO{6})=\|n$\7
+\&{return}\2\6
+\&{end}\WY\Wendc
+\fi % End of section 11 (sect. 5, p. 8a)
+
+\WM12.
+
+\fi % End of section 12 (sect. 5.1, p. 8b)
+
+\WN13.  next\_label. Generate the next label of electron repulsion integral.
+
+A function to generate  the
+four standard loops which are used to generate (or, more rarely) process
+the electron repulsion integrals.
+
+The sets of integer values are generated in the usual
+standard order in canonical form, that is, equivalent to the set of loops: \\
+ \WCD{ \&{do} $\|i=\WO{1},\ \|n$ $\{$ \&{do} $\|j=\WO{1},\ \|i$ $\{$ \&{do} $%
+\|k=\WO{1},\ \|i$ $\{$ $\>{ltop}=\|k$ $\&{if}\,(\|i\WS\|k)$ $\>{ltop}=\|j$ %
+\&{do} $\|l=\WO{1},\ \>{ltop}$ $\{$ \&{do} \>{something}\>{with}\|i\|j\|k\|l $%
+\}$ $\}$ $\}$ $\}$}
+\ \\
+Note that, just as is the case with the \WCD{ \&{do}}-loops,
+the whole process must be {\em initialised\/} by
+setting initial values of \WCD{ \|i}, \WCD{ \|j}, \WCD{ \|k} and \WCD{ \|l}.
+If the whole set of labels is required then \\
+\WCD{ $\|i=\WO{1}$}, \WCD{ $\|j=\WO{1}$}, \WCD{ $\|k=\WO{1}$}, \WCD{ \|l}=0 \\
+is appropriate.
+
+Usage is, typically, \\
+\WCD{$\|i=\WO{0}$ $\|j=\WO{0}$ $\|k=\WO{0}$ $\|l=\WO{0}$} \\
+\WCD{ $\>{while}(\>{next\_label}(\|i,\ \|j,\ \|k,\ \|l,\ \|n)\WS\WUC{YES})$} \\
+\WCD{ $\{$} \\
+  do something with i j k and l \\
+\WCD{ $\}$} \\
+
+\WY\WP \Wunnamed{code}{gints.f}%
+\7
+\&{integer} \&{function} \1$\>{next\_label}(\|i,\ \39\|j,\ \39\|k,\ \39\|l,\ %
+\39\|n)$\2\1\6
+\&{integer}~\1\|i$,$ \|j$,$ \|k$,$ \|l$,$ \|n\2\7
+\&{integer}~\1\>{ltop}\2\7
+$\>{next\_label}=\WUC{YES}$\6
+$\>{ltop}=\|k$\6
+$\&{if}\,(\|i\WS\|k)$\1\6
+$\>{ltop}=\|j$\2\7
+$\&{if}\,(\|l<\>{ltop})$ \&{then}\1\6
+$\|l=\|l+\WO{1}$\2\6
+\&{else}\1\6
+$\|l=\WO{1}$\6
+$\&{if}\,(\|k<\|i)$ \&{then}\1\6
+$\|k=\|k+\WO{1}$\2\6
+\&{else}\1\6
+$\|k=\WO{1}$\6
+$\&{if}\,(\|j<\|i)$ \&{then}\1\6
+$\|j=\|j+\WO{1}$\2\6
+\&{else}\1\6
+$\|j=\WO{1}$\6
+$\&{if}\,(\|i<\|n)$ \&{then}\1\6
+$\|i=\|i+\WO{1}$\2\6
+\&{else}\1\6
+$\>{next\_label}=\WUC{NO}$\2\6
+\&{end} \&{if}\2\6
+\&{end} \&{if}\2\6
+\&{end} \&{if}\2\6
+\&{end} \&{if}\6
+\&{return}\2\6
+\&{end}\WY\Wendc
+\fi % End of section 13 (sect. 6, p. 9)
+
+\WM14.
+
+\fi % End of section 14 (sect. 6.1, p. 10)
+
+\WN15.  INDEX.
+\fi % End of section 15 (sect. 7, p. 11)
+
+\input INDEX.tex
+\input MODULES.tex
+
+\Winfo{"fweave gints.web"}  {"gints.web"} {(none)}
+ {\Fortran}
+
+
+\Wcon{15}
+\FWEBend

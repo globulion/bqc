@@ -1,0 +1,25 @@
+\def\title{--- MAIN TEST BENCH ---}
+
+@n
+
+@* INTRODUCTION. This testbench program is the test for UHF (rather DODS)
+calculation of H2O, including generation of 1- and 2-electron integrals.
+The ERI are stored in the file |fort.17| which is a binary file of size 8K.
+The working molecule is water in STO3G minimal basis set.
+
+@
+
+@I defns.hweb
+
+@I dods.web
+
+@I scf.web
+
+@I integral.web
+
+@I gints.web
+
+@I utilities.web
+
+
+@* INDEX.

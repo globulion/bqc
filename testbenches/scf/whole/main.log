@@ -1,0 +1,239 @@
+This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=latex 2014.7.9)  8 DEC 2014 00:36
+entering extended mode
+ %&-line parsing enabled.
+**main.tex
+(./main.tex
+LaTeX2e <2009/09/24>
+Babel <v3.8l> and hyphenation patterns for english, usenglishmax, dumylang, noh
+yphenation, loaded.
+(/usr/share/texmf/tex/latex/litprog/fwebmac.sty
+\W@count=\count79
+\W@counta=\count80
+\W@tk=\toks14
+\pardimen=\skip41
+\TeXindent=\dimen102
+LaTeX Info: Redefining \# on input line 346.
+LaTeX Info: Redefining \$ on input line 347.
+LaTeX Info: Redefining \% on input line 348.
+LaTeX Info: Redefining \^ on input line 349.
+\rulebox=\box26
+\ruleno=\count81
+\notch=\dimen103
+\W@globalindent=\count82
+\W@ind=\count83
+\W@lastind=\count84
+\b@k=\box27
+\b@kk=\box28
+\W@nBK=\count85
+\Wuparindent=\skip42
+\W@ssmax=\count86
+\W@lsmax=\count87
+\secpenalty=\count88
+\c@subsubsubsection=\count89
+\W@ss=\count90
+\W@lastsect=\count91
+\b@dlevelhelp=\toks15
+LaTeX Info: Redefining \= on input line 1239.
+\dotbox=\box29
+\W@ARRAYarga=\toks16
+\W@ARRAYargb=\toks17
+\contentspageno=\count92
+\pagewidth=\dimen104
+\pageheight=\dimen105
+\fullpageheight=\dimen106
+\pageshift=\dimen107
+\Woutput=\toks18
+\minutes=\count93
+\hours=\count94
+\W@cont=\write3
+\W@ref=\count95
+\W@lpha=\count96
+\W@pmcount=\count97
+\Sbox=\box30
+\Lbox=\box31
+\ttglue=\skip43
+)
+(/usr/share/texmf-texlive/tex/latex/base/article.cls
+Document Class: article 2007/10/19 v1.4h Standard LaTeX document class
+(/usr/share/texmf-texlive/tex/latex/base/size10.clo
+File: size10.clo 2007/10/19 v1.4h Standard LaTeX file (size option)
+)
+\c@part=\count98
+\c@section=\count99
+\c@subsection=\count100
+\c@subsubsection=\count101
+\c@paragraph=\count102
+\c@subparagraph=\count103
+\c@figure=\count104
+\c@table=\count105
+\abovecaptionskip=\skip44
+\belowcaptionskip=\skip45
+\bibindent=\dimen108
+)
+\c@pagemodule=\count106
+\c@W@tempcounter=\count107
+ (./main.aux)
+\openout1 = `main.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <12> on input line 53.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <8> on input line 53.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <6> on input line 53.
+ (./main.toc
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <7> on input line 14.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <5> on input line 14.
+)
+\tf@toc=\write4
+\openout4 = `main.toc'.
+
+[1] *1 *3
+LaTeX Font Info:    Try loading font information for OMS+cmr on input line 129.
+
+ (/usr/share/texmf-texlive/tex/latex/base/omscmr.fd
+File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
+)
+LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <10> not available
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 129.
+ [1] [2] [3]
+Missing character: There is no ý in font cmr10!
+Missing character: There is no ý in font cmr10!
+ *5
+Underfull \hbox (badness 10000) in paragraph at lines 252--253
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 257--267
+
+ []
+
+
+LaTeX Font Warning: Command \boldmath invalid in math mode on input line 273.
+
+
+LaTeX Font Warning: Command \mathversion invalid in math mode on input line 273
+.
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 276--277
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 326--327
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 326--327
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 250--329
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 250--329
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 250--329
+
+ []
+
+[4] [5]
+Overfull \vbox (150.25122pt too high) has occurred while \output is active []
+
+
+[6] [7] [8] [9] *14 [10] [11] *19 [12] *21 [13] *23 [14] *25 *27 [15] [16]
+[17] [18] *31
+Missing character: There is no ý in font cmr10!
+ [19] [20] *35 [21] *37 [22] [23] [24] [25] [26] [27] [28] *47
+[29] *49 [30] *51 [31] [32] *53 [33] *55 [34]
+Underfull \hbox (badness 10000) in paragraph at lines 1708--1709
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1713--1720
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1713--1720
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1729--1730
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1743--1744
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1743--1744
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1706--1746
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1706--1746
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1706--1746
+
+ []
+
+[35] [36] [37] *61 *63 [38] *65 [39] *67 [40] [41] [42] *71 [43] *73 *75
+[44] *77 [45] [46] *79 [47] *81 *83 [48]
+Underfull \hbox (badness 10000) in paragraph at lines 2355--2361
+
+ []
+
+[49] *85 *87 [50] *89 [51] (./INDEX.tex [52
+
+] [53] [54] [55]) (./MODULES.tex
+[56
+
+]) [57
+
+] (./main.aux) ) 
+Here is how much of TeX's memory you used:
+ 1018 strings out of 495062
+ 7987 string characters out of 1182645
+ 69279 words of memory out of 3000000
+ 4244 multiletter control sequences out of 15000+50000
+ 11329 words of font info for 40 fonts, out of 3000000 for 9000
+ 28 hyphenation exceptions out of 8191
+ 27i,8n,29p,160b,230s stack positions out of 5000i,500n,10000p,200000b,50000s
+
+Output written on main.dvi (58 pages, 167500 bytes).

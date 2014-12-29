@@ -1,0 +1,1177 @@
+% FWEAVE v1.62 (September 23, 1998)
+
+% --- FWEB's macro package ---
+\input fwebmac.sty
+
+% --- Initialization parameters from FWEB's style file `fweb.sty' ---
+\Wbegin[;]
+  % #1 --- [LaTeX.class.options;LaTeX.package.options]
+{article;}
+  % #2 --- {LaTeX.class;LaTeX.package}
+{1em}
+  % #3 --- {indent.TeX}
+{1em}
+  % #4 --- {indent.code}
+{CONTENTS.tex}
+  % #5 --- {contents.TeX}
+{ % #6 ---
+ {\&\WRS}
+  % #1 --- {{format.reserved}{format.RESERVED}}
+ {\|}
+  % #2 --- {format.short_id}
+ {\>\WUC}
+  % #3 --- {{format.id}{format.ID}}
+ {\>\WUC}
+  % #4 --- {{format.outer_macro}{format.OUTER_MACRO}}
+ {\>\WUC}
+  % #5 --- {{format.WEB_macro}{format.WEB_MACRO}}
+ {\@}
+  % #6 --- {format.intrinsic}
+ {\.\.}
+  % #7 --- {{format.keyword}{format.KEYWORD}}
+ {\.}
+  % #8 --- {format.typewriter}
+ {}
+  % #9 --- (For future use)
+}
+{\M}
+  % #7 --- {encap.prefix}
+{;}
+  % #8 --- {doc.preamble;doc.postamble}
+{INDEX}
+  % #9 --- {index.name}
+
+
+% --- Beginning of user's limbo section ---
+
+\def\title{---INTEGRALS---}
+
+
+
+
+
+% --- Limbo text from style-file parameter `limbo.end' ---
+\FWEBtoc
+
+\WN1.  genoei.
+Function to compute the one-electron integrals (overlap,
+kinetic energy and nuclear attraction).
+The STRUCTURES and GENOEI manual pages must be
+consulted for a detailed description of the calling sequence.
+
+The overlap and kinetic energy integrals are expressed in terms of
+a basic one-dimensional Cartesian overlap component computed by
+\WCD{ \&{function} \>{ovrlap}} while the more involved nuclear-attraction
+integrals are computed as a sum of geometrical factors computed by
+\WCD{ \&{subroutine} \>{aform}} and the standard $F_\nu$ computed by \WCD{ %
+\&{function} \>{fmch}}.
+
+
+\WY\WP \Wunnamed{defs}{integral.f}%
+\WMd{}\WUC{ERROR\_OUTPUT\_UNIT}\5
+$\WO{6}$\WY\Wendd
+\WY\WP \Wunnamed{code}{integral.f}%
+\7
+\&{double} \&{precision} \&{function} \1$\>{genoei}(\|i,\ \39\|j,\ \39\>{eta},\
+\39\>{ngmx},\ \39\>{nfirst},\ \39\>{nlast},\ \39\>{ntype},\ \39\>{nr},\ \39%
+\>{ntmx},\ \39\>{vlist},\ \39\>{noc},\ \39\>{ncmx},\ \39\>{ovltot},\ \39%
+\>{kintot})$\2 \&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-%
+\|z)$\2\6
+\&{integer}~\1\|i$,$ \|j$,$ \>{ngmx}$,$ \>{ncmx}$,$ \>{noc}$,$ \>{ntmx}\2\6
+\&{integer}~\1\>{nfirst}$(\ast),$ \>{nlast}$(\ast),$ \>{ntype}$(\ast),$ %
+\>{nr}$(\>{ntmx},\ \39\WO{3})$\2\6
+\&{double} \&{precision}~\1\>{ovltot}$,$ \>{kintot}\2\6
+\&{double} \&{precision}~\1\>{eta}$(\WUC{MAX\_PRIMITIVES},\ \39\WO{5}),$ %
+\>{vlist}$(\WUC{MAX\_CENTRES},\ \39\WO{4})$\2\7
+\WC{ Insert delarations which are purely local to \WCD{ \>{genoei}} }\7
+\WX{\M{2}}genoei local declarations\X \X\7
+\WC{ Insert the Factorials }\7
+\WX{\M{13}}Factorials\X \X\7
+\WC{ Obtain the powers of x,y,z and summation limits }\7
+\WX{\M{3}}One-electron Integer Setup\X \X\7
+\WC{ Inter-nuclear distance }\7
+$\>{rAB}=(\>{eta}(\>{iss},\ \39\WO{1})-\>{eta}(\>{jss},\ \39\WO{1}))\WEE{%
+\WO{2}}+(\>{eta}(\>{iss},\ \39\WO{2})-\>{eta}(\>{jss},\ \39\WO{2}))\WEE{%
+\WO{2}}+(\>{eta}(\>{iss},\ \39\WO{3})-\>{eta}(\>{jss},\ \39\WO{3}))\WEE{%
+\WO{2}}$\7
+\WC{ Initialise all accumulators   }\7
+$\>{genoei}=\>{zero}$\6
+$\>{totnai}=\>{zero}$\6
+$\>{kintot}=\>{zero}$\6
+$\>{ovltot}=\>{zero}$\7
+\WC{ Now start the summations over the contracted GTFs  }\7
+\&{do} $\>{irun}=\>{iss},\ \39\>{il}$\1\5
+\WC{ start of "i" contraction }\7
+\&{do} $\>{jrun}=\>{jss},\ \39\>{jl}$\1\5
+\WC{ start of "j" contraction }\7
+\WX{\M{15}}Compute PA\X \X\5
+\WC{ Use the Gaussian-product theorem to find $\vec{P}$ }\7
+\WX{\M{4}}Overlap Components\X \X\7
+$\>{ovltot}=\>{ovltot}+\>{anorm}\ast\>{bnorm}\ast\>{ovl}$\5
+\WC{ accumulate Overlap }\7
+$\&{write}\,(\ast,\ \39\ast)$ \>{ovltot}$,$ $\.{"HAPPY"}$\7
+\WX{\M{6}}Kinetic Energy Components\X \X\7
+$\>{kintot}=\>{kintot}+\>{anorm}\ast\>{bnorm}\ast\>{kin}$\5
+\WC{  accumulate  Kinetic energy  }\7
+\WC{  now the nuclear attraction integral   }\6
+$\>{tnai}=\>{zero}$\7
+\WX{\M{7}}Form fj\X \X\5
+\WC{ Generate the required $f_j$ coefficients }\7
+\&{do} $\|n=\WO{1},\ \39\>{noc}$\1\5
+\WC{ loop over nuclei }\7
+$\>{pn}=\>{zero}$\5
+\WC{ Initialise current contribution  }\7
+\WC{ Get the attracting-nucleus information;  co-ordinates }\7
+\WX{\M{10}}Nuclear data\X \X\7
+$\|t=\>{t1}\ast\>{pcsq}$\7
+\&{call} $\>{auxg}(\|m,\ \39\|t,\ \39\|g)$\5
+\WC{ Generate all the $F_\nu$ required }\7
+\WX{\M{8}}Form As\X \X\5
+\WC{ Generate the geometrical $A$-factors }\7
+\WC{ Now sum the products of the geometrical $A$-factors and the $F_\nu$ }\7
+\&{do} $\>{ii}=\WO{1},\ \39\>{imax}$\1\6
+\&{do} $\>{jj}=\WO{1},\ \39\>{jmax}$\1\6
+\&{do} $\>{kk}=\WO{1},\ \39\>{kmax}$\1\6
+$\>{nu}=\>{ii}+\>{jj}+\>{kk}-\WO{2}$\6
+$\>{pn}=\>{pn}+\>{Airu}(\>{ii})\ast\>{Ajsv}(\>{jj})\ast\>{Aktw}(\>{kk})\ast\|g(%
+\>{nu})$\2\6
+\&{end} \&{do}\2\6
+\&{end} \&{do}\2\6
+\&{end} \&{do}\7
+$\>{tnai}=\>{tnai}-\>{pn}\ast\>{vn},\ \39\WO{4}$ $)$  \5
+\WC{ Add to total multiplied by currentrrent charge }\2\7
+\&{end} \&{do}\5
+\WC{  end of loop over nuclei  }\6
+$\>{totnai}=\>{totnai}+\>{prefa}\ast\>{tnai}$\2\6
+\&{end} \&{do}\5
+\WC{  end of "j" contraction  }\2\6
+\&{end} \&{do}\5
+\WC{ end of "i" contraction  }\7
+$\>{genoei}=\>{totnai}+\>{kintot}$\5
+\WC{ "T + V"  }\6
+\&{return} \&{end}\WY\Wendc
+\fi % End of section 1 (sect. 1, p. 1)
+
+\WM2. These are the declarations which are local to \WCD{ \>{genoei}},
+working space {\em etc.}
+
+\WY\WP\4\4\WX{\M{2}}genoei local declarations\X \X${}\WSQ{}$\6
+\&{double} \&{precision}~\1\>{Airu}$(\WO{10}),$ \>{Ajsv}$(\WO{10}),$ \>{Aktw}$(%
+\WO{10})$\2\6
+\&{double} \&{precision}~\1\|p$(\WO{3}),$ \>{sf}$(\WO{10},\ \39\WO{3}),$ %
+\>{tf}$(\WO{20})$\2\6
+\&{double} \&{precision}~\1\>{fact}$(\WO{20}),$ \|g$(\WO{50})$\2\6
+\&{double} \&{precision}~\1\>{kin}\2\6
+\&{data} ~\1\>{zero}$,$ \>{one}$,$ \>{two}$,$ \>{half}$,$ \>{quart}${/}\WO{0.0%
+\^D00},\ \39\WO{1.0\^D00},\ \39\WO{2.0\^D00},\ \39\WO{0.5\^D00},\ \39\WO{0.25%
+\^D00}{/}$\2\6
+\&{data} ~\1\>{pi}${/}\WO{3.141592653589\^D00}{/}$\2\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 2 (sect. 1.1, p. 2a)
+
+\WM3. Get the various powers of $x$, $y$ and $z$ required from the data
+structures and obtain the contraction limits etc.
+
+\WY\WP\4\4\WX{\M{3}}One-electron Integer Setup\X \X${}\WSQ{}$\6
+$\>{ityp}=\>{ntype}(\|i);$\6
+$\>{jtyp}=\>{ntype}(\|j)$\6
+$\>{l1}=\>{nr}(\>{ityp},\ \39\WO{1});$\6
+$\>{m1}=\>{nr}(\>{ityp},\ \39\WO{2});$\6
+$\>{n1}=\>{nr}(\>{ityp},\ \39\WO{3})$\6
+$\>{l2}=\>{nr}(\>{jtyp},\ \39\WO{1});$\6
+$\>{m2}=\>{nr}(\>{jtyp},\ \39\WO{2});$\6
+$\>{n2}=\>{nr}(\>{jtyp},\ \39\WO{3})$\6
+$\>{imax}=\>{l1}+\>{l2}+\WO{1};$\6
+$\>{jmax}=\>{m1}+\>{m2}+\WO{1};$\6
+$\>{kmax}=\>{n1}+\>{n2}+\WO{1}$\6
+$\>{maxall}=\>{imax}$\6
+$\&{if}\,(\>{maxall}<\>{jmax})$\1\6
+$\>{maxall}=\>{jmax}$\2\6
+$\&{if}\,(\>{maxall}<\>{kmax})$\1\6
+$\>{maxall}=\>{kmax}$\2\6
+$\&{if}\,(\>{maxall}<\WO{2})$\1\6
+$\>{maxall}=\WO{2}$\2\5
+\WC{ when all functions are "s" type }\6
+$\>{iss}=\>{nfirst}(\|i);$\6
+$\>{il}=\>{nlast}(\|i)$\6
+$\>{jss}=\>{nfirst}(\|j);$\6
+$\>{jl}=\>{nlast}(\|j)$\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 3 (sect. 1.2, p. 3)
+
+\WM4. This simple code gets the Cartesian overlap components and
+assembles the total integral. It also computes the overlaps required
+to calculate the kinetic energy integral used in a later module.
+
+\WY\WP\4\4\WX{\M{4}}Overlap Components\X \X${}\WSQ{}$\6
+$\>{prefa}=\>{two}\ast\>{prefa}$\6
+$\>{expab}=\@{dexp}({-}\>{aexp}\ast\>{bexp}\ast\>{rAB}\WSl\>{t1})$\6
+$\>{s00}=(\>{pi}\WSl\>{t1})\WEE{\WO{1.5}}\ast\>{expab}$\6
+$\>{dum}=\>{one};$\6
+$\>{tf}(\WO{1})=\>{one};$\6
+$\>{del}=\>{half}\WSl\>{t1}$\6
+\&{do} $\|n=\WO{2},\ \39\>{maxall}$\1\6
+$\>{tf}(\|n)=\>{tf}(\|n-\WO{1})\ast\>{dum}\ast\>{del}$\6
+$\>{dum}=\>{dum}+\>{two}$\2\6
+\&{end} \&{do}\7
+$\>{ox0}=\>{ovrlap}(\>{l1},\ \39\>{l2},\ \39\>{pax},\ \39\>{pbx},\ \39\>{tf})$\6
+$\>{oy0}=\>{ovrlap}(\>{m1},\ \39\>{m2},\ \39\>{pay},\ \39\>{pby},\ \39\>{tf})$\6
+$\>{oz0}=\>{ovrlap}(\>{n1},\ \39\>{n2},\ \39\>{paz},\ \39\>{pbz},\ \39\>{tf})$\6
+$\>{ox2}=\>{ovrlap}(\>{l1},\ \39\>{l2}+\WO{2},\ \39\>{pax},\ \39\>{pbx},\ \39%
+\>{tf})$\6
+$\>{oxm2}=\>{ovrlap}(\>{l1},\ \39\>{l2}-\WO{2},\ \39\>{pax},\ \39\>{pbx},\ \39%
+\>{tf})$\6
+$\>{oy2}=\>{ovrlap}(\>{m1},\ \39\>{m2}+\WO{2},\ \39\>{pay},\ \39\>{pby},\ \39%
+\>{tf})$\6
+$\>{oym2}=\>{ovrlap}(\>{m1},\ \39\>{m2}-\WO{2},\ \39\>{pay},\ \39\>{pby},\ \39%
+\>{tf})$\6
+$\>{oz2}=\>{ovrlap}(\>{n1},\ \39\>{n2}+\WO{2},\ \39\>{paz},\ \39\>{pbz},\ \39%
+\>{tf})$\6
+$\>{ozm2}=\>{ovrlap}(\>{n1},\ \39\>{n2}-\WO{2},\ \39\>{paz},\ \39\>{pbz},\ \39%
+\>{tf})$\6
+$\>{ov0}=\>{ox0}\ast\>{oy0}\ast\>{oz0};$\6
+$\>{ovl}=\>{ov0}\ast\>{s00}$\6
+$\>{ov1}=\>{ox2}\ast\>{oy0}\ast\>{oz0};$\6
+$\>{ov4}=\>{oxm2}\ast\>{oy0}\ast\>{oz0}$\6
+$\>{ov2}=\>{ox0}\ast\>{oy2}\ast\>{oz0};$\6
+$\>{ov5}=\>{ox0}\ast\>{oym2}\ast\>{oz0}$\6
+$\>{ov3}=\>{ox0}\ast\>{oy0}\ast\>{oz2};$\6
+$\>{ov6}=\>{ox0}\ast\>{oy0}\ast\>{ozm2}$\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 4 (sect. 1.3, p. 4)
+
+\WN5.  ovrlap.
+One-dimensional Cartesian overlap. This function uses the
+precomputed factors in \WCD{ \>{tf}} to evaluate the simple Cartesian
+components
+of the overlap integral which must be multiplied together to
+form the total overlap integral.
+
+\WY\WP \Wunnamed{code}{integral.f}%
+\7
+\&{double} \&{precision} \&{function} \1$\>{ovrlap}(\>{l1},\ \39\>{l2},\ \39%
+\>{pax},\ \39\>{pbx},\ \39\>{tf})$\2\1\6
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z)$\2\6
+\&{integer}~\1\>{l1}$,$ \>{l2}\2\6
+\&{double} \&{precision}~\1\>{pax}$,$ \>{pbx}\2\6
+\&{double} \&{precision}~\1\>{tf}$(\ast)$\2\5
+\WC{ pre-computed exponent and double factorial
+    factors: tf(i+1) = (2i-1)ý!/(2**i*(A+B)**i) }\7
+\&{double} \&{precision}~\1\>{zero}$,$ \>{one}$,$ \>{dum}\2\6
+\&{data} ~\1\>{zero}$,$ \>{one}${/}\WO{0.0\^D00},\ \39\WO{1.0\^D00}{/}$\2\7
+$\&{if}\,((\>{l1}<\WO{0})\WOR(\>{l2}<\WO{0}))$ \&{then}\1\6
+$\>{ovrlap}=\>{zero}$\6
+\&{return}\2\6
+\&{end} \&{if}\7
+$\&{if}\,((\>{l1}\WS\WO{0})\WW(\>{l2}\WS\WO{0}))$ \&{then}\1\6
+$\>{ovrlap}=\>{one}$\6
+\&{return}\2\6
+\&{end} \&{if}\7
+$\>{dum}=\>{zero};$\6
+$\>{maxkk}=(\>{l1}+\>{l2})\WSl\WO{2}+\WO{1}$\7
+\&{do} $\>{kk}=\WO{1},\ \39\>{maxkk}$\1\6
+$\>{dum}=\>{dum}+\>{tf}(\>{kk})\ast\>{fj}(\>{l1},\ \39\>{l2},\ \39\WO{2}\ast%
+\>{kk}-\WO{2},\ \39\>{pax},\ \39\>{pbx})$\2\6
+\&{end} \&{do}\7
+$\>{ovrlap}=\>{dum}$\7
+\&{return}\2\6
+\&{end}\WY\Wendc
+\fi % End of section 5 (sect. 2, p. 5a)
+
+\WM6. Use the previously-computed overlap components to
+generate the Kinetic energy components and
+hence the total integral.
+
+\WY\WP\4\4\WX{\M{6}}Kinetic Energy Components\X \X${}\WSQ{}$\6
+$\>{xl}=\@{dfloat}(\>{l2}\ast(\>{l2}-\WO{1}));$\6
+$\>{xm}=\@{dfloat}(\>{m2}\ast(\>{m2}-\WO{1}))$\6
+$\>{xn}=\@{dfloat}(\>{n2}\ast(\>{n2}-\WO{1}));$\6
+$\>{xj}=\@{dfloat}(\WO{2}\ast(\>{l2}+\>{m2}+\>{n2})+\WO{3})$\6
+$\>{kin}=\>{s00}\ast(\>{bexp}\ast(\>{xj}\ast\>{ov0}-\>{two}\ast\>{bexp}\ast(%
+\>{ov1}+\>{ov2}+\>{ov3}))-\>{half}\ast(\>{xl}\ast\>{ov4}+\>{xm}\ast\>{ov5}+%
+\>{xn}\ast\>{ov6}))$\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 6 (sect. 2.1, p. 5b)
+
+\WM7. Form the $f_j$ coefficients needed for the nuclear attraction integral.
+
+\WY\WP\4\4\WX{\M{7}}Form fj\X \X${}\WSQ{}$\6
+$\|m=\>{imax}+\>{jmax}+\>{kmax}-\WO{2}$\6
+\&{do} $\|n=\WO{1},\ \39\>{imax}$\1\6
+$\>{sf}(\|n,\ \39\WO{1})=\>{fj}(\>{l1},\ \39\>{l2},\ \39\|n-\WO{1},\ \39%
+\>{pax},\ \39\>{pbx})$\2\6
+\&{end} \&{do}\7
+\&{do} $\|n=\WO{1},\ \39\>{jmax}$\1\6
+$\>{sf}(\|n,\ \39\WO{2})=\>{fj}(\>{m1},\ \39\>{m2},\ \39\|n-\WO{1},\ \39%
+\>{pay},\ \39\>{pby})$\2\6
+\&{end} \&{do}\7
+\&{do} $\|n=\WO{1},\ \39\>{kmax}$\1\6
+$\>{sf}(\|n,\ \39\WO{3})=\>{fj}(\>{n1},\ \39\>{n2},\ \39\|n-\WO{1},\ \39%
+\>{paz},\ \39\>{pbz})$\2\6
+\&{end} \&{do}\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 7 (sect. 2.2, p. 6a)
+
+\WM8. Use \WCD{ \>{aform}} to compute the required $A$-factors for each
+Cartesian component.
+
+\WY\WP\4\4\WX{\M{8}}Form As\X \X${}\WSQ{}$\6
+$\>{epsi}=\>{quart}\WSl\>{t1}$\6
+\&{do} $\>{ii}=\WO{1},\ \39\WO{10}$\1\6
+$\>{Airu}(\>{ii})=\>{zero}$\6
+$\>{Ajsv}(\>{ii})=\>{zero}$\6
+$\>{Aktw}(\>{ii})=\>{zero}$\2\6
+\&{end} \&{do}\7
+\&{call} $\>{aform}(\>{imax},\ \39\>{sf},\ \39\>{fact},\ \39\>{cpx},\ \39%
+\>{epsi},\ \39\>{Airu},\ \39\WO{1})$\5
+\WC{ form $A_{i,r,u}$  }\6
+\&{call} $\>{aform}(\>{jmax},\ \39\>{sf},\ \39\>{fact},\ \39\>{cpy},\ \39%
+\>{epsi},\ \39\>{Ajsv},\ \39\WO{2})$\5
+\WC{ form $A_{j,s,v}$  }\6
+\&{call} $\>{aform}(\>{kmax},\ \39\>{sf},\ \39\>{fact},\ \39\>{cpz},\ \39%
+\>{epsi},\ \39\>{Aktw},\ \39\WO{3})$\5
+\WC{ form $A_{k,t,w}$  }\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 8 (sect. 2.3, p. 6b)
+
+\WN9.  aform. Compute the nuclear-attraction $A$ factors. These quantitities
+arise from the components of the three position vectors of the two
+basis functions and the attracting centre with respect to the
+centre of the product Gaussian. There is one
+of these for each of the three dimensions of Cartesian space; a typical
+one (the $x$ component) is:
+$$
+A_{\ell,r,i} ( \ell_1 , \ell_2 , \vec{A}_x , \vec{B}_x , \vec{C}_x ,\gamma )
+= (-1)^{\ell} f_{\ell} ( \ell_1, \ell_2 , \vec{PA}_x , \vec{PB}_x )
+  {{ (-1)^i \ell ! \vec{PC}_x^{\ell-2r-2i} \epsilon^{r+i}} \over
+       {r! i! (\ell -2r-2i)!}}
+$$
+
+
+\WY\WP \Wunnamed{code}{integral.f}%
+\7
+\&{subroutine} \1$\>{aform}(\>{imax},\ \39\>{sf},\ \39\>{fact},\ \39\>{cpx},\ %
+\39\>{epsi},\ \39\>{Airu},\ \39\>{xyorz})$\2\1\6
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z)$\2\6
+\&{integer}~\1\>{imax}$,$ \>{xyorz}\2\6
+\&{double} \&{precision}~\1\>{Airu}$(\ast),$ \>{fact}$(\ast),$ \>{sf}$(\WO{10},%
+\ \39\ast)$\2\7
+\&{double} \&{precision}~\1\>{one}\2\6
+\&{data} ~\1\>{one}${/}\WO{1.0\^D00}{/}$\2\7
+\&{do} $\|i=\WO{1},\ \39\>{imax}$\1\6
+$\>{ai}=({-}\>{one})\WEE{(\|i-\WO{1})}\ast\>{sf}(\|i,\ \39\>{xyorz})\ast%
+\>{fact}(\|i)$\6
+$\>{irmax}=(\|i-\WO{1})\WSl\WO{2}+\WO{1}$\6
+\&{do} $\>{ir}=\WO{1},\ \39\>{irmax}$\1\6
+$\>{irumax}=\>{irmax}-\>{ir}+\WO{1}$\6
+\&{do} $\>{iru}=\WO{1},\ \39\>{irumax}$\1\6
+$\>{iq}=\>{ir}+\>{iru}-\WO{2}$\6
+$\>{ip}=\|i-\WO{2}\ast\>{iq}-\WO{1}$\6
+$\>{at5}=\>{one}$\6
+$\&{if}\,(\>{ip}>\WO{0})$\1\6
+$\>{at5}=\>{cpx}\WEE{\>{ip}}$\2\6
+$\>{tiru}=\>{ai}\ast({-}\>{one})\WEE{(\>{iru}-\WO{1})}\ast\>{at5}\ast\>{epsi}%
+\WEE{\>{iq}}\WSl(\>{fact}(\>{ir})\ast\>{fact}(\>{iru})\ast\>{fact}(\>{ip}+%
+\WO{1}))$\6
+$\>{nux}=\>{ip}+\>{iru}$\6
+$\>{Airu}(\>{nux})=\>{Airu}(\>{nux})+\>{tiru}$\2\6
+\&{end} \&{do}\2\6
+\&{end} \&{do}\2\6
+\&{end} \&{do}\7
+\&{return}\2\6
+\&{end}\WY\Wendc
+\fi % End of section 9 (sect. 3, p. 7a)
+
+\WM10. Get the co-ordinates of the attracting nucleus with respect to $%
+\vec{P}$.
+
+\WY\WP\4\4\WX{\M{10}}Nuclear data\X \X${}\WSQ{}$\6
+$\>{cpx}=\|p(\WO{1})-\>{vlist}(\|n,\ \39\WO{1})$\6
+$\>{cpy}=\|p(\WO{2})-\>{vlist}(\|n,\ \39\WO{2})$\6
+$\>{cpz}=\|p(\WO{3})-\>{vlist}(\|n,\ \39\WO{3})$\6
+$\>{pcsq}=\>{cpx}\ast\>{cpx}+\>{cpy}\ast\>{cpy}+\>{cpz}\ast\>{cpz}$\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 10 (sect. 3.1, p. 7b)
+
+\WN11.  generi.
+The general electron-repulsion integral formula for contracted
+Gaussian basis functions. The STRUCTURES and GENERI manual pages must be
+consulted for a detailed description of the calling sequence.
+
+\WY\WP \Wunnamed{code}{integral.f}%
+\7
+\&{double} \&{precision} \&{function} \1$\>{generi}(\|i,\ \39\|j,\ \39\|k,\ \39%
+\|l,\ \39\>{xyorz},\ \39\>{eta},\ \39\>{ngmx},\ \39\>{nfirst},\ \39\>{nlast},\ %
+\39\>{ntype},\ \39\>{nr},\ \39\>{ntmx})$\2\1\7
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z)$\2\6
+\&{integer}~\1\|i$,$ \|j$,$ \|k$,$ \|l$,$ \>{xyorz}$,$ \>{ngmx}$,$ \>{ntmx}\2\6
+\&{double} \&{precision}~\1\>{eta}$(\WUC{MAX\_PRIMITIVES},\ \39\WO{5})$\2\6
+\&{integer}~\1\>{nfirst}$(\ast),$ \>{nlast}$(\ast),$ \>{ntype}$(\ast),$ %
+\>{nr}$(\>{ntmx},\ \39\WO{3})$\2\7
+\WC{  Variables local to the function }\7
+\WX{\M{12}}generi local declarations\X \X\7
+\WC{ Insert the \WCD{  \&{data}}  statement for the factorials }\7
+\WX{\M{13}}Factorials\X \X\7
+\WC{ Get the various integers from the data structures for           the
+summation limits, Cartesian monomial powers etc. from           the main
+integer data structures  }\7
+\WX{\M{14}}Two-electron Integer Setup\X \X\7
+\WC{ Two internuclear distances this time  }\7
+$\>{rAB}=(\>{eta}(\>{is},\ \39\WO{1})-\>{eta}(\>{js},\ \39\WO{1}))\WEE{%
+\WO{2}}+(\>{eta}(\>{is},\ \39\WO{2})-\>{eta}(\>{js},\ \39\WO{2}))\WEE{\WO{2}}+(%
+\>{eta}(\>{is},\ \39\WO{3})-\>{eta}(\>{js},\ \39\WO{3}))\WEE{\WO{2}}$\6
+$\>{rCD}=(\>{eta}(\>{ks},\ \39\WO{1})-\>{eta}(\>{ls},\ \39\WO{1}))\WEE{%
+\WO{2}}+(\>{eta}(\>{ks},\ \39\WO{2})-\>{eta}(\>{ls},\ \39\WO{2}))\WEE{\WO{2}}+(%
+\>{eta}(\>{ks},\ \39\WO{3})-\>{eta}(\>{ls},\ \39\WO{3}))\WEE{\WO{2}}$\7
+\WC{ Initialise the accumulator }\7
+$\>{generi}=\>{zero}$\7
+\WC{ Now the real work, begin the four contraction loops }\7
+\&{do} $\>{irun}=\>{is},\ \39\>{il}$\1\5
+\WC{ start of "i" contraction}\7
+\&{do} $\>{jrun}=\>{js},\ \39\>{jl}$\1\5
+\WC{ start of "j" contraction}\7
+\WC{ Get the data for the two basis functions referring to
+electron 1; orbital exponents and Cartesian co-ordinates              and hence
+compute the vector $\vec{P}$ and the components of              $\vec{PA}$ and
+$\vec{PB}$   }\7
+\WX{\M{15}}Compute PA\X \X\7
+\WC{ Use \WCD{ \&{function} \>{fj}} and \WCD{ \&{subroutine} \>{theta}} to
+calculate the            geometric factors arising from the expansion of the
+product of            Cartesian monomials for the basis functions of electron 1
+ }\7
+\WX{\M{17}}Thetas for electron 1\X \X\7
+\&{do} $\>{krun}=\>{ks},\ \39\>{kl}$\1\5
+\WC{ start of "k" contraction}\6
+\&{do} $\>{lrun}=\>{ls},\ \39\>{ll}$\1\5
+\WC{ start of "l" contraction}\6
+$\>{eribit}=\>{zero}$\5
+\WC{ local accumulator }\7
+\WC{ Get the data for the two basis functions referring to             electron
+2; orbital exponents and Cartesian co-ordinates             and hence compute
+the vector $\vec{Q}$ and the components of             $\vec{QC}$   and $%
+\vec{QD}$   }\7
+\WX{\M{16}}Compute QC\X \X\7
+$\|w=\>{pi}\WSl(\>{t1}+\>{t2})$\7
+\WC{ Repeat the use of \WCD{ \&{function} \>{fj}}             to obtain the
+geometric factors arising from the expansion             of Cartesian monomials
+for the basis functions of electron 2  }\7
+\WX{\M{18}}fj for electron 2\X \X\7
+\&{call} $\>{auxg}(\|m,\ \39\|t,\ \39\|g)$\5
+\WC{ Obtain the $F_\nu$ by recursion }\7
+\WC{ Now use the pre-computed $\theta$ factors for both electron
+distributions to form the overall $B$ factors }\7
+\WX{\M{19}}Form Bs\X \X\7
+\WC{ Form the limits and add up all the bits, the products of              %
+\WCD{ \|x}, \WCD{ \|y} and \WCD{ \|z} related B factors and the $F_{\nu}$ }\7
+$\>{jt1}=\>{i1max}+\>{i2max}-\WO{1}$\6
+$\>{jt2}=\>{j1max}+\>{j2max}-\WO{1}$\6
+$\>{jt3}=\>{k1max}+\>{k2max}-\WO{1}$\7
+\&{do} $\>{ii}=\WO{1},\ \39\>{jt1}$\1\6
+\&{do} $\>{jj}=\WO{1},\ \39\>{jt2}$\1\6
+\&{do} $\>{kk}=\WO{1},\ \39\>{jt3}$\1\6
+$\>{nu}=\>{ii}+\>{jj}+\>{kk}-\WO{2}$\6
+$\&{if}\,(\>{xyorz}\WI\WO{0})$\1\6
+$\>{nu}=\>{nu}+\WO{1}$\2\7
+\WC{ \WCD{ \>{eribit}} is a  repulsion integral over primitive GTFs }\7
+$\>{eribit}=\>{eribit}+\|g(\>{nu})\ast\>{bbx}(\>{ii})\ast\>{bby}(\>{jj})\ast%
+\>{bbz}(\>{kk})$\2\7
+\&{end} \&{do}\2\6
+\&{end} \&{do}\2\6
+\&{end} \&{do}\7
+\WC{ Now accumulate the primitive integrals into the integral
+over contracted GTFs including some constant factors               and
+contraction coefficients    }\7
+$\>{generi}=\>{generi}+\>{prefa}\ast\>{prefc}\ast\>{eribit}\ast\@{dsqrt}(\|w)$%
+\2\7
+\&{end} \&{do}\5
+\WC{ end of "l" contraction loop }\2\6
+\&{end} \&{do}\5
+\WC{ end of "k" contraction loop }\2\6
+\&{end} \&{do}\5
+\WC{ end of "j" contraction loop }\2\6
+\&{end} \&{do}\5
+\WC{ end of "i" contraction loop }\7
+$\&{if}\,(\>{xyorz}\WS\WO{0})$\1\6
+$\>{generi}=\>{generi}\ast\>{two}$\2\6
+\&{return}\2\6
+\&{end}\WY\Wendc
+\fi % End of section 11 (sect. 4, p. 8)
+
+\WM12. Here are the local declarations (workspoace {\em etc.})
+for the two-electron main function \WCD{ \>{generi}}.
+
+\WY\WP\4\4\WX{\M{12}}generi local declarations\X \X${}\WSQ{}$\6
+\&{double} \&{precision}~\1\|p$(\WO{3}),$ \|q$(\WO{3}),$ \>{ppx}$(\WO{20}),$ %
+\>{ppy}$(\WO{20}),$ \>{ppz}$(\WO{20})$\2\6
+\&{double} \&{precision}~\1\>{bbx}$(\WO{20}),$ \>{bby}$(\WO{20}),$ \>{bbz}$(%
+\WO{20}),$ \>{sf}$(\WO{10},\ \39\WO{6})$\2\6
+\&{double} \&{precision}~\1\>{xleft}$(\WO{5},\ \39\WO{10}),$ \>{yleft}$(\WO{5},%
+\ \39\WO{10}),$ \>{zleft}$(\WO{5},\ \39\WO{10})$\2\6
+\&{double} \&{precision}~\1\|r$(\WO{3}),$ \>{fact}$(\WO{20}),$ \|g$(\WO{50})$\2%
+\6
+\&{data} ~\1\>{zero}$,$ \>{one}$,$ \>{two}$,$ \>{half}${/}\WO{0.0\^D00},\ \39%
+\WO{1.0\^D00},\ \39\WO{2.0\^D00},\ \39\WO{0.5\^D00}{/}$\2\6
+\&{data} ~\1\>{pi}${/}\WO{3.141592653589\^D00}{/}$\2\WY\Wendc
+\WU section~\M{11}.
+\fi % End of section 12 (sect. 4.1, p. 10a)
+
+\WM13. These numbers are the first 20 factorials \WCD{ $\>{fact}(\|i)$}
+contains $(i-1)!$.
+
+\WY\WP\4\4\WX{\M{13}}Factorials\X \X${}\WSQ{}$\6
+\&{data} ~\1\>{fact}${/}\WO{1.0\^D00},\ \39\WO{1.0\^D00},\ \39\WO{2.0\^D00},\ %
+\39\WO{6.0\^D00},\ \39\WO{24.0\^D00},\ \39\WO{120.0\^D00},\ \39\WO{720.0\^D00},%
+\ \39\WO{5040.0\^D00},\ \39\WO{40320.0\^D00},\ \39\WO{362880.0\^D00},\ \39%
+\WO{3628800.0\^D00},\ \39\WO{39916800.0\^D00},\ \39\WO{479001600.0\^D00},\ \39%
+\WO{6227020800.0\^D00},\ \39\WO{6}\ast\WO{0.0\^D00}{/}$\2\WY\Wendc
+\WU sections~\M{1}, \M{11}, and~\M{20}.
+\fi % End of section 13 (sect. 4.2, p. 10b)
+
+\WM14. This tedious code extracts the (integer) setup data; the powers of
+$x$, $y$ and $z$ in each of the Cartesian monomials of
+each of the four basis functions and the limits of the contraction
+in each case.
+
+\WY\WP\4\4\WX{\M{14}}Two-electron Integer Setup\X \X${}\WSQ{}$\6
+$\>{ityp}=\>{ntype}(\|i)$\6
+$\>{jtyp}=\>{ntype}(\|j)$\6
+$\>{ktyp}=\>{ntype}(\|k)$\6
+$\>{ltyp}=\>{ntype}(\|l)$\6
+$\>{l1}=\>{nr}(\>{ityp},\ \39\WO{1})$\6
+$\>{m1}=\>{nr}(\>{ityp},\ \39\WO{2})$\6
+$\>{n1}=\>{nr}(\>{ityp},\ \39\WO{3})$\6
+$\>{l2}=\>{nr}(\>{jtyp},\ \39\WO{1})$\6
+$\>{m2}=\>{nr}(\>{jtyp},\ \39\WO{2})$\6
+$\>{n2}=\>{nr}(\>{jtyp},\ \39\WO{3})$\6
+$\>{l3}=\>{nr}(\>{ktyp},\ \39\WO{1})$\6
+$\>{m3}=\>{nr}(\>{ktyp},\ \39\WO{2})$\6
+$\>{n3}=\>{nr}(\>{ktyp},\ \39\WO{3})$\6
+$\>{l4}=\>{nr}(\>{ltyp},\ \39\WO{1})$\6
+$\>{m4}=\>{nr}(\>{ltyp},\ \39\WO{2})$\6
+$\>{n4}=\>{nr}(\>{ltyp},\ \39\WO{3})$\6
+$\>{is}=\>{nfirst}(\|i)$\6
+$\>{il}=\>{nlast}(\|i)$\6
+$\>{js}=\>{nfirst}(\|j)$\6
+$\>{jl}=\>{nlast}(\|j)$\6
+$\>{ks}=\>{nfirst}(\|k)$\6
+$\>{kl}=\>{nlast}(\|k)$\6
+$\>{ls}=\>{nfirst}(\|l)$\6
+$\>{ll}=\>{nlast}(\|l)$\WY\Wendc
+\WU section~\M{11}.
+\fi % End of section 14 (sect. 4.3, p. 10c)
+
+\WM15. Use the Gaussian Product Theorem to find the position vector
+$\vec{P}$, of the product of the two Gaussian exponential factors
+of the basis functions for electron 1.
+
+\WY\WP\4\4\WX{\M{15}}Compute PA\X \X${}\WSQ{}$\6
+$\>{aexp}=\>{eta}(\>{irun},\ \39\WO{4});$\6
+$\>{anorm}=\>{eta}(\>{irun},\ \39\WO{5})$\6
+$\>{bexp}=\>{eta}(\>{jrun},\ \39\WO{4});$\6
+$\>{bnorm}=\>{eta}(\>{jrun},\ \39\WO{5})$\7
+\WC{ \WCD{ \>{aexp}} and \WCD{ \>{bexp}} are the primitive GTF exponents for
+    GTF \WCD{ \>{irun}} and \WCD{ \>{jrun}}, \WCD{ \>{anorm}} and \WCD{ %
+\>{bnorm}} are the        corresponding contraction coefficients bundled up
+into        \WCD{ \>{prefa}}  }\7
+$\>{t1}=\>{aexp}+\>{bexp};$\6
+$\>{deleft}=\>{one}\WSl\>{t1}$\7
+$\|p(\WO{1})=(\>{aexp}\ast\>{eta}(\>{irun},\ \39\WO{1})+\>{bexp}\ast\>{eta}(%
+\>{jrun},\ \39\WO{1}))\ast\>{deleft}$\6
+$\|p(\WO{2})=(\>{aexp}\ast\>{eta}(\>{irun},\ \39\WO{2})+\>{bexp}\ast\>{eta}(%
+\>{jrun},\ \39\WO{2}))\ast\>{deleft}$\6
+$\|p(\WO{3})=(\>{aexp}\ast\>{eta}(\>{irun},\ \39\WO{3})+\>{bexp}\ast\>{eta}(%
+\>{jrun},\ \39\WO{3}))\ast\>{deleft}$\7
+$\>{pax}=\|p(\WO{1})-\>{eta}(\>{irun},\ \39\WO{1})$\6
+$\>{pay}=\|p(\WO{2})-\>{eta}(\>{irun},\ \39\WO{2})$\6
+$\>{paz}=\|p(\WO{3})-\>{eta}(\>{irun},\ \39\WO{3})$\7
+$\>{pbx}=\|p(\WO{1})-\>{eta}(\>{jrun},\ \39\WO{1})$\6
+$\>{pby}=\|p(\WO{2})-\>{eta}(\>{jrun},\ \39\WO{2})$\6
+$\>{pbz}=\|p(\WO{3})-\>{eta}(\>{jrun},\ \39\WO{3})$\7
+$\>{prefa}=\@{dexp}({-}\>{aexp}\ast\>{bexp}\ast\>{rAB}\WSl\>{t1})\ast\>{pi}\ast%
+\>{anorm}\ast\>{bnorm}\WSl\>{t1}$\WY\Wendc
+\WU sections~\M{1} and~\M{11}.
+\fi % End of section 15 (sect. 4.4, p. 11)
+
+\WM16. Use the Gaussian Product Theorem to find the position vector
+$\vec{Q}$, of the product of the two Gaussian exponential factors
+of the basis functions for electron 2.
+
+\WY\WP\4\4\WX{\M{16}}Compute QC\X \X${}\WSQ{}$\6
+$\>{cexpp}=\>{eta}(\>{krun},\ \39\WO{4});$\6
+$\>{cnorm}=\>{eta}(\>{krun},\ \39\WO{5})$\6
+$\>{dexpp}=\>{eta}(\>{lrun},\ \39\WO{4});$\6
+$\>{dnorm}=\>{eta}(\>{lrun},\ \39\WO{5})$\7
+\WC{ \WCD{ \@{cexp}} and \WCD{ \@{dexp}} are the primitive GTF exponents for
+    GTF \WCD{ \>{krun}} and \WCD{ \>{lrun}}, \WCD{ \>{cnorm}} and \WCD{ %
+\>{dnorm}} are the        corresponding contraction coefficients bundled up
+into        \WCD{ \>{prefc}}  }\7
+$\>{t2}=\>{cexpp}+\>{dexpp}$\6
+$\>{t2m1}=\>{one}\WSl\>{t2}$\6
+$\>{fordel}=\>{t2m1}+\>{deleft}$\7
+$\|q(\WO{1})=(\>{cexpp}\ast\>{eta}(\>{krun},\ \39\WO{1})+\>{dexpp}\ast\>{eta}(%
+\>{lrun},\ \39\WO{1}))\ast\>{t2m1}$\6
+$\|q(\WO{2})=(\>{cexpp}\ast\>{eta}(\>{krun},\ \39\WO{2})+\>{dexpp}\ast\>{eta}(%
+\>{lrun},\ \39\WO{2}))\ast\>{t2m1}$\6
+$\|q(\WO{3})=(\>{cexpp}\ast\>{eta}(\>{krun},\ \39\WO{3})+\>{dexpp}\ast\>{eta}(%
+\>{lrun},\ \39\WO{3}))\ast\>{t2m1}$\7
+$\>{qcx}=\|q(\WO{1})-\>{eta}(\>{krun},\ \39\WO{1})$\6
+$\>{qcy}=\|q(\WO{2})-\>{eta}(\>{krun},\ \39\WO{2})$\6
+$\>{qcz}=\|q(\WO{3})-\>{eta}(\>{krun},\ \39\WO{3})$\7
+$\>{qdx}=\|q(\WO{1})-\>{eta}(\>{lrun},\ \39\WO{1})$\6
+$\>{qdy}=\|q(\WO{2})-\>{eta}(\>{lrun},\ \39\WO{2})$\6
+$\>{qdz}=\|q(\WO{3})-\>{eta}(\>{lrun},\ \39\WO{3})$\7
+$\|r(\WO{1})=\|p(\WO{1})-\|q(\WO{1})$\6
+$\|r(\WO{2})=\|p(\WO{2})-\|q(\WO{2})$\6
+$\|r(\WO{3})=\|p(\WO{3})-\|q(\WO{3})$\7
+$\|t=(\|r(\WO{1})\ast\|r(\WO{1})+\|r(\WO{2})\ast\|r(\WO{2})+\|r(\WO{3})\ast\|r(%
+\WO{3}))\WSl\>{fordel}$\6
+$\>{prefc}=\@{exp}({-}\>{cexpp}\ast\>{dexpp}\ast\>{rCD}\WSl\>{t2})\ast\>{pi}%
+\ast\>{cnorm}\ast\>{dnorm}\WSl\>{t2}$\WY\Wendc
+\WU section~\M{11}.
+\fi % End of section 16 (sect. 4.5, p. 12)
+
+\WM17. The series of terms arising from the expansion of the
+Cartesian monomials like $(x - PA)^{\ell_1}(x - PB)^{\ell_2}$ are
+computed by first forming the $f_j$ and hence the $\theta$s.
+
+\WY\WP\4\4\WX{\M{17}}Thetas for electron 1\X \X${}\WSQ{}$\6
+$\>{i1max}=\>{l1}+\>{l2}+\WO{1}$\6
+$\>{j1max}=\>{m1}+\>{m2}+\WO{1}$\6
+$\>{k1max}=\>{n1}+\>{n2}+\WO{1}$\7
+$\>{mleft}=\>{i1max}+\>{j1max}+\>{k1max}$\7
+\&{do} $\|n=\WO{1},\ \39\>{i1max}$\1\6
+$\>{sf}(\|n,\ \39\WO{1})=\>{fj}(\>{l1},\ \39\>{l2},\ \39\|n-\WO{1},\ \39%
+\>{pax},\ \39\>{pbx})$\2\6
+\&{end} \&{do}\7
+\&{do} $\|n=\WO{1},\ \39\>{j1max}$\1\6
+$\>{sf}(\|n,\ \39\WO{2})=\>{fj}(\>{m1},\ \39\>{m2},\ \39\|n-\WO{1},\ \39%
+\>{pay},\ \39\>{pby})$\2\6
+\&{end} \&{do}\7
+\&{do} $\|n=\WO{1},\ \39\>{k1max}$\1\6
+$\>{sf}(\|n,\ \39\WO{3})=\>{fj}(\>{n1},\ \39\>{n2},\ \39\|n-\WO{1},\ \39%
+\>{paz},\ \39\>{pbz})$\2\6
+\&{end} \&{do}\7
+\&{call} $\>{theta}(\>{i1max},\ \39\>{sf},\ \39\WO{1},\ \39\>{fact},\ \39%
+\>{t1},\ \39\>{xleft})$\6
+\&{call} $\>{theta}(\>{j1max},\ \39\>{sf},\ \39\WO{2},\ \39\>{fact},\ \39%
+\>{t1},\ \39\>{yleft})$\6
+\&{call} $\>{theta}(\>{k1max},\ \39\>{sf},\ \39\WO{3},\ \39\>{fact},\ \39%
+\>{t1},\ \39\>{zleft})$\WY\Wendc
+\WU section~\M{11}.
+\fi % End of section 17 (sect. 4.6, p. 13a)
+
+\WM18. The series of terms arising from the expansion of the
+Cartesian monomials like $(x - QC)^{\ell_3}(x - QD)^{\ell_4}$ are
+computed by  forming the $f_j$ and storing them in the array \WCD{ \>{sf}}
+for later use by \WCD{ \>{bform}}.
+
+\WY\WP\4\4\WX{\M{18}}fj for electron 2\X \X${}\WSQ{}$\6
+$\>{i2max}=\>{l3}+\>{l4}+\WO{1}$\6
+$\>{j2max}=\>{m3}+\>{m4}+\WO{1}$\6
+$\>{k2max}=\>{n3}+\>{n4}+\WO{1}$\7
+$\>{twodel}=\>{half}\ast\>{fordel}$\6
+$\>{delta}=\>{half}\ast\>{twodel}$\7
+\&{do} $\|n=\WO{1},\ \39\>{i2max}$\1\6
+$\>{sf}(\|n,\ \39\WO{4})=\>{fj}(\>{l3},\ \39\>{l4},\ \39\|n-\WO{1},\ \39%
+\>{qcx},\ \39\>{qdx})$\2\6
+\&{end} \&{do}\7
+\&{do} $\|n=\WO{1},\ \39\>{j2max}$\1\6
+$\>{sf}(\|n,\ \39\WO{5})=\>{fj}(\>{m3},\ \39\>{m4},\ \39\|n-\WO{1},\ \39%
+\>{qcy},\ \39\>{qdy})$\2\6
+\&{end} \&{do}\7
+\&{do} $\|n=\WO{1},\ \39\>{k2max}$\1\6
+$\>{sf}(\|n,\ \39\WO{6})=\>{fj}(\>{n3},\ \39\>{n4},\ \39\|n-\WO{1},\ \39%
+\>{qcz},\ \39\>{qdz})$\2\6
+\&{end} \&{do}\7
+$\|m=\>{mleft}+\>{i2max}+\>{j2max}+\>{k2max}+\WO{1}$\WY\Wendc
+\WU section~\M{11}.
+\fi % End of section 18 (sect. 4.7, p. 13b)
+
+\WM19. In the central inner loops of the four contractions,
+use the previously- computed $\theta$ factors to
+form the combined geometrical $B$ factors.
+
+\WY\WP\4\4\WX{\M{19}}Form Bs\X \X${}\WSQ{}$\6
+$\>{ppx}(\WO{1})=\>{one};$\6
+$\>{bbx}(\WO{1})=\>{zero}$\6
+$\>{ppy}(\WO{1})=\>{one};$\6
+$\>{bby}(\WO{1})=\>{zero}$\6
+$\>{ppz}(\WO{1})=\>{one};$\6
+$\>{bbz}(\WO{1})=\>{zero}$\7
+$\>{jt1}=\>{i1max}+\>{i2max}$\6
+\&{do} $\|n=\WO{2},\ \39\>{jt1}$\1\6
+$\>{ppx}(\|n)={-}\>{ppx}(\|n-\WO{1})\ast\|r(\WO{1})$\6
+$\>{bbx}(\|n)=\>{zero}$\2\6
+\&{end} \&{do}\7
+$\>{jt1}=\>{j1max}+\>{j2max}$\6
+\&{do} $\|n=\WO{2},\ \39\>{jt1}$\1\6
+$\>{ppy}(\|n)={-}\>{ppy}(\|n-\WO{1})\ast\|r(\WO{2})$\6
+$\>{bby}(\|n)=\>{zero}$\2\6
+\&{end} \&{do}\7
+$\>{jt1}=\>{k1max}+\>{k2max}$\6
+\&{do} $\|n=\WO{2},\ \39\>{jt1}$\1\6
+$\>{ppz}(\|n)={-}\>{ppz}(\|n-\WO{1})\ast\|r(\WO{3})$\6
+$\>{bbz}(\|n)=\>{zero}$\2\6
+\&{end} \&{do}\7
+\&{call} $\>{bform}(\>{i1max},\ \39\>{i2max},\ \39\>{sf},\ \39\WO{1},\ \39%
+\>{fact},\ \39\>{xleft},\ \39\>{t2},\ \39\>{delta},\ \39\>{ppx},\ \39\>{bbx},\ %
+\39\>{xyorz})$\6
+\&{call} $\>{bform}(\>{j1max},\ \39\>{j2max},\ \39\>{sf},\ \39\WO{2},\ \39%
+\>{fact},\ \39\>{yleft},\ \39\>{t2},\ \39\>{delta},\ \39\>{ppy},\ \39\>{bby},\ %
+\39\>{xyorz})$\6
+\&{call} $\>{bform}(\>{k1max},\ \39\>{k2max},\ \39\>{sf},\ \39\WO{3},\ \39%
+\>{fact},\ \39\>{zleft},\ \39\>{t2},\ \39\>{delta},\ \39\>{ppz},\ \39\>{bbz},\ %
+\39\>{xyorz})$\WY\Wendc
+\WU section~\M{11}.
+\fi % End of section 19 (sect. 4.8, p. 14)
+
+\WN20.  fj.
+This is the function to evaluate the coefficient of $x^j$ in the expansion
+of
+$$
+(x + a)^\ell (x+b)^m
+$$
+The full expression is
+$$
+f_j (\ell , m , a, b) = \sum_{k = max (0, j-m)}^{min(j, \ell }
+                         { \ell \choose k}{ m \choose {j-k}}
+                          a^{\ell - k } b^{m + k - j}
+$$
+The function must take steps to do the right thing for
+$0.0^0$ when it occurs.
+
+\WY\WP \Wunnamed{code}{integral.f}%
+\7
+\&{double} \&{precision} \&{function} \1$\>{fj}(\|l,\ \39\|m,\ \39\|j,\ \39\|a,%
+\ \39\|b)$\2\1\7
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z)$\2\6
+\&{integer}~\1\|l$,$ \|m$,$ \|j\2\6
+\&{double} \&{precision}~\1\|a$,$ \|b\2\7
+\&{double} \&{precision}~\1\>{sum}$,$ \>{term}$,$ \>{aa}$,$ \>{bb}\2\6
+\&{integer}~\1\|i$,$ \>{imax}$,$ \>{imin}\2\6
+\&{double} \&{precision}~\1\>{fact}$(\WO{20})$\2\7
+\WX{\M{13}}Factorials\X \X\7
+$\>{imax}=\@{min}(\|j,\ \39\|l)$\6
+$\>{imin}=\@{max}(\WO{0},\ \39\|j-\|m)$\7
+$\>{sum}=\WO{0.0\^D00}$\6
+\&{do} $\|i=\>{imin},\ \39\>{imax}$\1\7
+$\>{term}=\>{fact}(\|l+\WO{1})\ast\>{fact}(\|m+\WO{1})\WSl(\>{fact}(\|i+\WO{1})%
+\ast\>{fact}(\|j-\|i+\WO{1}))$\6
+$\>{term}=\>{term}\WSl(\>{fact}(\|l-\|i+\WO{1})\ast\>{fact}(\|m-\|j+\|i+%
+\WO{1}))$\6
+$\>{aa}=\WO{1.0\^D00};$\6
+$\>{bb}=\WO{1.0\^D00}$\6
+$\&{if}\,((\|l-\|i)\WI\WO{0})$\1\6
+$\>{aa}=\|a\WEE{(\|l-\|i)}$\2\7
+$\&{if}\,((\|m+\|i-\|j)\WI\WO{0})$\1\6
+$\>{bb}=\|b\WEE{(\|m+\|i-\|j)}$\2\7
+$\>{term}=\>{term}\ast\>{aa}\ast\>{bb}$\6
+$\>{sum}=\>{sum}+\>{term}$\2\7
+\&{end} \&{do}\7
+$\>{fj}=\>{sum}$\7
+\&{return}\2\6
+\&{end}\WY\Wendc
+\fi % End of section 20 (sect. 5, p. 15)
+
+\WN21.  theta.
+Computation of all the $\theta$ factors required from one
+basis-function product; any one of them is given by
+$$
+\theta (j , \ell_1 , \ell_2 , a, b,  r , \gamma )
+ = f_{j} (\ell_1 , \ell_2 , a, b) {{ j! \gamma^{r - j}} \over
+         { r! (j - 2r)!}}
+$$
+The $f_j$ are computed in the body of \WCD{ \>{generi}} and passed to this
+routine in \WCD{ \>{sf}}, the particular ones to use are in \WCD{ $\>{sf}(\ast,%
+\ \>{isf})$}.
+They are stored in \WCD{ \>{xleft}}, \WCD{ \>{yleft}} and \WCD{ \>{zleft}}
+because they
+are associated with electron 1 (the left-hand factor in the integrand
+as it is usually written $(ij,k\ell)$).
+
+\WY\WP \Wunnamed{code}{integral.f}%
+\7
+\&{subroutine} \1$\>{theta}(\>{i1max},\ \39\>{sf},\ \39\>{isf},\ \39\>{fact},\ %
+\39\>{t1},\ \39\>{xleft})$\2\1\7
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z)$\2\6
+\&{integer}~\1\>{i1max}$,$ \>{isf}\2\6
+\&{double} \&{precision}~\1\>{t1}\2\6
+\&{double} \&{precision}~\1\>{sf}$(\WO{10},\ \39\ast),$ \>{fact}$(\ast),$ %
+\>{xleft}$(\WO{5},\ \39\ast)$\2\7
+\&{integer}~\1\>{i1}$,$ \>{ir1}$,$ \>{ir1max}$,$ \>{jt2}\2\6
+\&{double} \&{precision}~\1\>{zero}$,$ \>{sfab}$,$ \>{bbb}\2\7
+\&{data} ~\1\>{zero}${/}\WO{0.0\^D00}{/}$\2\7
+\&{do} $\>{i1}=\WO{1},\ \39\WO{10}$\1\6
+\&{do} $\>{ir1}=\WO{1},\ \39\WO{5}$\1\6
+$\>{xleft}(\>{ir1},\ \39\>{i1})=\>{zero}$\2\6
+\&{end} \&{do}\2\6
+\&{end} \&{do}\7
+\&{do} $\WO{100}$ $\>{i1}=\WO{1},\ \39\>{i1max}$\1\6
+$\>{sfab}=\>{sf}(\>{i1},\ \39\>{isf})$\7
+$\&{if}\,(\>{sfab}\WS\>{zero})$\1\6
+\&{go} \&{to} $\WO{100}$\2\7
+$\>{ir1max}=(\>{i1}-\WO{1})\WSl\WO{2}+\WO{1}$\6
+$\>{bbb}=\>{sfab}\ast\>{fact}(\>{i1})\WSl\>{t1}\WEE{(\>{i1}-\WO{1})}$\6
+\&{do} $\>{ir1}=\WO{1},\ \39\>{ir1max}$\1\6
+$\>{jt2}=\>{i1}+\WO{2}-\>{ir1}-\>{ir1}$\6
+$\>{xleft}(\>{ir1},\ \39\>{i1})=\>{bbb}\ast(\>{t1}\WEE{(\>{ir1}-\WO{1})})\WSl(%
+\>{fact}(\>{ir1})\ast\>{fact}(\>{jt2}))$\2\6
+\&{end} \&{do}\2\7
+\Wlbl{\WO{100}\Colon\ }\&{continue}\7
+\&{return}\2\6
+\&{end}\WY\Wendc
+\fi % End of section 21 (sect. 6, p. 16)
+
+\WN22.  bform.
+Use the pre-computed $f_j$ and $\theta$ to form the
+\lq\lq $B$ \rq\rq\ factors, the final geometrical expansion
+coefficients arising from the products of Cartesian monomials. Any one
+of them is given by
+\begin{eqnarray*}
+  B_{\ell , \ell' , r_1 , r_2 , i } (\ell_1 , \ell_2 , \vec{A}_x ,
+   \vec{B}_x , \vec{P}_x , \gamma_1 ;\ell_3 , \ell_4 , \vec{C}_x ,
+   \vec{D}_x , \vec{Q}_x , \gamma_2 )  \\
+ =  (-1)^{\ell'}
+ \theta (\ell , \ell_1 , \ell_2 , \vec{PA}_x, \vec{PB}_x, r, \gamma_1 )
+\theta (\ell' , \ell_3 , \ell_4 , \vec{QC}_x, \vec{QD}_x, r', \gamma_2 ) \\
+  \times  \frac{(-1)^i (2\delta)^{2(r + r')}(\ell + \ell' -2r-2r')!
+     \delta^i \vec{p}_x^{\ell + \ell' -2(r + r' +i)} }
+     { (4\delta)^{\ell + \ell'} i! [\ell + \ell' -2(r + r'+i)]!}
+\end{eqnarray*}
+
+
+\WY\WP \Wunnamed{code}{integral.f}%
+\7
+\&{subroutine} \1$\>{bform}(\>{i1max},\ \39\>{i2max},\ \39\>{sf},\ \39\>{isf},\
+\39\>{fact},\ \39\>{xleft},\ \39\>{t2},\ \39\>{delta},\ \39\>{ppx},\ \39%
+\>{bbx},\ \39\>{xyorz})$\2\1\7
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z)$\2\6
+\&{integer}~\1\>{i1max}$,$ \>{i2max}$,$ \>{isf}\2\6
+\&{double} \&{precision}~\1\>{fact}$(\ast),$ \>{sf}$(\WO{10},\ \39\ast),$ %
+\>{xleft}$(\WO{5},\ \39\ast),$ \>{bbx}$(\ast),$ \>{ppx}$(\WO{20})$\2\6
+\&{double} \&{precision}~\1\>{delta}\2\6
+\&{integer}~\1\>{xyorz}$,$ \>{itab}\2\7
+\&{double} \&{precision}~\1\>{zero}$,$ \>{one}$,$ \>{two}$,$ \>{twodel}$,$ %
+\>{fordel}$,$ \>{sfab}$,$ \>{sfcd}\2\6
+\&{double} \&{precision}~\1\>{bbc}$,$ \>{bbd}$,$ \>{bbe}$,$ \>{bbf}$,$ %
+\>{bbg}$,$ \>{ppqq}\2\6
+\&{integer}~\1\>{i1}$,$ \>{i2}$,$ \>{jt1}$,$ \>{jt2}$,$ \>{ir1max}$,$ %
+\>{ir2max}\2\6
+\&{data} ~\1\>{zero}$,$ \>{one}$,$ \>{two}${/}\WO{0.0\^D00},\ \39\WO{1.0\^D00},%
+\ \39\WO{2.0\^D00}{/}$\2\7
+$\>{itab}=\WO{0}$\7
+$\&{if}\,(\>{xyorz}\WS\>{isf})$\1\6
+$\>{itab}=\WO{1}$\2\7
+$\>{twodel}=\>{two}\ast\>{delta};$\6
+$\>{fordel}=\>{two}\ast\>{twodel}$\7
+\&{do} $\WO{200}$ $\>{i1}=\WO{1},\ \39\>{i1max}$\1\7
+$\>{sfab}=\>{sf}(\>{i1},\ \39\>{isf})$\6
+$\&{if}\,(\>{sfab}\WS\>{zero})$\1\6
+\&{go} \&{to} $\WO{200}$\2\6
+$\>{ir1max}=(\>{i1}-\WO{1})\WSl\WO{2}+\WO{1}$\7
+\&{do} $\WO{210}$ $\>{i2}=\WO{1},\ \39\>{i2max}$\1\7
+$\>{sfcd}=\>{sf}(\>{i2},\ \39\>{isf}+\WO{3})$\6
+$\&{if}\,(\>{sfcd}\WS\>{zero})$\1\6
+\&{go} \&{to} $\WO{210}$\2\6
+$\>{jt1}=\>{i1}+\>{i2}-\WO{2}$\6
+$\>{ir2max}=(\>{i2}-\WO{1})\WSl\WO{2}+\WO{1}$\6
+$\>{bbc}=(({-}\>{one})\WEE{(\>{i2}-\WO{1})})\ast\>{sfcd}\ast\>{fact}(\>{i2})%
+\WSl(\>{t2}\WEE{(\>{i2}-\WO{1})}\ast(\>{fordel}\WEE{\>{jt1}}))$\7
+\&{do} $\WO{220}$ $\>{ir1}=\WO{1},\ \39\>{ir1max}$\1\7
+$\>{jt2}=\>{i1}+\WO{2}-\>{ir1}-\>{ir1}$\6
+$\>{bbd}=\>{bbc}\ast\>{xleft}(\>{ir1},\ \39\>{i1})$\6
+$\&{if}\,(\>{bbd}\WS\>{zero})$\1\6
+\&{go} \&{to} $\WO{220}$\2\7
+\&{do} $\WO{230}$ $\>{ir2}=\WO{1},\ \39\>{ir2max}$\1\7
+$\>{jt3}=\>{i2}+\WO{2}-\>{ir2}-\>{ir2}$\6
+$\>{jt4}=\>{jt2}+\>{jt3}-\WO{2}$\6
+$\>{irumax}=(\>{jt4}+\>{itab})\WSl\WO{2}+\WO{1}$\6
+$\>{jt1}=\>{ir1}+\>{ir1}+\>{ir2}+\>{ir2}-\WO{4}$\7
+$\>{bbe}=\>{bbd}\ast(\>{t2}\WEE{(\>{ir2}-\WO{1})})\ast(\>{twodel}\WEE{\>{jt1}})%
+\ast\>{fact}(\>{jt4}+\WO{1})\WSl(\>{fact}(\>{ir2})\ast\>{fact}(\>{jt3}))$\7
+\&{do} $\WO{240}$ $\>{iru}=\WO{1},\ \39\>{irumax}$\1\7
+$\>{jt5}=\>{jt4}-\>{iru}-\>{iru}+\WO{3}$\6
+$\>{ppqq}=\>{ppx}(\>{jt5})$\6
+$\&{if}\,(\>{ppqq}\WS\>{zero})$\1\6
+\&{go} \&{to} $\WO{240}$\2\7
+$\>{bbf}=\>{bbe}\ast(({-}\>{delta})\WEE{(\>{iru}-\WO{1})})\ast\>{ppqq}\WSl(%
+\>{fact}(\>{iru})\ast\>{fact}(\>{jt5}))$\7
+$\>{bbg}=\>{one}$\7
+$\&{if}\,(\>{itab}\WS\WO{1})$ \&{then}\1\7
+$\>{bbg}=\@{dfloat}(\>{jt4}+\WO{1})\ast\>{ppx}(\WO{2})\WSl(\>{delta}\ast%
+\@{dfloat}(\>{jt5}))$\2\7
+\&{end} \&{if}\7
+$\>{bbf}=\>{bbf}\ast\>{bbg}$\6
+$\>{nux}=\>{jt4}-\>{iru}+\WO{2}$\6
+$\>{bbx}(\>{nux})=\>{bbx}(\>{nux})+\>{bbf}$\2\7
+\Wlbl{\WO{240}\Colon\ }\&{continue}\2\6
+\Wlbl{\WO{230}\Colon\ }\&{continue}\2\6
+\Wlbl{\WO{220}\Colon\ }\&{continue}\2\6
+\Wlbl{\WO{210}\Colon\ }\&{continue}\2\6
+\Wlbl{\WO{200}\Colon\ }\&{continue}\7
+\&{return}\2\6
+\&{end}\WY\Wendc
+\fi % End of section 22 (sect. 7, p. 17)
+
+\WN23.  auxg.
+Find the maximum value of $F_\nu$ required, use \WCD{ \>{fmch}} to
+compute it and obtain all the lower $F_\nu$ by downward recursion.
+$$
+F_{\nu-1}(x) = {{\exp(-x) + 2 x F_\nu (x) } \over {2 \nu -1 }}
+$$
+
+\WY\WP \Wunnamed{code}{integral.f}%
+\7
+\&{subroutine} \1$\>{auxg}(\>{mmax},\ \39\|x,\ \39\|g)$\2\1\7
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z)$\2\6
+\&{integer}~\1\>{mmax}\2\6
+\&{double} \&{precision}~\1\|x$,$ \|g$(\ast)$\2\7
+\&{double} \&{precision}~\1\>{fmch}\2\7
+\&{double} \&{precision}~\1\>{two}$,$ \|y\2\6
+\&{integer}~\1\>{mp1mx}$,$ \>{mp1}$,$ \>{md}$,$ \>{mdm}\2\6
+\&{data} ~\1\>{two}${/}\WO{2.0\^D00}{/}$\2\7
+$\|y=\@{dexp}({-}\|x)$\6
+$\>{mp1mx}=\>{mmax}+\WO{1}$\6
+$\|g(\>{mp1mx})=\>{fmch}(\>{mmax},\ \39\|x,\ \39\|y)$\6
+$\&{if}\,(\>{mmax}<\WO{1})$\1\6
+\&{go} \&{to} $\WO{303}$\2\5
+\WC{ just in case!  }\7
+\WC{ Now do the recursion  downwards }\7
+\&{do} $\>{mp1}=\WO{1},\ \39\>{mmax}$\1\7
+$\>{md}=\>{mp1mx}-\>{mp1}$\6
+$\>{mdm}=\>{md}-\WO{1}$\6
+$\|g(\>{md})=(\>{two}\ast\|x\ast\|g(\>{md}+\WO{1})+\|y)\WSl\@{dfloat}(\WO{2}%
+\ast\>{mdm}+\WO{1})$\2\7
+\&{end} \&{do}\7
+\Wlbl{\WO{303}\Colon\ }\&{return}\2\6
+\&{end}\WY\Wendc
+\fi % End of section 23 (sect. 8, p. 19)
+
+\WN24.  fmch. This code is for the oldest and most general
+and reliable of the methods of computing
+\begin{equation}
+ F_\nu (x) = \int_0^1 t^{2 \nu} \exp (-x t^2) dt
+\end{equation}
+One of two possible series expansions is used depending on the value of x.
+
+For \WCD{ $\|x\WL\WO{10}$} (Small \WCD{ \|x} Case) the (potentially) infinite
+series
+\begin{equation}
+ F_\nu (x) = \frac{1}{2} \exp(-x) \sum_{i=0}^{\infty}
+   \frac{\Gamma (\nu + \frac{1}{2} ) }
+   {\Gamma (\nu + i + \frac{3}{2})} x^i
+\end{equation}
+is used.
+
+The series is truncated when the value of terms falls below $10^{-8}$.
+However, if the series seems to be becoming unreasonably long before
+this condition is reached (more than 50 terms), the evaluation is stopped
+and the function aborted with an error message on \WCD{ \WUC{ERROR\_OUTPUT%
+\_UNIT}}.
+
+If \WCD{ $\|x>\WO{10}$} (Large \WCD{ \|x} Case) a different series expansion is
+used:
+%
+\begin{equation}
+ F_\nu(x) = \frac{\Gamma(\nu + \frac{1}{2})}{2x^{\nu + \frac{1}{2}}}
+         - \frac{1}{2} \exp(-x) \sum_{i=0}^{\infty}
+           \frac{\Gamma(\nu + \frac{1}{2})}{\Gamma(\nu- i + \frac{3}{2})}
+           x^{-i}
+\end{equation}
+%
+This series, in fact, diverges but it diverges so slowly that the error
+obtained in truncating
+it is always less than the last term in the truncated series. Thus,
+Thus, to obtain a value of the function to the same accuracy as the other
+series,
+the expansion is terminated when the last term is less than the same criterion
+($10^{-8}$).
+
+It can be shown that the minimum term is always for \WCD{ \|i} close to
+$\nu + x$, thus ifthe terms for this value of \WCD{ \|i} are not below the
+criterion,
+the series expansion is abandoned, a message output on \WCD{ \WUC{ERROR\_OUTPUT%
+\_UNIT}}
+and the function aborted.
+
+The third argument, \WCD{ \|y}, is $exp(-x)$, since it is assumed that this
+function
+will only be used {\it once} to evaluate the function $F_\nu(x)$ for the
+maximum value
+of $\nu$ required and other values will be obtained by downward recursion of
+the form
+%
+\begin{equation}
+ F_{\nu-1}(x) = \frac{\exp(-x) + 2xF_\nu(x)}{2\nu-1}
+\end{equation}
+%
+which also requires the value of $\exp(-x)$ to be available.
+%
+
+\ \\ \ \\
+\begin{minipage}{4.5in}
+\ \\
+\begin{description}
+\item[NAME] \         \\
+ fmch
+
+\item[SYNOPSIS] \     \\
+ {\tt double precision function fmch(nu,x,y) \\
+   \ \\
+  implicit double precision (a-h,o-z) \\
+  double precision x, y \\
+  integer nu \\
+ }
+
+\item[DESCRIPTION] \  \\
+ Computes
+\[
+  F_\nu (x) = \int_0^1 t^{2\nu} e^{-x t^2} dt
+\]
+given $\nu$ and $x$. It is used in the evaluation of GTF
+nuclear attraction and electron-repulsion integrals.
+
+\item[ARGUMENTS] \    \\
+\begin{description}
+\item[nu] Input: The value of $\nu$ in the explicit formula above ({\tt
+integer})
+\item[x] Input: $x$ in the formula ({\tt double precision})
+\item[y] Input: $\exp(-x)$, assumed to be available.
+\end{description}
+
+\item[DIAGNOSTICS] \  \\
+If the relevant series of expansion used do not converge to a tolerance
+of $10^{-8}$, an error message is printed on standard output and the
+computation
+aborted.
+\end{description}
+\ \\ \ \\
+\end{minipage}
+\ \\ \ \\
+
+
+\WY\WP \Wunnamed{code}{integral.f}%
+ \&{double} \&{precision} \&{function} \1$%
+\>{fmch}(\>{nu},\ \39\|x,\ \39\|y)$\2\1\6
+\WX{\M{25}}Declarations\X \X\5
+\WC{ First, make the variable declarations }\6
+\WX{\M{26}}Internal Declarations\X \X\6
+$\|m=\>{nu}$\6
+$\|a=\@{dfloat}(\|m)$\6
+$\&{if}\,(\|x\WL\>{ten})$ \&{then}\1\6
+\WX{\M{27}}Small x Case\X \X\2\6
+\&{else}\1\6
+\WX{\M{28}}Large x Case\X \X\2\6
+\&{end} \&{if}\2\6
+\&{end}\WY\Wendc
+\fi % End of section 24 (sect. 9, p. 20)
+
+\WM25. Here are the declarations and \WCD{  \&{data}}  statements which are ...
+
+\WY\WP\4\4\WX{\M{25}}Declarations\X \X${}\WSQ{}$\6
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z)$\2\6
+\&{double} \&{precision}~\1\|x$,$ \|y\2\6
+\&{integer}~\1\>{nu}\2\Wendc
+\WU section~\M{24}.
+\fi % End of section 25 (sect. 9.1, p. 22a)
+
+\WM26.
+
+\WY\WP\4\4\WX{\M{26}}Internal Declarations\X \X${}\WSQ{}$\6
+\&{double} \&{precision}~\1\>{ten}$,$ \>{half}$,$ \>{one}$,$ \>{zero}$,$ %
+\>{rootpi4}$,$ \>{xd}$,$ \>{crit}\2\6
+\&{double} \&{precision}~\1\>{term}$,$ \>{partialsum}\2\6
+\&{integer}~\1\|m$,$ \|i$,$ \>{numberofterms}$,$ \>{maxone}$,$ \>{maxtwo}\2\6
+\&{data} ~\1\>{zero}$,$ \>{half}$,$ \>{one}$,$ \>{rootpi4}$,$ \>{ten}${/}%
+\WO{0.0\^D00},\ \39\WO{0.5\^D00},\ \39\WO{1.0\^D00},\ \39\WO{0.88622692\^D00},\
+\39\WO{10.0\^D00}{/}$\2\5
+\WC{ \WCD{ \>{crit}} is required accuracy of the series expansion }\6
+\&{data} ~\1\>{crit}${/}\WO{1.0\^D-08}{/}$\2\5
+\WC{ \WCD{ \>{maxone}} }\6
+\&{data} ~\1\>{maxone}${/}\WO{50}{/},$ \>{maxtwo}${/}\WO{200}{/}$\2\Wendc
+\WU section~\M{24}.
+\fi % End of section 26 (sect. 9.2, p. 22b)
+
+\WM27.
+
+\WY\WP\4\4\WX{\M{27}}Small x Case\X \X${}\WSQ{}$\6
+$\|a=\|a+\>{half}$\6
+$\>{term}=\>{one}\WSl\|a$\6
+$\>{partialsum}=\>{term}$\6
+\&{do} $\|i=\WO{2},\ \39\>{maxone}$\1\6
+$\|a=\|a+\>{one}$\6
+$\>{term}=\>{term}\ast\|x\WSl\|a$\6
+$\>{partialsum}=\>{partialsum}+\>{term}$\6
+$\&{if}\,(\>{term}\WSl\>{partialsum}<\>{crit})$\1\6
+\&{go} \&{to} $\WO{111}$\2\2\6
+\&{end} \&{do}\6
+\Wlbl{\WO{111}\Colon\ }\&{continue}\6
+$\&{if}\,(\|i\WS\>{maxone})$ \&{then}\1\6
+$\&{write}\,(\WUC{ERROR\_OUTPUT\_UNIT},\ \39\WO{200})$ \6
+\Wlbl{\WO{200}\Colon\ }$\&{format}\,(\.{'i\ >\ 50\ in\ fmch'})$ \6
+\WUC{STOP}\2\6
+\&{end} \&{if}\6
+$\>{fmch}=\>{half}\ast\>{partialsum}\ast\|y$\6
+\&{return}\Wendc
+\WU section~\M{24}.
+\fi % End of section 27 (sect. 9.3, p. 22c)
+
+\WM28.
+
+\WY\WP\4\4\WX{\M{28}}Large x Case\X \X${}\WSQ{}$\6
+$\|b=\|a+\>{half}$\6
+$\|a=\|a-\>{half}$\6
+$\>{xd}=\>{one}\WSl\|x$\6
+$\>{approx}=\>{rootpi4}\ast\@{dsqrt}(\>{xd})\ast\>{xd}\WEE{\|m}$\6
+$\&{if}\,(\|m>\WO{0})$ \&{then}\1\6
+\&{do} $\|i=\WO{1},\ \39\|m$\1\6
+$\|b=\|b-\>{one}$\6
+$\>{approx}=\>{approx}\ast\|b$\2\6
+\&{end} \&{do}\2\6
+\&{end} \&{if}\6
+$\>{fimult}=\>{half}\ast\|y\ast\>{xd}$\6
+$\>{partialsum}=\>{zero}$\7
+$\&{if}\,(\>{fimult}\WS\>{zero})$ \&{then}\1\6
+$\>{fmch}=\>{approx}$\6
+\&{return}\2\6
+\&{end} \&{if}\7
+$\>{fiprop}=\>{fimult}\WSl\>{approx}$\6
+$\>{term}=\>{one}$\6
+$\>{partialsum}=\>{term}$\6
+$\>{numberofterms}=\>{maxtwo}$\6
+\&{do} $\|i=\WO{2},\ \39\>{numberofterms}$\1\6
+$\>{term}=\>{term}\ast\|a\ast\>{xd}$\6
+$\>{partialsum}=\>{partialsum}+\>{term}$\6
+$\&{if}\,(\@{dabs}(\>{term}\ast\>{fiprop}\WSl\>{partialsum})\WL\>{crit})$ %
+\&{then}\1\6
+$\>{fmch}=\>{approx}-\>{fimult}\ast\>{partialsum}$\6
+\&{return}\2\6
+\&{end} \&{if}\6
+$\|a=\|a-\>{one}$\2\6
+\&{end} \&{do}\6
+$\&{write}\,(\WUC{ERROR\_OUTPUT\_UNIT},\ \39\WO{201})$ \6
+\Wlbl{\WO{201}\Colon\ }$\&{format}\,(\.{'\ numberofterms\ reached\ in\0\
+fmch'})$ \6
+\WUC{STOP}\WY\Wendc
+\WU section~\M{24}.
+\fi % End of section 28 (sect. 9.4, p. 23a)
+
+\WM29.
+
+\fi % End of section 29 (sect. 9.5, p. 23b)
+
+\WN30.  INDEX.
+
+
+
+\fi % End of section 30 (sect. 10, p. 24)
+
+\input INDEX.tex
+\input MODULES.tex
+
+\Winfo{"fweave integral.web"}  {"integral.web"} {(none)}
+ {\Fortran}
+
+
+\Wcon{30}
+\FWEBend

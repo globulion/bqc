@@ -1,0 +1,358 @@
+% FWEAVE v1.62 (September 23, 1998)
+
+% --- FWEB's macro package ---
+\input fwebmac.sty
+
+% --- Initialization parameters from FWEB's style file `fweb.sty' ---
+\Wbegin[;]
+  % #1 --- [LaTeX.class.options;LaTeX.package.options]
+{article;}
+  % #2 --- {LaTeX.class;LaTeX.package}
+{1em}
+  % #3 --- {indent.TeX}
+{1em}
+  % #4 --- {indent.code}
+{CONTENTS.tex}
+  % #5 --- {contents.TeX}
+{ % #6 ---
+ {\&\WRS}
+  % #1 --- {{format.reserved}{format.RESERVED}}
+ {\|}
+  % #2 --- {format.short_id}
+ {\>\WUC}
+  % #3 --- {{format.id}{format.ID}}
+ {\>\WUC}
+  % #4 --- {{format.outer_macro}{format.OUTER_MACRO}}
+ {\>\WUC}
+  % #5 --- {{format.WEB_macro}{format.WEB_MACRO}}
+ {\@}
+  % #6 --- {format.intrinsic}
+ {\.\.}
+  % #7 --- {{format.keyword}{format.KEYWORD}}
+ {\.}
+  % #8 --- {format.typewriter}
+ {}
+  % #9 --- (For future use)
+}
+{\M}
+  % #7 --- {encap.prefix}
+{;}
+  % #8 --- {doc.preamble;doc.postamble}
+{INDEX}
+  % #9 --- {index.name}
+
+
+% --- Beginning of user's limbo section ---
+
+
+
+
+% --- Limbo text from style-file parameter `limbo.end' ---
+\FWEBtoc
+
+\WN1.  fmch. This  code is for the oldest and most general
+and reliable of the methods of computing
+\[
+ F_\nu (x)  = \int_0^1 t^{2 \nu} \exp (-x t^2) dt
+\]
+One of two possible series expansions is used depending on the
+value of \WCD{ \|x}.
+
+For \WCD{ $\|x\WL\WO{10}$} (Small \WCD{ \|x} Case) the (potentially) infinite
+series
+\[
+F_\nu (x)  = \frac{1}{2} \exp(-x) \sum_{i=0}^{\infty}
+   \frac{\Gamma (\nu + \frac{1}{2} )}
+   {\Gamma (\nu + i + \frac{3}{2} ) }
+    x^i
+\]
+is used.
+
+The series is truncated when the value of terms falls below
+$10^{-8}$.
+
+However, if the series seems to be becoming unreasonably
+long before this condition is reached (more than 50 terms), the
+evaluation is stopped and the function aborted with an
+error message
+on \WCD{ \WUC{ERROR\_OUTPUT\_UNIT}}.
+
+If \WCD{ $\|x>\WO{10}$} (Large \WCD{ \|x} Case) a different series
+expansion is used:
+\[
+F_\nu (x)  =  \frac{\Gamma (\nu + \frac{1}{2} )}
+          {2x^{\nu + \frac{1}{2} ) }}
+- \frac{1}{2} \exp(-x) \sum_{i=0}^{\infty}
+   \frac{\Gamma (\nu + \frac{1}{2} }
+   {\Gamma (\nu - i + \frac{3}{2} ) }
+    x^{-i}
+\]
+This series, in fact, diverges but it diverges
+so slowly that the error
+obtained in truncating it is always less than
+the last term in the
+truncated series. Thus, to obtain a value of the function to the
+same accuracy as the other series,
+the expansion is terminated when the
+last term is less than the same criterion ($10^{-8}$).
+
+It can be shown that the minimum term is always for
+\WCD{ \|i} close to $\nu + x$, thus if the terms for
+this value of \WCD{ \|i} are not below the criterion,
+the series expansion is abandoned, a message output
+on \WCD{ \WUC{ERROR\_OUTPUT\_UNIT}}
+and the function aborted.
+
+The third argument, \WCD{ \|y}, is $\exp(-x)$, since it
+is assumed that this
+function will only be used {\it once} to evaluate the function
+$F_\nu (x) $ for the maximum value
+of $\nu$ required and other values of
+$F_\nu (x)$ will be obtained by downward recursion:
+\[
+F_{\nu-1}(x) = \frac{\exp(-x) + 2 x F_\nu (x) }{2 \nu -1 }
+\]
+which also requires the value of $\exp(-x)$ to be available.
+%
+\  \\ \ \\
+%\begin{minipage}{4.3in}
+\begin{minipage}{4.3in}
+\ \\
+\begin{description}
+\item[NAME]  \      \\
+fmch
+
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+double precision function fmch(nu,x,y);
+
+implicit double precision (a-h,o-z);
+double precision x, y;
+integer nu;
+
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+Computes
+\[
+ F_\nu (x)  = \int_0^1 t^{2 \nu} \exp (-x t^2) dt
+\]
+given $\nu$ and $x$. It is used in the evaluation of GTF
+nuclear-attraction and electron-repulsion integrals.
+\item[ARGUMENTS:] \  \\
+\begin{description}
+\item[nu] Input: The value of $\nu$ in the explicit
+formula above ({\tt integer}).
+
+\item[x] Input: $x$ in the formula ({\tt double precision}).
+
+\item[y] Input: $\exp(-x)$, assumed to be available.
+
+\end{description}
+
+\item[DIAGNOSTICS] \  \\
+If the relevant series expansions used do not converge
+to a tolerance of $10^{-8}$, an error message is printed
+on standard output and the computation aborted.
+\end{description}
+\ \\ \ \\
+%\end{minipage}
+\end{minipage}
+\ \\ \ \\
+
+\WY\WP \Wunnamed{defs}{fmch.f}%
+\WMd{}\WUC{ARB}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\WUC{YES}\5
+$\WO{0}$\Wendd
+\WP\WMd{}\WUC{NO}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\.{ERR}\5
+${-}\WO{1}$\WY\Wendd
+\WP\WMd{}\WUC{BYTES\_PER\_INTEGER}\5
+$\WO{4}$\Wendd
+\WP\WMd{}\WUC{LEAST\_BYTE}\5
+$\WO{1}$\WY\Wendd
+\WP\WMd{}\WUC{END\_OF\_FILE}\5
+${-}\WO{1}$\WY\Wendd
+\WP\WMd{}\WUC{NO\_OF\_TYPES}\5
+$\WO{20}$\Wendd
+\WP\WMd{}\WUC{INT\_BLOCK\_SIZE}\5
+$\WO{20}$\WY\Wendd
+\WP\WMd{}\WUC{LAST\_BLOCK}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\WUC{NOT\_LAST\_BLOCK}\5
+$\WO{0}$\WY\Wendd
+\WP\WMd{}\WUC{ERROR\_OUTPUT\_UNIT}\5
+$\WO{6}$\WY\Wendd
+\WP\WMd{}\WUC{MAX\_BASIS\_FUNCTIONS}\5
+$\WO{255}$\Wendd
+\WP\WMd{}\WUC{MAX\_PRIMITIVES}\5
+$\WO{1000}$\Wendd
+\WP\WMd{}\WUC{MAX\_CENTRES}\5
+$\WO{50}$\WY\Wendd
+\WP\WMd{}\WUC{MAX\_ITERATIONS}\5
+$\WO{60}$\WY\Wendd
+\WP\WMd{}\WUC{UHF\_CALCULATION}\5
+$\WO{10}$\Wendd
+\WP\WMd{}\WUC{CLOSED\_SHELL\_CALCULATION}\5
+$\WO{20}$\Wendd
+\WY\WP \Wunnamed{code}{fmch.f}%
+\7
+\&{double} \&{precision} \&{function}~\1\>{fmch}$(\>{nu},\ \39\|x,\ \39\|y);$\2%
+\7
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z);$\2\6
+\&{double} \&{precision}~\1\|x$,$ \|y;\2\6
+\&{integer}~\1\>{nu};\2\7
+$\{$\7
+\WC{ First, make the variable declarations; notice that comments, even in
+Fortran, are ``C-style'' }\7
+\WX{\M{2}}Internal Declarations\X \X\7
+\WC{ Temporary integer and real values for \WCD{ \>{nu} $=$} $\nu$ }\7
+\|m$=\>{nu};$\6
+$\|a=\@{dble}(\@{float}(\|m));$\7
+\WC{ Now do the computation of $F_\nu (x)$ }\7
+$\&{if}\,(\|x\WL\>{ten})$\7
+$\{$\7
+\WC{ Use the expansion for the smaller value of \WCD{ \|x} }\7
+\WX{\M{3}}Small x Case\X \X\7
+$\}$\7
+\&{else}\7
+$\{$\7
+\WC{ Use the other expansion for the larger value of \WCD{ \|x} }\7
+\WX{\M{4}}Large x Case\X \X\7
+$\}$\WY\Wendc
+\fi % End of section 1 (sect. 1, p. 1)
+
+\WM2. Here are the declarations and \WCD{  \&{data}}  statements which are
+entirely internal to \WCD{ \>{fmch}}. Nomenclature is fairly obvious
+except possible \WCD{ \>{rootpi4}} which is $\sqrt{(\pi/4)}$.
+
+\WY\WP\4\4\WX{\M{2}}Internal Declarations\X \X${}\WSQ{}$\6
+\&{double} \&{precision}~\1\>{ten}$,$ \>{half}$,$ \>{one}$,$ \>{zero}$,$ %
+\>{rootpi4}$,$ \>{xd}$,$ \>{crit};\2\6
+\&{double} \&{precision}~\1\>{term}$,$ \>{partialsum};\2\6
+\&{integer}~\1\|m$,$ \|i$,$ \>{numberofterms}$,$ \>{maxone}$,$ \>{maxtwo};\2\6
+\&{data} ~\1\>{zero}$,$ \>{half}$,$ \>{one}$,$ \>{rootpi4}$,$ \>{ten}${/}%
+\WO{0.0},\ \39\WO{0.5},\ \39\WO{1.0},\ \39\WO{0.88622692},\ \39\WO{10.0}{/};$\2%
+\7
+\WC{ \WCD{ \>{crit}} is the required accuracy of the series expansion }\7
+\&{data} ~\1\>{crit}${/}\WO{1.0\^E-08}{/};$\2\7
+\WC{ \WCD{ \>{maxone}} is the upper limit of the summation in the small-$x$
+summation; \WCD{ \>{maxtwo}} is the corresponding limit in the large-$x$
+summation }\7
+\&{data} ~\1\>{maxone}${/}\WO{50}{/},$ \>{maxtwo}${/}\WO{200}{/};$\2\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 2 (sect. 1.1, p. 4a)
+
+\WM3. This is the case of \WCD{ \|x} less than $10$ where the series is:
+\[
+F_\nu (x)  = \frac{1}{2} \exp(-x) \sum_{i=0}^{\infty}
+   \frac{\Gamma (\nu + \frac{1}{2} )}
+   {\Gamma (\nu + i + \frac{3}{2} ) }
+    x^i
+\]
+
+The series is summed by using a recursion relationship
+between succesive terms in the series. The sum is accumulated
+in \WCD{ \>{partialsum}} and the terms are obtained from previous ones
+by the ratio \WCD{ \|x\WSl\|a} with \WCD{ \|a} incremented by $1$ for
+each new \WCD{ \>{term}}.
+
+\WY\WP\4\4\WX{\M{3}}Small x Case\X \X${}\WSQ{}$\6
+$\|a=\|a+\>{half};$\6
+$\>{term}=\>{one}\WSl\|a;$\7
+\WC{ Remember that \WCD{ \|a} is $\nu$ }\7
+$\>{partialsum}=\>{term};$\6
+$\&{for}\,(\|i=\WO{2};$ $\|i\WL\>{maxone};$ $\|i=\|i+\WO{1})$ \1\6
+$\{$\6
+$\|a=\|a+\>{one};$\6
+$\>{term}=\>{term}\ast\|x\WSl\|a;$\6
+$\>{partialsum}=\>{partialsum}+\>{term};$\5
+\WC{ Here is the possibility of convergence }\6
+$\&{if}\,(\>{term}\WSl\>{partialsum}<\>{crit})$\1\6
+\&{break};\2\6
+$\}$\2\7
+\WC{ If the upper summation limit is reached, it means that the series has
+failed to converge, so say so and exit.  }\6
+$\&{if}\,(\|i\WS\>{maxone})$\1\6
+$\{$\6
+$\&{write}\,(\WUC{ERROR\_OUTPUT\_UNIT},\ \39\WO{200})$ ;\7
+\4\WO{200}\Colon\ \6
+$\&{format}\,(\.{'\ i\ >\ 50\ in\ fmch'})$ ;\6
+\WUC{STOP};\6
+$\}$\2\7
+\WC{  Otherwise return silently  }\7
+\&{return} $(\>{half}\ast\>{partialsum}\ast\|y);$\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 3 (sect. 1.2, p. 5)
+
+\WM4. This is the other case for \WCD{ \|x} greater than ten:
+\[
+F_\nu (x)  =  \frac{\Gamma (\nu + \frac{1}{2} )}
+          {2x^{\nu + \frac{1}{2} ) }}
+- \frac{1}{2} \exp(-x) \sum_{i=0}^{\infty}
+   \frac{\Gamma (\nu + \frac{1}{2} }
+   {\Gamma (\nu - i + \frac{3}{2} ) }
+    x^{-i}
+\]
+again, the terms in the sum are obtained by recursion from the
+previous ones.
+
+\WY\WP\4\4\WX{\M{4}}Large x Case\X \X${}\WSQ{}$\7
+$\|b=\|a+\>{half};$\6
+$\|a=\|a-\>{half};$\7
+\WC{ Once again, remember that \WCD{ \|a} is $\nu$ }\6
+$\>{xd}=\>{one}\WSl\|x;$\6
+$\>{approx}=\>{rootpi4}\ast\@{dsqrt}(\>{xd})\ast\>{xd}\WEE{\|m};$\6
+$\&{if}\,(\|m>\WO{0})$\1\6
+$\{$\6
+$\&{for}\,(\|i=\WO{1};$ $\|i\WL\|m;$ $\|i=\|i+\WO{1})$ \1\6
+$\{$\6
+$\|b=\|b-\>{one};$\6
+$\>{approx}=\>{approx}\ast\|b;$\6
+$\}$\2\6
+$\}$\2\6
+$\>{fimult}=\>{half}\ast\|y\ast\>{xd};$\6
+$\>{partialsum}=\>{zero};$\7
+\WC{ Take care of special case }\7
+$\&{if}\,(\>{fimult}\WS\>{zero})$\1\6
+\&{return} $(\>{approx});$\2\7
+\WC{ Otherwise continue  }\7
+$\>{fiprop}=\>{fimult}\WSl\>{approx};$\6
+$\>{term}=\>{one};$\6
+$\>{partialsum}=\>{term};$\6
+$\>{numberofterms}=\>{maxtwo};$\6
+$\&{for}\,(\|i=\WO{2};$ $\|i\WL\>{numberofterms};$ $\|i=\|i+\WO{1})$ \1\6
+$\{$\6
+$\>{term}=\>{term}\ast\|a\ast\>{xd};$\6
+$\>{partialsum}=\>{partialsum}+\>{term};$\7
+\WC{ See if the criterion is satisfied, return silently if so }\7
+$\&{if}\,(\@{dabs}(\>{term}\ast\>{fiprop}\WSl\>{partialsum})\WL\>{crit})$\1\6
+\&{return} $(\>{approx}-\>{fimult}\ast\>{partialsum});$\2\6
+$\|a=\|a-\>{one};$\5
+\WC{ or carry on  }\6
+$\}$\2\7
+\WC{ If \WCD{ \|i} gets as far as \WCD{ \>{numberofterms}} then the expansion
+has failed, print a message and quit. }\7
+$\&{write}\,(\WUC{ERROR\_OUTPUT\_UNIT},\ \39\WO{201})$ ;\7
+\4\WO{201}\Colon\ \6
+$\&{format}\,(\.{'\ \ numberofterms\ reached\ i\0n\ fmch'})$ ;\6
+\WUC{STOP};\5
+\WC{ no convergence }\6
+$\}$\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 4 (sect. 1.3, p. 6)
+
+\WN5.  INDEX.
+
+\fi % End of section 5 (sect. 2, p. 7)
+
+\input INDEX.tex
+\input MODULES.tex
+
+\Winfo{"fweave fmch.web"}  {"fmch.web"} {(none)}
+ {\Ratfor}
+
+
+\Wcon{5}
+\FWEBend

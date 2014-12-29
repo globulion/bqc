@@ -1,0 +1,223 @@
+% FWEAVE v1.62 (September 23, 1998)
+
+% --- FWEB's macro package ---
+\input fwebmac.sty
+
+% --- Initialization parameters from FWEB's style file `fweb.sty' ---
+\Wbegin[;]
+  % #1 --- [LaTeX.class.options;LaTeX.package.options]
+{article;}
+  % #2 --- {LaTeX.class;LaTeX.package}
+{1em}
+  % #3 --- {indent.TeX}
+{1em}
+  % #4 --- {indent.code}
+{CONTENTS.tex}
+  % #5 --- {contents.TeX}
+{ % #6 ---
+ {\&\WRS}
+  % #1 --- {{format.reserved}{format.RESERVED}}
+ {\|}
+  % #2 --- {format.short_id}
+ {\>\WUC}
+  % #3 --- {{format.id}{format.ID}}
+ {\>\WUC}
+  % #4 --- {{format.outer_macro}{format.OUTER_MACRO}}
+ {\>\WUC}
+  % #5 --- {{format.WEB_macro}{format.WEB_MACRO}}
+ {\@}
+  % #6 --- {format.intrinsic}
+ {\.\.}
+  % #7 --- {{format.keyword}{format.KEYWORD}}
+ {\.}
+  % #8 --- {format.typewriter}
+ {}
+  % #9 --- (For future use)
+}
+{\M}
+  % #7 --- {encap.prefix}
+{;}
+  % #8 --- {doc.preamble;doc.postamble}
+{INDEX}
+  % #9 --- {index.name}
+
+
+% --- Beginning of user's limbo section ---
+
+
+
+
+% --- Limbo text from style-file parameter `limbo.end' ---
+\FWEBtoc
+
+\WM1. pack. Puts up to six integers (values up to 256)
+into the \WCD{ \&{character}} variable \WCD{ \|a}.
+
+\WY\WP \Wunnamed{defs}{utils.f}%
+\WMd{}\WUC{ARB}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\WUC{YES}\5
+$\WO{0}$\Wendd
+\WP\WMd{}\WUC{NO}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\.{ERR}\5
+${-}\WO{1}$\WY\Wendd
+\WP\WMd{}\WUC{BYTES\_PER\_INTEGER}\5
+$\WO{4}$\Wendd
+\WP\WMd{}\WUC{LEAST\_BYTE}\5
+$\WO{1}$\WY\Wendd
+\WP\WMd{}\WUC{END\_OF\_FILE}\5
+${-}\WO{1}$\WY\Wendd
+\WP\WMd{}\WUC{NO\_OF\_TYPES}\5
+$\WO{20}$\Wendd
+\WP\WMd{}\WUC{INT\_BLOCK\_SIZE}\5
+$\WO{20}$\WY\Wendd
+\WP\WMd{}\WUC{LAST\_BLOCK}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\WUC{NOT\_LAST\_BLOCK}\5
+$\WO{0}$\WY\Wendd
+\WP\WMd{}\WUC{ERROR\_OUTPUT\_UNIT}\5
+$\WO{6}$\WY\Wendd
+\WP\WMd{}\WUC{MAX\_BASIS\_FUNCTIONS}\5
+$\WO{255}$\Wendd
+\WP\WMd{}\WUC{MAX\_PRIMITIVES}\5
+$\WO{1000}$\Wendd
+\WP\WMd{}\WUC{MAX\_CENTRES}\5
+$\WO{50}$\WY\Wendd
+\WP\WMd{}\WUC{MAX\_ITERATIONS}\5
+$\WO{60}$\WY\Wendd
+\WP\WMd{}\WUC{UHF\_CALCULATION}\5
+$\WO{10}$\Wendd
+\WP\WMd{}\WUC{CLOSED\_SHELL\_CALCULATION}\5
+$\WO{20}$\WY\Wendd
+\WY\WP \Wunnamed{code}{utils.f}%
+\&{subroutine}~\1\>{pack}$(\|a,\ \39\|i,\ \39%
+\|j,\ \39\|k,\ \39\|l,\ \39\|m,\ \39\|n);$\2\6
+$\&{character}{\ast\WO{8}}~$\1\|a$,$ \|b;\2\6
+\&{integer}~\1\|i$,$ \|j$,$ \|k$,$ \|l$,$ \|m$,$ \|n;\2\7
+$\{$\6
+\&{data} ~\1\|b${/}\.{"\ \ \ \ \ \ \ \ "}{/};$\2\6
+$\|a=\|b;$\6
+$\|a(\WO{1}:\WO{1})=\@{char}(\|i);$\6
+$\|a(\WO{2}:\WO{2})=\@{char}(\|j);$\6
+$\|a(\WO{3}:\WO{3})=\@{char}(\|k);$\6
+$\|a(\WO{4}:\WO{4})=\@{char}(\|l);$\6
+$\|a(\WO{5}:\WO{5})=\@{char}(\|m);$\6
+$\|a(\WO{6}:\WO{6})=\@{char}(\|n);$\6
+\&{return};\6
+$\}$\WY\Wendc
+\fi % End of section 1 (sect. 0.1, p. 1)
+
+\WM2. unpack. Extracts the six integers from the \WCD{ \&{character}} variable
+\WCD{ \|a}.
+
+\WY\WP \Wunnamed{code}{utils.f}%
+\&{subroutine}~\1\>{unpack}$(\|a,\ \39\|i,\ %
+\39\|j,\ \39\|k,\ \39\|l,\ \39\|m,\ \39\|n);$\2\6
+$\&{character}{\ast\WO{8}}~$\1\|a;\2\6
+\&{integer}~\1\|i$,$ \|j$,$ \|k$,$ \|l$,$ \|m$,$ \|n;\2\7
+$\{$\6
+$\|i=\@{ichar}(\|a(\WO{1}:\WO{1}));$\6
+$\|j=\@{ichar}(\|a(\WO{2}:\WO{2}));$\6
+$\|k=\@{ichar}(\|a(\WO{3}:\WO{3}));$\6
+$\|l=\@{ichar}(\|a(\WO{4}:\WO{4}));$\6
+$\|m=\@{ichar}(\|a(\WO{5}:\WO{5}));$\6
+$\|n=\@{ichar}(\|a(\WO{6}:\WO{6}));$\6
+\&{return};\6
+$\}$\WY\Wendc
+\fi % End of section 2 (sect. 0.2, p. 2a)
+
+\WN3.  putint.   put integral to file
+
+\WY\WP \Wunnamed{code}{utils.f}%
+\&{subroutine}~\1\>{putint}$(\>{nfile},\ \39%
+\|i,\ \39\|j,\ \39\|k,\ \39\|l,\ \39\>{mu},\ \39\>{val},\ \39\>{pointer},\ \39%
+\>{last});$\2\6
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z);$\2\6
+\&{save}\1;\2\6
+\&{integer}~\1\>{nfile}$,$ \|i$,$ \|j$,$ \|k$,$ \|l$,$ \>{mu}$,$ \>{pointer}$,$
+\>{last};\2\6
+\&{double} \&{precision}~\1\>{val};\2\7
+$\{$\6
+\&{double} \&{precision}~\1\>{value}$(\WUC{INT\_BLOCK\_SIZE});$\2\6
+$\&{character}{\ast\WO{8}}~$\1\>{labels}$(\WUC{INT\_BLOCK\_SIZE});$\2\6
+\&{data} ~\1\>{maxpointer}{/}\WUC{INT\_BLOCK\_SIZE}{/}$,$ \>{id}${/}\WO{0}{/};$%
+\2\7
+$\&{if}\,(\>{last}\WS\.{ERR})$\1\6
+\&{return};\2\6
+$\>{iend}=\WUC{NOT\_LAST\_BLOCK};$\6
+$\&{if}\,(\>{pointer}\WS\>{maxpointer})$\1\7
+$\{$\7
+$\&{write}\,(\>{nfile})$ \>{pointer}$,$ \>{iend}$,$ \>{labels}$,$ \>{value};\6
+$\>{pointer}=\WO{0};$\7
+$\}$\2\7
+$\>{pointer}=\>{pointer}+\WO{1};$\6
+\&{call} $\>{pack}(\>{labels}(\>{pointer}),\ \39\|i,\ \39\|j,\ \39\|k,\ \39\|l,%
+\ \39\>{mu},\ \39\>{id});$\6
+$\>{value}(\>{pointer})=\>{val};$\6
+$\&{if}\,(\>{last}\WS\WUC{YES})$\1\7
+$\{$\7
+$\>{iend}=\WUC{LAST\_BLOCK};$\6
+$\>{last}=\.{ERR};$\6
+$\&{write}\,(\>{nfile})$ \>{pointer}$,$ \>{iend}$,$ \>{labels}$,$ \>{value};\7
+$\}$\2\7
+\&{return};\7
+$\}$\WY\Wendc
+\fi % End of section 3 (sect. 1, p. 3)
+
+\WN4.   getint. Hand out repulsion integrals one at a time
+
+\WY\WP \Wunnamed{code}{utils.f}%
+\&{integer} \&{function}~\1\>{getint}$(%
+\.{file},\ \39\|i,\ \39\|j,\ \39\|k,\ \39\|l,\ \39\>{mu},\ \39\>{val},\ \39%
+\>{pointer});$\2\7
+\&{integer}~\1\.{file}$,$ \|i$,$ \|j$,$ \|k$,$ \|l$,$ \>{mu}$,$ \>{pointer};\2\6
+\&{double} \&{precision}~\1\>{val};\2\7
+$\{$\7
+\&{save}\1;\2\7
+\&{integer}~\1\>{maxpointer}$,$ \>{id}$,$ \>{iend};\2\6
+\&{double} \&{precision}~\1\>{zero};\2\6
+\&{double} \&{precision}~\1\>{value}$(\WUC{INT\_BLOCK\_SIZE});$\2\6
+$\&{character}{\ast\WO{8}}~$\1\>{labels}$(\WUC{INT\_BLOCK\_SIZE});$\2\6
+\&{data} ~\1\>{maxpointer}${/}\WO{0}{/},$ \>{iend}{/}\WUC{NOT\_LAST%
+\_BLOCK}{/}$,$ \>{zero}${/}\WO{0.0\^D00}{/};$\2\7
+\WC{   file must be rewound before first use of this function    and pointer
+must be set to 0 }\7
+$\&{if}\,(\>{pointer}\WS\>{maxpointer})$\5
+\WC{ pointer must be initialised to 0 }\1\7
+$\{$\7
+$\&{if}\,(\>{iend}\WS\WUC{LAST\_BLOCK})$\1\7
+$\{$\7
+$\>{val}=\>{zero};$\6
+$\|i=\WO{0};$\6
+$\|j=\WO{0};$\6
+$\|k=\WO{0};$\6
+$\|l=\WO{0};$\6
+$\>{maxpointer}=\WO{0};$\6
+$\>{iend}=\WUC{NOT\_LAST\_BLOCK};$\6
+\&{return} $(\WUC{END\_OF\_FILE});$\7
+$\}$\2\7
+$\&{read}\,(\.{file})$ \>{maxpointer}$,$ \>{iend}$,$ \>{labels}$,$ \>{value};\7
+$\>{pointer}=\WO{0};$\7
+$\}$\2\7
+$\>{pointer}=\>{pointer}+\WO{1};$\6
+\&{call} $\>{unpack}(\>{labels}(\>{pointer}),\ \39\|i,\ \39\|j,\ \39\|k,\ \39%
+\|l,\ \39\>{mu},\ \39\>{id});$\5
+\WC{ id is unused }\6
+$\>{val}=\>{value}(\>{pointer});$\6
+\&{return} $(\WUC{OK});$\7
+$\}$\WY\Wendc
+\fi % End of section 4 (sect. 2, p. 4)
+
+\WN5.  INDEX.
+\fi % End of section 5 (sect. 3, p. 5)
+
+\input INDEX.tex
+\input MODULES.tex
+
+\Winfo{"fweave utils.web"}  {"utils.web"} {(none)}
+ {\Ratfor}
+
+
+\Wcon{5}
+\FWEBend

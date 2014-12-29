@@ -1,0 +1,128 @@
+This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=latex 2014.7.9)  5 DEC 2014 01:38
+entering extended mode
+ %&-line parsing enabled.
+**utils.tex
+(./utils.tex
+LaTeX2e <2009/09/24>
+Babel <v3.8l> and hyphenation patterns for english, usenglishmax, dumylang, noh
+yphenation, loaded.
+(/usr/share/texmf/tex/latex/litprog/fwebmac.sty
+\W@count=\count79
+\W@counta=\count80
+\W@tk=\toks14
+\pardimen=\skip41
+\TeXindent=\dimen102
+LaTeX Info: Redefining \# on input line 346.
+LaTeX Info: Redefining \$ on input line 347.
+LaTeX Info: Redefining \% on input line 348.
+LaTeX Info: Redefining \^ on input line 349.
+\rulebox=\box26
+\ruleno=\count81
+\notch=\dimen103
+\W@globalindent=\count82
+\W@ind=\count83
+\W@lastind=\count84
+\b@k=\box27
+\b@kk=\box28
+\W@nBK=\count85
+\Wuparindent=\skip42
+\W@ssmax=\count86
+\W@lsmax=\count87
+\secpenalty=\count88
+\c@subsubsubsection=\count89
+\W@ss=\count90
+\W@lastsect=\count91
+\b@dlevelhelp=\toks15
+LaTeX Info: Redefining \= on input line 1239.
+\dotbox=\box29
+\W@ARRAYarga=\toks16
+\W@ARRAYargb=\toks17
+\contentspageno=\count92
+\pagewidth=\dimen104
+\pageheight=\dimen105
+\fullpageheight=\dimen106
+\pageshift=\dimen107
+\Woutput=\toks18
+\minutes=\count93
+\hours=\count94
+\W@cont=\write3
+\W@ref=\count95
+\W@lpha=\count96
+\W@pmcount=\count97
+\Sbox=\box30
+\Lbox=\box31
+\ttglue=\skip43
+)
+(/usr/share/texmf-texlive/tex/latex/base/article.cls
+Document Class: article 2007/10/19 v1.4h Standard LaTeX document class
+(/usr/share/texmf-texlive/tex/latex/base/size10.clo
+File: size10.clo 2007/10/19 v1.4h Standard LaTeX file (size option)
+)
+\c@part=\count98
+\c@section=\count99
+\c@subsection=\count100
+\c@subsubsection=\count101
+\c@paragraph=\count102
+\c@subparagraph=\count103
+\c@figure=\count104
+\c@table=\count105
+\abovecaptionskip=\skip44
+\belowcaptionskip=\skip45
+\bibindent=\dimen108
+)
+\c@pagemodule=\count106
+\c@W@tempcounter=\count107
+ (./utils.aux)
+\openout1 = `utils.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <12> on input line 51.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <8> on input line 51.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <6> on input line 51.
+
+(./utils.toc)
+\tf@toc=\write4
+\openout4 = `utils.toc'.
+
+ [1]
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <7> on input line 54.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <5> on input line 54.
+LaTeX Font Info:    Try loading font information for OMS+cmr on input line 125.
+
+ (/usr/share/texmf-texlive/tex/latex/base/omscmr.fd
+File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
+)
+LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <10> not available
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 125.
+ [1] *3
+[2] *4 [3] *5 [4] (./INDEX.tex) (./MODULES.tex [5
+
+]) [6
+
+] (./utils.aux) ) 
+Here is how much of TeX's memory you used:
+ 903 strings out of 495062
+ 7504 string characters out of 1182645
+ 63087 words of memory out of 3000000
+ 4132 multiletter control sequences out of 15000+50000
+ 10095 words of font info for 36 fonts, out of 3000000 for 9000
+ 28 hyphenation exceptions out of 8191
+ 27i,6n,26p,161b,230s stack positions out of 5000i,500n,10000p,200000b,50000s
+
+Output written on utils.dvi (7 pages, 11996 bytes).

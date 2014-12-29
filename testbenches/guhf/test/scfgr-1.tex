@@ -1,0 +1,243 @@
+% FWEAVE v1.62 (September 23, 1998)
+
+% --- FWEB's macro package ---
+\input fwebmac.sty
+
+% --- Initialization parameters from FWEB's style file `fweb.sty' ---
+\Wbegin[;]
+  % #1 --- [LaTeX.class.options;LaTeX.package.options]
+{article;}
+  % #2 --- {LaTeX.class;LaTeX.package}
+{1em}
+  % #3 --- {indent.TeX}
+{1em}
+  % #4 --- {indent.code}
+{CONTENTS.tex}
+  % #5 --- {contents.TeX}
+{ % #6 ---
+ {\&\WRS}
+  % #1 --- {{format.reserved}{format.RESERVED}}
+ {\|}
+  % #2 --- {format.short_id}
+ {\>\WUC}
+  % #3 --- {{format.id}{format.ID}}
+ {\>\WUC}
+  % #4 --- {{format.outer_macro}{format.OUTER_MACRO}}
+ {\>\WUC}
+  % #5 --- {{format.WEB_macro}{format.WEB_MACRO}}
+ {\@}
+  % #6 --- {format.intrinsic}
+ {\.\.}
+  % #7 --- {{format.keyword}{format.KEYWORD}}
+ {\.}
+  % #8 --- {format.typewriter}
+ {}
+  % #9 --- (For future use)
+}
+{\M}
+  % #7 --- {encap.prefix}
+{;}
+  % #8 --- {doc.preamble;doc.postamble}
+{INDEX}
+  % #9 --- {index.name}
+
+
+% --- Beginning of user's limbo section ---
+
+
+
+
+
+% --- Limbo text from style-file parameter `limbo.end' ---
+\FWEBtoc
+
+\WN1.  scfGR.
+One routine to form G(R) for closed shells and UHF
+
+\WY\WP \Wunnamed{defs}{scfgr-1.f}%
+\WMd{}\WUC{OK}\5
+$\WO{0}$\Wendd
+\WP\WMd{}\WUC{YES}\5
+$\WO{38}$\Wendd
+\WP\WMd{}\WUC{END\_OF\_FILE}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\WUC{CLOSED\_SHELL\_CALCULATION}\5
+$\WO{145}$\Wendd
+\WP\WMd{}\WUC{UHF\_CALCULATION}\5
+$\WO{2345}$\WY\Wendd
+\WY\WP \Wunnamed{code}{scfgr-1.f}%
+ \&{subroutine}~\1\>{scfGR}$(\|R,\ \39\|G,\ %
+\39\|n,\ \39\>{nfile},\ \39\>{ntype});$\2\7
+\WC{     This routine adds (repeat adds) G(R) into the array \WCD{ \|G} }\7
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z);$\2\6
+\&{double} \&{precision}~\1\|R$(\ast),$ \|G$(\ast);$\2\6
+\&{integer}~\1\|n$,$ \>{nfile}$,$ \>{ntype};\2\7
+$\{$\7
+\&{integer}~\1\>{pointer}$,$ \>{spin}$,$ \>{skip};\2\6
+\&{integer}~\1\>{getint};\2\5
+\WC{ integral reading function }\6
+\&{data} ~\1\>{zero}$,$ \>{one}$,$ \>{two}${/}\WO{0.0\^D0},\ \39\WO{1.0\^D0},\ %
+\39\WO{2.0\^D0}{/};$\2\7
+\&{rewind} \>{nfile};\6
+$\>{pointer}=\WO{0};$\5
+\WC{ Initialize the repulsion integral file }\7
+\WX{\M{2}}Set up \WCD{ \|J} and \WCD{ \|K} multipliers\X \X\7
+\WC{ Process the file  }\7
+$\&{while}\,(\>{getint}(\>{nfile},\ \39\>{is},\ \39\>{js},\ \39\>{ks},\ \39%
+\>{ls},\ \39\>{mu},\ \39\>{va},\ \39\>{pointer})\WI\WUC{END\_OF\_FILE})$ \7
+$\{$\7
+$\>{ijs}=\>{is}\ast(\>{is}-\WO{1})$ {/} $\WO{2}+\>{js};$\6
+$\>{kls}=\>{ks}\ast(\>{ks}-\WO{1})\WSl\WO{2}+\>{ls};$\7
+\WX{\M{3}}Run over four spin Combinations\X \X\7
+$\}$\7
+\WX{\M{4}}Symmetrise the G matrix\X \X\7
+\&{return};\7
+$\}$\WY\Wendc
+\fi % End of section 1
+
+\WM2. Depending on the two possible cases (closed-shell or
+UHF) there are two different formulae for the
+electron-interaction matrix G(R) and there are two corresponding
+basis sizes; spatial orbitals for closed-shell and spin-orbitals
+for UHF. This code fragment uses \WCD{ \>{ntype}} to make the
+appropriate chioces.
+
+\WY\WP\4\4\WX{\M{2}}Set up \WCD{ \|J} and \WCD{ \|K} multipliers\X \X${}\WSQ{}$%
+\6
+$\&{if}\,(\>{ntype}\WS\WUC{CLOSED\_SHELL\_CALCULATION})$\1\7
+$\{$\7
+$\>{n2}=\|n;$\5
+\WC{ basis size is spatial basis size }\6
+$\>{em}=\>{two};$\6
+$\>{en}=\>{one};$\5
+\WC{ G(R) = 2J(R) - K(R) }\7
+$\}$\2\7
+$\&{if}\,(\>{ntype}\WS\WUC{UHF\_CALCULATION})$\1\7
+$\{$\6
+$\>{n2}=\WO{2}\ast\|n;$\5
+\WC{ basis is spin-orbitals, twice spatial basis }\6
+$\>{em}=\>{one};$\6
+$\>{en}=\>{one};$\5
+\WC{ G(R) = J(R) - K(R) }\7
+$\}$\2\Wendc
+\WU section~\M{1}.
+\fi % End of section 2
+
+\WM3. The electron-repulsion integrals are over the spatial
+basis functions. If the calculation is of UHF type then
+each spatial repulsion integral must due duty for as many
+as four repulsion integrals over the spin-orbitals. This
+loop over the four cases is omitted if the
+calculation is closed-shell. Notice that the whole
+algorithm depends on the spin-orbitals being
+in the order: $n$ $\alpha$-spin-orbitals them $n$
+$\beta$-spin-orbitals.
+
+The repulsion integrals are assumed to be labelled in
+standard order {\em but} this order may be disturbed
+by adding $n$ to pairs of the four labels. In practice,
+the order is only disturbed in case 4: but calling
+\WCD{ \&{subroutine}~\>{order}} in all cases would do no harm.
+
+\WY\WP\4\4\WX{\M{3}}Run over four spin Combinations\X \X${}\WSQ{}$\6
+\&{do} $\>{spin}=\WO{1},\ \39\WO{4};$\1\7
+$\{$\7
+\WC{ jump out of the loop if closed shell }\7
+$\&{if}\,((\>{spin}>\WO{1})\WW(\>{ntype}\WS\WUC{CLOSED\_SHELL\_CALCULATION}))$%
+\1\6
+\&{break};\2\6
+$\>{skip}=\WUC{NO};$\5
+\WC{ skip is a code used to avoid counting some                contributions
+twice: see case 4: }\7
+$\&{switch}\,(\>{spin})$ \1\7
+$\{$\7
+\4\&{case} $\WO{1}\Colon\ $\5
+\WC{ alpha - alpha }\6
+$\{$\6
+$\|i=\>{is};$\6
+$\|j=\>{js};$\6
+$\|k=\>{ks};$\6
+$\|l=\>{ls};$\6
+\&{break};\6
+$\}$\7
+\4\&{case} $\WO{2}\Colon\ $\5
+\WC{ beta - beta }\6
+$\{$\6
+$\|i=\>{is}+\|n;$\6
+$\|j=\>{js}+\|n;$\6
+$\|k=\>{ks}+\|n;$\6
+$\|l=\>{ls}+\|n;$\6
+\&{break};\6
+$\}$\7
+\4\&{case} $\WO{3}\Colon\ $\5
+\WC{ beta - alpha }\6
+$\{$\6
+$\|i=\>{is}+\|n;$\6
+$\|j=\>{js}+\|n;$\6
+$\|k=\>{ks};$\6
+$\|l=\>{ls};$\6
+\&{break};\6
+$\}$\7
+\4\&{case} $\WO{4}\Colon\ $\5
+\WC{ alpha - beta; adding \WCD{ \|n} to \WCD{ \|k} and \WCD{ \|l}   upsets the
+standard order of \WCD{ $\|i,\ \|j,\ \|k,\ \|l$} so they must be re-ordered }\6
+$\{$\6
+$\&{if}\,(\>{ijs}\WS\>{kls})$\1\6
+$\>{skip}=\WUC{YES};$\2\6
+$\|i=\>{is};$\6
+$\|j=\>{js};$\6
+$\|k=\>{ks}+\|n;$\6
+$\|l=\>{ls}+\|n;$\6
+\&{call} $\>{order}(\|i,\ \39\|j,\ \39\|k,\ \39\|l);$\6
+\&{break};\6
+$\}$\7
+$\}$\2\5
+\WC{end of "switch" }\7
+$\&{if}\,(\>{skip}\WS\WUC{YES})$\1\6
+\&{next};\2\5
+\WC{ This is a duplicate, skip it }\7
+$\>{emm}=\>{em};$\6
+$\>{enn}=\>{en};$\7
+\WC{ drop alpha-beta exchange in cases 3 and 4; it is zero by spin integration
+}\7
+$\&{if}\,(\>{spin}\WG\WO{3})$\1\6
+$\>{enn}=\>{zero};$\2\7
+\WC{ Now use the current (spin-)orbital integral to increment    G(R) }\7
+\&{call} $\>{GofR}(\|R,\ \39\|G,\ \39\>{n2},\ \39\>{emm},\ \39\>{enn},\ \39\|i,%
+\ \39\|j,\ \39\|k,\ \39\|l,\ \39\>{va});$\7
+$\}$\2\5
+\WC{ end of "spin" loop }\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 3
+
+\WM4. Only the top triangle of the G matrix has been formed
+explicitly, fill up the other half.
+
+\WY\WP\4\4\WX{\M{4}}Symmetrise the G matrix\X \X${}\WSQ{}$\6
+\&{do} $\|i=\WO{1},\ \39\>{n2};$\1\7
+$\{$\7
+\&{do} $\|j=\WO{1},\ \39\|i;$\1\7
+$\{$\7
+$\>{ij}=\>{n2}\ast(\|j-\WO{1})+\|i;$\6
+$\>{ji}=\>{n2}\ast(\|i-\WO{1})+\|j;$\6
+$\&{if}\,(\|i\WS\|j)$\1\6
+\&{next};\2\5
+\WC{ omit the diagonals }\6
+$\|G(\>{ji})=\|G(\>{ij});$\7
+$\}$\2\6
+$\}$\2\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 4
+
+\WN5.  INDEX.
+\fi % End of section 5
+
+\input INDEX.tex
+\input MODULES.tex
+
+\Winfo{"fweave scfgr-1.web"}  {"scfgr-1.web"} {(none)}
+ {\Ratfor}
+
+
+\Wcon{5}
+\FWEBend

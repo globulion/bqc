@@ -1,0 +1,2 @@
+#!/bin/bash
+gfortran -o lcao-water -cpp -ffixed-line-length-none main.f 

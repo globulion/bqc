@@ -1,0 +1,188 @@
+% FWEAVE v1.62 (September 23, 1998)
+
+% --- FWEB's macro package ---
+\input fwebmac.sty
+
+% --- Initialization parameters from FWEB's style file `fweb.sty' ---
+\Wbegin[;]
+  % #1 --- [LaTeX.class.options;LaTeX.package.options]
+{article;}
+  % #2 --- {LaTeX.class;LaTeX.package}
+{1em}
+  % #3 --- {indent.TeX}
+{1em}
+  % #4 --- {indent.code}
+{CONTENTS.tex}
+  % #5 --- {contents.TeX}
+{ % #6 ---
+ {\&\WRS}
+  % #1 --- {{format.reserved}{format.RESERVED}}
+ {\|}
+  % #2 --- {format.short_id}
+ {\>\WUC}
+  % #3 --- {{format.id}{format.ID}}
+ {\>\WUC}
+  % #4 --- {{format.outer_macro}{format.OUTER_MACRO}}
+ {\>\WUC}
+  % #5 --- {{format.WEB_macro}{format.WEB_MACRO}}
+ {\@}
+  % #6 --- {format.intrinsic}
+ {\.\.}
+  % #7 --- {{format.keyword}{format.KEYWORD}}
+ {\.}
+  % #8 --- {format.typewriter}
+ {}
+  % #9 --- (For future use)
+}
+{\M}
+  % #7 --- {encap.prefix}
+{;}
+  % #8 --- {doc.preamble;doc.postamble}
+{INDEX}
+  % #9 --- {index.name}
+
+
+% --- Beginning of user's limbo section ---
+
+
+
+
+% --- Limbo text from style-file parameter `limbo.end' ---
+\FWEBtoc
+
+\WN1.  genint. Routine to evaluate S,  T,V i.e. H
+           and a two-electron integral file
+
+\WY\WP \Wunnamed{defs}{genints.f}%
+\WMd{}\WUC{ARB}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\WUC{YES}\5
+$\WO{0}$\Wendd
+\WP\WMd{}\WUC{NO}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\.{ERR}\5
+${-}\WO{1}$\WY\Wendd
+\WP\WMd{}\WUC{BYTES\_PER\_INTEGER}\5
+$\WO{4}$\Wendd
+\WP\WMd{}\WUC{LEAST\_BYTE}\5
+$\WO{1}$\WY\Wendd
+\WP\WMd{}\WUC{END\_OF\_FILE}\5
+${-}\WO{1}$\WY\Wendd
+\WP\WMd{}\WUC{NO\_OF\_TYPES}\5
+$\WO{20}$\Wendd
+\WP\WMd{}\WUC{INT\_BLOCK\_SIZE}\5
+$\WO{20}$\WY\Wendd
+\WP\WMd{}\WUC{LAST\_BLOCK}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\WUC{NOT\_LAST\_BLOCK}\5
+$\WO{0}$\WY\Wendd
+\WP\WMd{}\WUC{ERROR\_OUTPUT\_UNIT}\5
+$\WO{6}$\WY\Wendd
+\WP\WMd{}\WUC{MAX\_BASIS\_FUNCTIONS}\5
+$\WO{255}$\Wendd
+\WP\WMd{}\WUC{MAX\_PRIMITIVES}\5
+$\WO{1000}$\Wendd
+\WP\WMd{}\WUC{MAX\_CENTRES}\5
+$\WO{50}$\WY\Wendd
+\WP\WMd{}\WUC{MAX\_ITERATIONS}\5
+$\WO{60}$\WY\Wendd
+\WP\WMd{}\WUC{UHF\_CALCULATION}\5
+$\WO{10}$\Wendd
+\WP\WMd{}\WUC{CLOSED\_SHELL\_CALCULATION}\5
+$\WO{20}$\WY\Wendd
+\WY\WP \Wunnamed{code}{genints.f}%
+\&{subroutine}~\1\>{genint}$(\>{ngmx},\ \39%
+\>{nbfns},\ \39\>{eta},\ \39\>{ntype},\ \39\>{ncntr},\ \39\>{nfirst},\ \39%
+\>{nlast},\ \39\>{vlist},\ \39\>{ncmx},\ \39\>{noc},\ \39\|S,\ \39\|H,\ \39%
+\>{nfile},\ \39\>{ifPSE});$\2\6
+\&{double} \&{precision}~\1\|S$(\ast),$ \|H$(\ast);$\2\6
+\&{integer}~\1\>{pointer}$,$ \>{last}$,$ \>{ifPSE};\2\6
+\&{double} \&{precision}~\1\>{eta}$(\>{ngmx},\ \39\WO{5}),$ \>{vlist}$(%
+\>{ncmx},\ \39\WO{4});$\2\6
+\&{integer}~\1\>{ntype}$(\ast),$ \>{nfirst}$(\ast),$ \>{nlast}$(\ast),$ %
+\>{ncntr}$(\ast),$ \>{nfile};\2\7
+$\{$\6
+\&{double} \&{precision}~\1\>{val}$,$ \>{crit}$,$ \>{ovltot}$,$ \>{kintot};\2\6
+\&{double} \&{precision}~\1\>{generi}$,$ \>{genoei};\2\6
+\&{integer}~\1\|i$,$ \|j$,$ \|k$,$ \|l$,$ \>{ltop}$,$ \>{ij}$,$ \>{ji}$,$ %
+\>{mu};\2\6
+\&{integer}~\1\>{nr}$(\WUC{NO\_OF\_TYPES},\ \39\WO{3});$\2\6
+\&{data} ~\1\>{nr}${/}\WO{0},\ \39\WO{1},\ \39\WO{0},\ \39\WO{0},\ \39\WO{2},\ %
+\39\WO{0},\ \39\WO{0},\ \39\WO{1},\ \39\WO{1},\ \39\WO{0},\ \39\WO{3},\ \39%
+\WO{0},\ \39\WO{0},\ \39\WO{2},\ \39\WO{2},\ \39\WO{1},\ \39\WO{0},\ \39\WO{1},%
+\ \39\WO{0},\ \39\WO{1},\ \39\WO{0},\ \39\WO{0},\ \39\WO{1},\ \39\WO{0},\ \39%
+\WO{0},\ \39\WO{2},\ \39\WO{0},\ \39\WO{1},\ \39\WO{0},\ \39\WO{1},\ \39\WO{0},%
+\ \39\WO{3},\ \39\WO{0},\ \39\WO{1},\ \39\WO{0},\ \39\WO{2},\ \39\WO{2},\ \39%
+\WO{0},\ \39\WO{1},\ \39\WO{1},\ \39\WO{0},\ \39\WO{0},\ \39\WO{0},\ \39\WO{1},%
+\ \39\WO{0},\ \39\WO{0},\ \39\WO{2},\ \39\WO{0},\ \39\WO{1},\ \39\WO{1},\ \39%
+\WO{0},\ \39\WO{0},\ \39\WO{3},\ \39\WO{0},\ \39\WO{1},\ \39\WO{0},\ \39\WO{1},%
+\ \39\WO{2},\ \39\WO{2},\ \39\WO{1}{/};$\2\6
+\&{data} ~\1\>{crit}${/}\WO{1.0\^D-08}{/};$\2\7
+$\>{mu}=\WO{0};$\5
+\WC{  tag  for use later perhaps, when integrals are               marked for
+special purposes }\7
+\WC{    One-electron integrals }\7
+\&{do} $\|i=\WO{1},\ \39\>{nbfns};$\1\6
+$\{$\6
+\&{do} $\|j=\WO{1},\ \39\|i;$\1\6
+$\{$\6
+$\>{ij}=(\|j-\WO{1})\ast\>{nbfns}+\|i;$\6
+$\>{ji}=(\|i-\WO{1})\ast\>{nbfns}+\|j;$\6
+$\&{if}\,(\>{ifPSE}\WS\WUC{NO})$\1\6
+$\|H(\>{ij})=\>{genoei}(\|i,\ \39\|j,\ \39\>{eta},\ \39\>{ngmx},\ \39%
+\>{nfirst},\ \39\>{nlast},\ \39\>{ntype},\ \39\>{nr},\ \39\WUC{NO\_OF\_TYPES},\
+\39\>{vlist},\ \39\>{noc},\ \39\>{ncmx},\ \39\>{ovltot},\ \39\>{kintot});$\2\5
+\WC{           else              H(ij) = genpse
+(i,j,eta,ngmx,nfirst,nlast,ntype,
+nr,NO_OF_TYPES,vlist,noc,ncmx,ovltot,kintot); }\6
+$\|H(\>{ji})=\|H(\>{ij});$\6
+$\|S(\>{ij})=\>{ovltot};$\6
+$\|S(\>{ji})=\>{ovltot};$\6
+$\}$\2\6
+$\}$\2\7
+\WC{ H now contains T + V }\7
+\&{rewind} \>{nfile};\6
+$\>{pointer}=\WO{0};$\6
+$\>{last}=\WUC{NO};$\5
+\WC{ initialisation for putint }\7
+\&{do} $\|i=\WO{1},\ \39\>{nbfns};$\1\7
+$\{$\7
+\&{do} $\|j=\WO{1},\ \39\|i;$\1\7
+$\{$\7
+\&{do} $\|k=\WO{1},\ \39\|i;$\1\7
+$\{$\7
+$\>{ltop}=\|k;$\6
+$\&{if}\,(\|i\WS\|k)$\1\6
+$\>{ltop}=\|j;$\2\5
+\WC{ get upper limit for \WCD{ \|l} right! }\6
+\&{do} $\|l=\WO{1},\ \39\>{ltop};$\1\7
+$\{$\7
+$\&{if}\,(\|l\WS\>{nbfns})$\1\6
+$\>{last}=\WUC{YES};$\2\5
+\WC{   last integral }\6
+$\>{val}=\>{generi}(\|i,\ \39\|j,\ \39\|k,\ \39\|l,\ \39\WO{0},\ \39\>{eta},\ %
+\39\>{ngmx},\ \39\>{nfirst},\ \39\>{nlast},\ \39\>{ntype},\ \39\>{nr},\ \39%
+\WUC{NO\_OF\_TYPES});$\6
+$\&{if}\,(\@{dabs}(\>{val})<\>{crit})$\1\6
+\&{next};\2\5
+\WC{ this assumes that the                                                 last
+integral is never zero }\6
+\&{call} $\>{putint}(\>{nfile},\ \39\|i,\ \39\|j,\ \39\|k,\ \39\|l,\ \39\>{mu},%
+\ \39\>{val},\ \39\>{pointer},\ \39\>{last});$\7
+$\}$\2\7
+$\}$\2\7
+$\}$\2\7
+$\}$\2\7
+\&{return};\6
+$\}$\WY\Wendc
+\fi % End of section 1 (sect. 1, p. 1)
+
+\input INDEX.tex
+\input MODULES.tex
+
+\Winfo{"fweave genints.web"}  {"genints.web"} {(none)}
+ {\Ratfor}
+
+
+\Wcon{1}
+\FWEBend

@@ -1,0 +1,161 @@
+
+C FTANGLE v1.61,
+C created with UNIX on "Friday, September 25, 1998 at 8:02." 
+C  COMMAND LINE: "ftangle beigen.web"
+C  RUN TIME:     "Friday, December 5, 2014 at 0:01."
+C  WEB FILE:     "beigen.web"
+C  CHANGE FILE:  (none)
+*line 50 "beigen.web"
+      subroutine beigen(H,U,n,init,nblock,iblock)
+C* 2: * 
+*line 88 "beigen.web"
+      implicit double precision(a-h,o-z)
+      double precision H(*),U(*)
+      integer n,init,nblock,iblock(*)
+C* :2 * 
+*line 52 "beigen.web"
+      
+      data zero,eps,one,two,four/0.0d+00,1.0d-20,1.0d+00,2.0d+00,4.0d+00
+     &/
+C* 3: * 
+*line 99 "beigen.web"
+      if(init.EQ.0)then
+      do i=1,n
+      ii=n*(i-1)+i
+      do j=1,n
+      ij=n*(j-1)+i
+      U(ij)=zero
+      end do
+      U(ii)=one
+      end do
+      end if
+C* :3 * 
+*line 57 "beigen.web"
+      
+      nmax=0
+      do nsym=1,nblock
+      
+      nmin=nmax+1
+      nmax=nmax+iblock(nsym)
+      
+      do while(hmax.GT.eps)
+C* 4: * 
+*line 120 "beigen.web"
+      hmax=zero
+      do i=nmin+1,nmax
+      jtop=i-1
+      do j=nmin,jtop
+C* 5: * 
+*line 144 "beigen.web"
+      ii=n*(i-1)+i
+      jj=n*(j-1)+j
+      ij=n*(j-1)+i
+      ji=n*(i-1)+j
+      hii=H(ii)
+      hjj=H(jj)
+      hij=H(ij)
+      hsq=hij*hij
+      if(hsq.GT.hmax)hmax=hsq
+      if(hsq.LT.eps)cycle
+      del=hii-hjj
+      sign=one
+      if(del.LT.zero)then
+      sign=-one
+      del=-del
+      end if
+      denom=del+dsqrt(del*del+four*hsq)
+      tan=two*sign*hij/denom
+      c=one/dsqrt(one+tan*tan)
+      s=c*tan
+C* :5 * 
+*line 129 "beigen.web"
+      
+C* 6: * 
+*line 164 "beigen.web"
+      do k=1,n
+      kj=n*(j-1)+k
+      ki=n*(i-1)+k
+      jk=n*(k-1)+j
+      ik=n*(k-1)+i
+      temp=c*U(kj)-s*U(ki)
+      U(ki)=s*U(kj)+c*U(ki)
+      U(kj)=temp
+      
+      if((i.EQ.k).OR.(j.EQ.k))cycle
+      temp=c*H(kj)-s*H(ki)
+      H(ki)=s*H(kj)+c*H(ki)
+      H(kj)=temp
+      H(ik)=H(ki)
+      H(jk)=H(kj)
+      end do
+      
+C* :6 * 
+*line 130 "beigen.web"
+      
+C* 7: * 
+*line 193 "beigen.web"
+      
+      H(ii)=c*c*hii+s*s*hjj+two*c*s*hij
+      H(jj)=c*c*hjj+s*s*hii-two*c*s*hij
+      H(ij)=zero
+      H(ji)=zero
+      
+C* :7 * 
+*line 131 "beigen.web"
+      
+      end do
+      end do
+C* :4 * 
+*line 74 "beigen.web"
+      
+      end do
+      end do
+C* 8: * 
+*line 213 "beigen.web"
+      
+      nmax=0
+      do nsym=1,nblock
+      nmin=nmax+1
+      nmax=nmax+iblock(nsym)
+      call epsort(H,U,n,nmin,nmax)
+      end do
+C* :8 * 
+*line 80 "beigen.web"
+      
+      return
+      END
+C* :1 * 
+C* 9: * 
+*line 227 "beigen.web"
+      subroutine epsort(H,U,n,n1,n2)
+      implicit double precision(a-h,o-z)
+      double precision H(*),U(*)
+      integer n,n1,n2
+      double precision temp
+      integer iq,jq,ii,jj,k,ilr,imr
+      iq=(n1-2)*n
+      do i=n1,n2
+      iq=iq+n
+      ii=(i-1)*n+i
+      jq=n*(i-2)
+      do j=i,n2
+      jq=jq+n
+      jj=(j-1)*n+j
+      if(H(ii).LT.H(jj))cycle
+      temp=H(ii)
+      H(ii)=H(jj)
+      H(jj)=temp
+      do k=1,n
+      ilr=iq+k
+      imr=jq+k
+      temp=U(ilr)
+      U(ilr)=U(imr)
+      U(imr)=temp
+      
+      end do
+      end do
+      end do
+      return
+      end
+C* :9 * 
+      

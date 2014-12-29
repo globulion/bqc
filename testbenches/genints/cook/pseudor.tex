@@ -1,0 +1,1072 @@
+% FWEAVE v1.62 (September 23, 1998)
+
+% --- FWEB's macro package ---
+\input fwebmac.sty
+
+% --- Initialization parameters from FWEB's style file `fweb.sty' ---
+\Wbegin[;]
+  % #1 --- [LaTeX.class.options;LaTeX.package.options]
+{article;}
+  % #2 --- {LaTeX.class;LaTeX.package}
+{1em}
+  % #3 --- {indent.TeX}
+{1em}
+  % #4 --- {indent.code}
+{CONTENTS.tex}
+  % #5 --- {contents.TeX}
+{ % #6 ---
+ {\&\WRS}
+  % #1 --- {{format.reserved}{format.RESERVED}}
+ {\|}
+  % #2 --- {format.short_id}
+ {\>\WUC}
+  % #3 --- {{format.id}{format.ID}}
+ {\>\WUC}
+  % #4 --- {{format.outer_macro}{format.OUTER_MACRO}}
+ {\>\WUC}
+  % #5 --- {{format.WEB_macro}{format.WEB_MACRO}}
+ {\@}
+  % #6 --- {format.intrinsic}
+ {\.\.}
+  % #7 --- {{format.keyword}{format.KEYWORD}}
+ {\.}
+  % #8 --- {format.typewriter}
+ {}
+  % #9 --- (For future use)
+}
+{\M}
+  % #7 --- {encap.prefix}
+{;}
+  % #8 --- {doc.preamble;doc.postamble}
+{INDEX}
+  % #9 --- {index.name}
+
+
+% --- Beginning of user's limbo section ---
+
+\def\title{---PSEUDOPOTENTIAL INTEGRALS---}
+
+
+
+
+% --- Limbo text from style-file parameter `limbo.end' ---
+\FWEBtoc
+
+\WN1.  GENPSE. Function to compute the one-electron integrals (overlap,
+kinetic energy and nuclear attraction plus pseudo-potential).
+The STRUCTURES and GENERI manual pages must be
+consulted for a detailed description of the calling sequence.
+
+The overlap and kinetic energy integrals are expressed in terms of
+a basic one-dimensional Cartesian overlap component computed by
+\WCD{ \&{function}~\>{ovrlap}} while the more involved nuclear-attraction
+integrals are computed as a sum of geometrical factors computed by
+\WCD{ \&{subroutine}~\>{aform}} and the standard $F_\nu$ computed by \WCD{ %
+\&{function}~\>{fmch}}.
+The pseudopotential integrals are computed by the method of Komar.
+
+\WY\WP \Wunnamed{defs}{pseudor.f}%
+\WMd{}\WUC{ARB}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\WUC{YES}\5
+$\WO{0}$\Wendd
+\WP\WMd{}\WUC{NO}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\.{ERR}\5
+${-}\WO{1}$\WY\Wendd
+\WP\WMd{}\WUC{BYTES\_PER\_INTEGER}\5
+$\WO{4}$\Wendd
+\WP\WMd{}\WUC{LEAST\_BYTE}\5
+$\WO{1}$\WY\Wendd
+\WP\WMd{}\WUC{END\_OF\_FILE}\5
+${-}\WO{1}$\WY\Wendd
+\WP\WMd{}\WUC{NO\_OF\_TYPES}\5
+$\WO{20}$\Wendd
+\WP\WMd{}\WUC{INT\_BLOCK\_SIZE}\5
+$\WO{20}$\WY\Wendd
+\WP\WMd{}\WUC{LAST\_BLOCK}\5
+$\WO{1}$\Wendd
+\WP\WMd{}\WUC{NOT\_LAST\_BLOCK}\5
+$\WO{0}$\WY\Wendd
+\WP\WMd{}\WUC{ERROR\_OUTPUT\_UNIT}\5
+$\WO{6}$\WY\Wendd
+\WP\WMd{}\WUC{MAX\_BASIS\_FUNCTIONS}\5
+$\WO{255}$\Wendd
+\WP\WMd{}\WUC{MAX\_PRIMITIVES}\5
+$\WO{1000}$\Wendd
+\WP\WMd{}\WUC{MAX\_CENTRES}\5
+$\WO{50}$\WY\Wendd
+\WP\WMd{}\WUC{MAX\_ITERATIONS}\5
+$\WO{60}$\WY\Wendd
+\WP\WMd{}\WUC{UHF\_CALCULATION}\5
+$\WO{10}$\Wendd
+\WP\WMd{}\WUC{CLOSED\_SHELL\_CALCULATION}\5
+$\WO{20}$\WY\Wendd
+\WY\WP \Wunnamed{code}{pseudor.f}%
+\7
+\&{double} \&{precision} \&{function}~\1\>{genpse}$(\|i,\ \39\|j,\ \39\>{eta},\
+\39\>{ngmx},\ \39\>{nfirst},\ \39\>{nlast},\ \39\>{ntype},\ \39\>{nr},\ \39%
+\>{ntmx},\ \39\>{vlist},\ \39\>{noc},\ \39\>{ncmx},\ \39\>{ovltot},\ \39%
+\>{kintot});$\2\6
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z);$\2\6
+\&{integer}~\1\|i$,$ \|j$,$ \>{ngmx}$,$ \>{ncmx}$,$ \>{noc}$,$ \>{ntmx};\2\6
+\&{integer}~\1\>{nfirst}$(\ast),$ \>{nlast}$(\ast),$ \>{ntype}$(\ast),$ %
+\>{nr}$(\>{ntmx},\ \39\WO{3});$\2\6
+\&{double} \&{precision}~\1\>{ovltot}$,$ \>{kintot};\2\6
+\&{double} \&{precision}~\1\>{eta}$(\>{ngmx},\ \39\WO{5}),$ \>{vlist}$(%
+\>{ncmx},\ \39\WO{4});$\2\7
+$\{$\7
+\&{double} \&{precision}~\1\>{Airu}$(\WO{10}),$ \>{Ajsv}$(\WO{10}),$ \>{Aktw}$(%
+\WO{10});$\2\6
+\&{double} \&{precision}~\1\|p$(\WO{3}),$ \>{sf}$(\WO{10},\ \39\WO{3}),$ %
+\>{tf}$(\WO{20}),$ \>{ca}$(\WO{3}),$ \>{ba}$(\WO{3});$\2\6
+\&{double} \&{precision}~\1\>{fact}$(\WO{20}),$ \|g$(\WO{50});$\2\6
+\&{double} \&{precision}~\1\>{kin}$,$ \>{tnai}$,$ \>{totnai}$,$ \>{tpse}$,$ %
+\>{totpse};\2\6
+\&{integer}~\1\>{bigZ};\2\7
+\&{data} ~\1\>{zero}$,$ \>{one}$,$ \>{two}$,$ \>{half}$,$ \>{quart}${/}\WO{0.0%
+\^D00},\ \39\WO{1.0\^D00},\ \39\WO{2.0\^D00},\ \39\WO{0.5\^D00},\ \39\WO{0.25%
+\^D00}{/};$\2\6
+\&{data} ~\1\>{pi}${/}\WO{3.141592653589\^D00}{/};$\2\7
+\WX{\M{2}}Factorials\X \X\WX{\M{3}}One-electron Integer Setup\X \X\5
+\WC{ Obtain the powers of x,y,z and summation limits }\7
+\>{rAB}$=(\>{eta}(\>{iss},\ \39\WO{1})-\>{eta}(\>{jss},\ \39\WO{1}))\WEE{%
+\WO{2}}+(\>{eta}(\>{iss},\ \39\WO{2})-\>{eta}(\>{jss},\ \39\WO{2}))\WEE{%
+\WO{2}}+(\>{eta}(\>{iss},\ \39\WO{3})-\>{eta}(\>{jss},\ \39\WO{3}))\WEE{%
+\WO{2}};$\5
+\WC{ Initialise all accumulators   }\7
+$\>{genoei}=\>{zero};$\6
+$\>{totpse}=\>{zero};$\6
+$\>{totnai}=\>{zero};$\ $\>{kintot}=\>{zero};$\ $\>{ovltot}=\>{zero};$\7
+$\&{for}\,(\>{irun}=\>{iss};$ $\>{irun}\WL\>{il};$ $\>{irun}=\>{irun}+\WO{1})$ %
+\5
+\WC{ start of "i" contraction }\7
+$\{$\7
+$\&{for}\,(\>{jrun}=\>{jss};$ $\>{jrun}\WL\>{jl};$ $\>{jrun}=\>{jrun}+\WO{1})$ %
+\5
+\WC{ start of "j" contraction }\7
+$\{$\7
+\WX{\M{4}}Compute PA\X \X\5
+\WC{ Use the Gaussian-product theorem to find $\vec{P}$ }\7
+\WX{\M{6}}Overlap Components\X \X\7
+\>{ovltot}$=\>{ovltot}+\>{anorm}\ast\>{bnorm}\ast\>{ovl};$\5
+\WC{ accumulate Overlap }\7
+\WX{\M{7}}Kinetic Energy Components\X \X\7
+\>{kintot}$=\>{kintot}+\>{anorm}\ast\>{bnorm}\ast\>{kin};$\5
+\WC{  accumulate  Kinetic energy  }\7
+\WC{  now the nuclear attraction integral   }\6
+$\>{tpse}=\>{zero};$\6
+$\>{tnai}=\>{zero};$\7
+\WX{\M{8}}Form fj\X \X\5
+\WC{ Generate the required $f_j$ coefficients }\7
+$\&{for}\,(\|n=\WO{1};$ $\|n\WL\>{noc};$ $\|n=\|n+\WO{1})$ \5
+\WC{  loop over nuclei }\7
+$\{$\7
+$\>{bigZ}=\>{vlist}(\|n,\ \39\WO{4})+\WO{0.001\^D00};$\5
+\WC{ round to integer  }\6
+\WC{ Do pseudo potential first - remember vlist(n,4)  is bigZ }\6
+\&{do} $\>{kpse}=\WO{1},\ \39\WO{3};$\1\7
+$\{$\7
+$\>{ca}(\>{kpse})=\>{eta}(\>{irun},\ \39\>{kpse})-\>{vlist}(\|n,\ \39%
+\>{kpse});$\5
+\WC{ relative  positions }\6
+$\>{ba}(\>{kpse})=\>{eta}(\>{jrun},\ \39\>{kpse})-\>{vlist}(\|n,\ \39%
+\>{kpse});$\7
+$\}$\2\7
+$\>{pse}=\>{Vps}(\>{l1},\ \39\>{m1},\ \39\>{n1},\ \39\>{aexp},\ \39\>{ca},\ \39%
+\>{l2},\ \39\>{m2},\ \39\>{n2},\ \39\>{bexp},\ \39\>{ba},\ \39\>{bigZ});$\7
+\WC{        bigZ is changed to Zeff in Vps }\7
+$\>{tpse}=\>{tpse}+\>{pse};$\5
+\WC{ pseudo potential added in - now for                            $
+Z_{eff}/r$ nuclear attraction term }\6
+$\>{pn}=\>{zero};$\5
+\WC{ Initialise current contribution  }\7
+\WC{ Get the attracting-nucleus information;  co-ordinates }\7
+\WX{\M{11}}Nuclear data\X \X\7
+\|t$=\>{t1}\ast\>{pcsq};$\7
+\&{call} $\>{auxg}(\|m,\ \39\|t,\ \39\|g);$\5
+\WC{ Generate all the $F_\nu$ required }\7
+\WX{\M{10}}Form As\X \X\5
+\WC{ Generate the geometrical $A$-factors }\7
+\WC{ Now sum the products of the geometrical $A$-factors and the $F_\nu$ }\7
+$\&{for}\,(\>{ii}=\WO{1};$ $\>{ii}\WL\>{imax};$ $\>{ii}=\>{ii}+\WO{1})$ \1\7
+$\{$\7
+$\&{for}\,(\>{jj}=\WO{1};$ $\>{jj}\WL\>{jmax};$ $\>{jj}=\>{jj}+\WO{1})$ \1\7
+$\{$\7
+$\&{for}\,(\>{kk}=\WO{1};$ $\>{kk}\WL\>{kmax};$ $\>{kk}=\>{kk}+\WO{1})$ \1\7
+$\{$\7
+$\>{nu}=\>{ii}+\>{jj}+\>{kk}-\WO{2};$\6
+$\>{pn}=\>{pn}+\>{Airu}(\>{ii})\ast\>{Ajsv}(\>{jj})\ast\>{Aktw}(\>{kk})\ast\|g(%
+\>{nu});$\7
+$\}$\2\7
+$\}$\2\7
+$\}$\2\7
+$\>{tnai}=\>{tnai}-\>{pn}\ast\@{float}(\>{bigZ});$\5
+\WC{ Add to total multiplied by current charge }\7
+$\}$\5
+\WC{  end of loop over nuclei  }\7
+$\>{totnai}=\>{totnai}+\>{prefa}\ast\>{tnai};$\6
+$\>{totpse}=\>{totpse}+\>{anorm}\ast\>{bnorm}\ast\>{tpse};$\7
+$\}$\5
+\WC{  end of "j" contraction  }\7
+$\}$\5
+\WC{ end of "i" contraction  }\7
+$\>{genpse}=\>{totnai}+\>{totpse}+\>{kintot};$\5
+\WC{ "T + V + Vpse" }\7
+\WC{    write(6,200) i,j,ovltot,kintot,totnai,totpse,genpse;  200
+format(2i3,5f12.5);   }\7
+\&{return};\7
+$\}$\WY\Wendc
+\fi % End of section 1
+
+\WM2. These numbers are the first 20 factorials \WCD{ $\>{fact}(\|i)$} contains
+$(i-1)!$.
+
+\WY\WP\4\4\WX{\M{2}}Factorials\X \X${}\WSQ{}$\6
+\&{data} ~\1\>{fact}${/}\WO{1.0},\ \39\WO{1.0},\ \39\WO{2.0},\ \39\WO{6.0},\ %
+\39\WO{24.0},\ \39\WO{120.0},\ \39\WO{720.0},\ \39\WO{5040.0},\ \39%
+\WO{40320.0},\ \39\WO{362880.0},\ \39\WO{3628800.0},\ \39\WO{39916800.0},\ \39%
+\WO{479001600.0},\ \39\WO{6227020800.0},\ \39\WO{6}\ast\WO{0.0}{/};$\2\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 2
+
+\WM3.  Get the various powers of $x$, $y$ and $z$ required from the data
+structures and obtain the contraction limits etc.
+
+
+\WY\WP\4\4\WX{\M{3}}One-electron Integer Setup\X \X${}\WSQ{}$\6
+$\>{ityp}=\>{ntype}(\|i);$\ $\>{jtyp}=\>{ntype}(\|j);$\6
+$\>{l1}=\>{nr}(\>{ityp},\ \39\WO{1});$\ $\>{m1}=\>{nr}(\>{ityp},\ \39\WO{2});$\
+$\>{n1}=\>{nr}(\>{ityp},\ \39\WO{3});$\6
+$\>{l2}=\>{nr}(\>{jtyp},\ \39\WO{1});$\ $\>{m2}=\>{nr}(\>{jtyp},\ \39\WO{2});$\
+$\>{n2}=\>{nr}(\>{jtyp},\ \39\WO{3});$\6
+$\>{imax}=\>{l1}+\>{l2}+\WO{1};$\ $\>{jmax}=\>{m1}+\>{m2}+\WO{1};$\ $\>{kmax}=%
+\>{n1}+\>{n2}+\WO{1};$\6
+$\>{maxall}=\>{imax};$\6
+$\&{if}\,(\>{maxall}<\>{jmax})$\1\6
+$\>{maxall}=\>{jmax};$\2\6
+$\&{if}\,(\>{maxall}<\>{kmax})$\1\6
+$\>{maxall}=\>{kmax};$\2\6
+$\&{if}\,(\>{maxall}<\WO{2})$\1\6
+$\>{maxall}=\WO{2};$\2\5
+\WC{ when all functions are "s" type }\6
+$\>{iss}=\>{nfirst}(\|i);$\ $\>{il}=\>{nlast}(\|i);$\6
+$\>{jss}=\>{nfirst}(\|j);$\ $\>{jl}=\>{nlast}(\|j);$\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 3
+
+\WM4. Use the Gaussian Product Theorem to find the position vector
+$\vec{P}$, of the product of the two Gaussian exponential factors
+of the basis functions for electron 1.
+
+\WY\WP\4\4\WX{\M{4}}Compute PA\X \X${}\WSQ{}$\6
+$\>{aexp}=\>{eta}(\>{irun},\ \39\WO{4});$\6
+$\>{anorm}=\>{eta}(\>{irun},\ \39\WO{5});$\6
+$\>{bexp}=\>{eta}(\>{jrun},\ \39\WO{4});$\6
+$\>{bnorm}=\>{eta}(\>{jrun},\ \39\WO{5});$\6
+$\>{t1}=\>{aexp}+\>{bexp};$\6
+$\>{deleft}=\>{one}\WSl\>{t1};$\6
+$\|p(\WO{1})=(\>{aexp}\ast\>{eta}(\>{irun},\ \39\WO{1})+\>{bexp}\ast\>{eta}(%
+\>{jrun},\ \39\WO{1}))\ast\>{deleft};$\6
+$\|p(\WO{2})=(\>{aexp}\ast\>{eta}(\>{irun},\ \39\WO{2})+\>{bexp}\ast\>{eta}(%
+\>{jrun},\ \39\WO{2}))\ast\>{deleft};$\6
+$\|p(\WO{3})=(\>{aexp}\ast\>{eta}(\>{irun},\ \39\WO{3})+\>{bexp}\ast\>{eta}(%
+\>{jrun},\ \39\WO{3}))\ast\>{deleft};$\6
+$\>{pax}=\|p(\WO{1})-\>{eta}(\>{irun},\ \39\WO{1});$\6
+$\>{pay}=\|p(\WO{2})-\>{eta}(\>{irun},\ \39\WO{2});$\6
+$\>{paz}=\|p(\WO{3})-\>{eta}(\>{irun},\ \39\WO{3});$\6
+$\>{pbx}=\|p(\WO{1})-\>{eta}(\>{jrun},\ \39\WO{1});$\6
+$\>{pby}=\|p(\WO{2})-\>{eta}(\>{jrun},\ \39\WO{2});$\6
+$\>{pbz}=\|p(\WO{3})-\>{eta}(\>{jrun},\ \39\WO{3});$\6
+$\>{prefa}=\@{exp}({-}\>{aexp}\ast\>{bexp}\ast\>{rAB}\WSl\>{t1})\ast\>{pi}\ast%
+\>{anorm}\ast\>{bnorm}\WSl\>{t1};$\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 4
+
+\WM5.  This simple code gets the Cartesian overlap components and
+assembles the total integral. It also computes the overlaps required
+to calculate the kinetic energy integral used in a later module.
+
+\fi % End of section 5
+
+\WM6.
+
+\WY\WP\4\4\WX{\M{6}}Overlap Components\X \X${}\WSQ{}$\6
+$\>{prefa}=\>{two}\ast\>{prefa};$\6
+$\>{expab}=\@{exp}({-}\>{aexp}\ast\>{bexp}\ast\>{rAB}\WSl\>{t1});$\6
+$\>{s00}=(\>{pi}\WSl\>{t1})\WEE{\WO{1.5}}\ast\>{expab};$\6
+$\>{dum}=\>{one};$\ $\>{tf}(\WO{1})=\>{one};$\6
+$\>{del}=\>{half}\WSl\>{t1};$\6
+$\&{for}\,(\|n=\WO{2};$ $\|n\WL\>{maxall};$ $\|n=\|n+\WO{1})$ \1\7
+$\{$\6
+$\>{tf}(\|n)=\>{tf}(\|n-\WO{1})\ast\>{dum}\ast\>{del};$\ $\>{dum}=\>{dum}+%
+\>{two};$\ $\}$\2\7
+$\>{ox0}=\>{ovrlap}(\>{l1},\ \39\>{l2},\ \39\>{pax},\ \39\>{pbx},\ \39\>{tf});$%
+\6
+$\>{oy0}=\>{ovrlap}(\>{m1},\ \39\>{m2},\ \39\>{pay},\ \39\>{pby},\ \39\>{tf});$%
+\6
+$\>{oz0}=\>{ovrlap}(\>{n1},\ \39\>{n2},\ \39\>{paz},\ \39\>{pbz},\ \39\>{tf});$%
+\6
+$\>{ox2}=\>{ovrlap}(\>{l1},\ \39\>{l2}+\WO{2},\ \39\>{pax},\ \39\>{pbx},\ \39%
+\>{tf});$\6
+$\>{oxm2}=\>{ovrlap}(\>{l1},\ \39\>{l2}-\WO{2},\ \39\>{pax},\ \39\>{pbx},\ \39%
+\>{tf});$\6
+$\>{oy2}=\>{ovrlap}(\>{m1},\ \39\>{m2}+\WO{2},\ \39\>{pay},\ \39\>{pby},\ \39%
+\>{tf});$\6
+$\>{oym2}=\>{ovrlap}(\>{m1},\ \39\>{m2}-\WO{2},\ \39\>{pay},\ \39\>{pby},\ \39%
+\>{tf});$\6
+$\>{oz2}=\>{ovrlap}(\>{n1},\ \39\>{n2}+\WO{2},\ \39\>{paz},\ \39\>{pbz},\ \39%
+\>{tf});$\6
+$\>{ozm2}=\>{ovrlap}(\>{n1},\ \39\>{n2}-\WO{2},\ \39\>{paz},\ \39\>{pbz},\ \39%
+\>{tf});$\6
+$\>{ov0}=\>{ox0}\ast\>{oy0}\ast\>{oz0};$\6
+$\>{ovl}=\>{ov0}\ast\>{s00};$\6
+$\>{ov1}=\>{ox2}\ast\>{oy0}\ast\>{oz0};$\6
+$\>{ov4}=\>{oxm2}\ast\>{oy0}\ast\>{oz0};$\6
+$\>{ov2}=\>{ox0}\ast\>{oy2}\ast\>{oz0};$\6
+$\>{ov5}=\>{ox0}\ast\>{oym2}\ast\>{oz0};$\6
+$\>{ov3}=\>{ox0}\ast\>{oy0}\ast\>{oz2};$\6
+$\>{ov6}=\>{ox0}\ast\>{oy0}\ast\>{ozm2};$\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 6
+
+\WM7.  Use the previously-computed overlap components to
+generate the Kinetic energy components and
+hence the total integral.
+
+
+
+\WY\WP\4\4\WX{\M{7}}Kinetic Energy Components\X \X${}\WSQ{}$\6
+$\>{xl}=\@{dfloat}(\>{l2}\ast(\>{l2}-\WO{1}));$\ $\>{xm}=\@{dfloat}(\>{m2}\ast(%
+\>{m2}-\WO{1}));$\6
+$\>{xn}=\@{dfloat}(\>{n2}\ast(\>{n2}-\WO{1}));$\ $\>{xj}=\@{dfloat}(\WO{2}\ast(%
+\>{l2}+\>{m2}+\>{n2})+\WO{3});$\6
+$\>{kin}=\>{s00}\ast(\>{bexp}\ast(\>{xj}\ast\>{ov0}-\>{two}\ast\>{bexp}\ast(%
+\>{ov1}+\>{ov2}+\>{ov3}))-\>{half}\ast(\>{xl}\ast\>{ov4}+\>{xm}\ast\>{ov5}+%
+\>{xn}\ast\>{ov6}));$\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 7
+
+\WM8.  Form the $f_j$ coefficients needed for the nuclear attraction integral.
+*/
+
+
+\WY\WP\4\4\WX{\M{8}}Form fj\X \X${}\WSQ{}$\6
+$\|m=\>{imax}+\>{jmax}+\>{kmax}-\WO{2};$\6
+$\&{for}\,(\|n=\WO{1};$ $\|n\WL\>{imax};$ $\|n=\|n+\WO{1})$ \1\6
+$\>{sf}(\|n,\ \39\WO{1})=\>{fj}(\>{l1},\ \39\>{l2},\ \39\|n-\WO{1},\ \39%
+\>{pax},\ \39\>{pbx});$\2\6
+$\&{for}\,(\|n=\WO{1};$ $\|n\WL\>{jmax};$ $\|n=\|n+\WO{1})$ \1\6
+$\>{sf}(\|n,\ \39\WO{2})=\>{fj}(\>{m1},\ \39\>{m2},\ \39\|n-\WO{1},\ \39%
+\>{pay},\ \39\>{pby});$\2\6
+$\&{for}\,(\|n=\WO{1};$ $\|n\WL\>{kmax};$ $\|n=\|n+\WO{1})$ \1\6
+$\>{sf}(\|n,\ \39\WO{3})=\>{fj}(\>{n1},\ \39\>{n2},\ \39\|n-\WO{1},\ \39%
+\>{paz},\ \39\>{pbz});$\2\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 8
+
+\WM9.  Use \WCD{ \>{aform}} to compute the required $A$-factors for each
+Cartesian component.
+
+\fi % End of section 9
+
+\WM10.
+
+\WY\WP\4\4\WX{\M{10}}Form As\X \X${}\WSQ{}$\6
+$\>{epsi}=\>{quart}$ {/} \>{t1};\6
+$\&{for}\,(\>{ii}=\WO{1};$ $\>{ii}\WL\WO{10};$ $\>{ii}=\>{ii}+\WO{1})$ \1\7
+$\{$\6
+$\>{Airu}(\>{ii})=\>{zero};$\ $\>{Ajsv}(\>{ii})=\>{zero};$\ $\>{Aktw}(\>{ii})=%
+\>{zero};$\6
+$\}$\2\7
+\&{call} $\>{aform}(\>{imax},\ \39\>{sf},\ \39\>{fact},\ \39\>{cpx},\ \39%
+\>{epsi},\ \39\>{Airu},\ \39\WO{1});$\5
+\WC{ form $A_{i,r,u}$  }\6
+\&{call} $\>{aform}(\>{jmax},\ \39\>{sf},\ \39\>{fact},\ \39\>{cpy},\ \39%
+\>{epsi},\ \39\>{Ajsv},\ \39\WO{2});$\5
+\WC{ form $A_{j,s,v}$  }\6
+\&{call} $\>{aform}(\>{kmax},\ \39\>{sf},\ \39\>{fact},\ \39\>{cpz},\ \39%
+\>{epsi},\ \39\>{Aktw},\ \39\WO{3});$\5
+\WC{ form $A_{k,t,w}$  }\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 10
+
+\WM11.  Get the co-ordinates of the attracting nucleus with respect to $%
+\vec{P}$.
+
+
+\WY\WP\4\4\WX{\M{11}}Nuclear data\X \X${}\WSQ{}$\6
+$\>{cpx}=\|p(\WO{1})-\>{vlist}(\|n,\ \39\WO{1});$\ $\>{cpy}=\|p(\WO{2})-%
+\>{vlist}(\|n,\ \39\WO{2});$\6
+$\>{cpz}=\|p(\WO{3})-\>{vlist}(\|n,\ \39\WO{3});$\ $\>{pcsq}=\>{cpx}\ast%
+\>{cpx}+\>{cpy}\ast\>{cpy}+\>{cpz}\ast\>{cpz};$\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 11
+
+\WN12.  VPS. Function to organise the computation of the pseudo-potential
+integral for a particular choice of potential. This function has the duty
+of identifying the nature of the centre on which the source of
+effective potential is based (from \WCD{ \>{bigZ}}) and getting the parameters
+for this atom from the arrays containing that information for many atoms.
+When this is done \WCD{ \>{Vps}} calls \WCD{ \>{psepot}} to do the actual
+integral
+evaluation.
+
+\WY\WP \Wunnamed{code}{pseudor.f}%
+\7
+\&{double} \&{precision} \&{function}~\1\>{Vps}$(\>{l1},\ \39\>{m1},\ \39%
+\>{n1},\ \39\>{alpha},\ \39\>{ca},\ \39\>{l2},\ \39\>{m2},\ \39\>{n2},\ \39%
+\>{beta},\ \39\>{ba},\ \39\>{bigZ});$\2\6
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z);$\2\6
+\&{integer}~\1\>{l1}$,$ \>{l2}$,$ \>{m1}$,$ \>{m2}$,$ \>{n1}$,$ \>{n2}$,$ %
+\>{bigZ};\2 \&{double} \&{precision}~\1\>{alpha}$,$ \>{beta}$,$ \>{ca}$(\ast),$
+\>{ba}$(\ast)$\2 $\{$\5
+\WC{  Pseudopotential arrays  }\6
+\&{integer}~\1\>{nupse}$(\WUC{NU\_DIM});$\2\6
+\&{integer}~\1\>{nc}$(\WO{3}),$ \>{nb}$(\WO{3});$\2\6
+\&{integer}~\1\>{kpsemx}$,$ \>{lpsemx};\2\5
+\WC{ Current atom expansion maxima }\6
+\&{integer}~\1\>{idparm}$,$ \>{inparm};\2\5
+\WC{ Position of PS parameters }\6
+\&{integer}~\1\>{doff}$,$ \>{noff};\2\5
+\WC{ Offsets in PS arrays  }\6
+\&{double} \&{precision}~\1\>{dpse}$(\WUC{DPSE\_DIM}),$ \>{dzu}$(\WUC{NU%
+\_DIM});$\2\6
+\&{double} \&{precision}~\1\>{pse};\2\6
+\&{double} \&{precision}~\1\>{fourpi};\2\6
+\&{double} \&{precision}~\1\>{psepot};\2\5
+\WC{  Pseudopotential function }\7
+\&{data} ~\1\>{fourpi}${/}\WO{12.56637061\^D00}{/},$ \>{zero}${/}\WO{0.0%
+\^D00}{/};$\2\5
+\WC{ <PSE Data> has the parameters for the Pseudopotentials  in the form of
+"data" statements for dpse, nupse, dzu }\7
+\WX{\M{13}}PSE Data\X \X\7
+\>{nc}$(\WO{1})=\>{l1};$\ $\>{nc}(\WO{2})=\>{m1};$\ $\>{nc}(\WO{3})=\>{n1};$\6
+$\>{nb}(\WO{1})=\>{l2};$\ $\>{nb}(\WO{2})=\>{m2};$\ $\>{nb}(\WO{3})=\>{n2};$\6
+$\>{doff}=\WO{1};$\5
+\WC{ 1st. Row parameters at start of dpse
+coefficient array  }\6
+$\>{noff}=\WO{1};$\5
+\WC{ and at start of exponent and power arrays }\7
+\WC{   Size of expansions for 1st.Row }\7
+$\>{kpsemx}=\WUC{FIRST\_ROW\_KMAX};$\6
+$\>{lpsemx}=\WUC{FIRST\_ROW\_LMAX};$\6
+$\&{if}\,((\WUC{NEON}<\>{bigZ})\WW(\>{bigZ}\WL\WUC{ARGON}))$\1\7
+$\{$\7
+\WC{ offsets for 2nd. row parameters  }\7
+$\>{doff}=\WUC{NUMBER\_OF\_FIRST\_ROW}\ast\WUC{FIRST\_ROW\_KMAX}\ast(\WUC{FIRST%
+\_ROW\_LMAX}+\WO{1})+\WO{1};$\6
+$\>{noff}=\WUC{NUMBER\_OF\_FIRST\_ROW}\ast\WUC{FIRST\_ROW\_KMAX}+\WO{1};$\7
+\WC{   Size of expansions for 2nd. Row }\7
+$\>{kpsemx}=\WUC{SECOND\_ROW\_KMAX};$\6
+$\>{lpsemx}=\WUC{SECOND\_ROW\_LMAX};$\7
+$\}$\2\7
+$\&{if}\,((\WUC{ARGON}<\>{bigZ})\WW(\>{bigZ}\WL\WUC{ZINC}))$\1\7
+$\{$\7
+\WC{ offsets for 3rd. Row parameters including First Transition Series }\7
+$\>{doff}=\WUC{NUMBER\_OF\_FIRST\_ROW}\ast\WUC{FIRST\_ROW\_KMAX}\ast(\WUC{FIRST%
+\_ROW\_LMAX}+\WO{1})+\WUC{NUMBER\_OF\_SECOND\_ROW}\ast\WUC{SECOND\_ROW\_KMAX}%
+\ast(\WUC{SECOND\_ROW\_LMAX}+\WO{1})+\WO{1};$\7
+$\>{noff}=\WUC{NUMBER\_OF\_FIRST\_ROW}\ast\WUC{FIRST\_ROW\_KMAX}+\WUC{NUMBER%
+\_OF\_SECOND\_ROW}\ast\WUC{SECOND\_ROW\_KMAX}+\WO{1};$\7
+\WC{   Size of expansions for 3rd. Row }\7
+$\>{kpsemx}=\WUC{THIRD\_ROW\_KMAX};$\6
+$\>{lpsemx}=\WUC{THIRD\_ROW\_LMAX};$\7
+$\}$\2\7
+$\>{pse}=\>{zero};$\5
+\WC{ Initialise the integral }\7
+$\&{if}\,(\>{bigZ}\WL\WUC{HELIUM})$\5
+\WC{ no potentials for H, He }\1\6
+\&{return} $(\>{pse});$\2\7
+$\&{if}\,((\WUC{HELIUM}<\>{bigZ})\WW(\>{bigZ}\WL\WUC{NEON}))$\1\7
+$\>{bigZ}=\>{bigZ}-\WUC{HELIUM};$\2\7
+$\&{if}\,((\WUC{NEON}<\>{bigZ})\WW(\>{bigZ}\WL\WUC{ARGON}))$\1\7
+$\>{bigZ}=\>{bigZ}-\WUC{NEON};$\2\7
+$\&{if}\,((\WUC{ARGON}<\>{bigZ})\WW(\>{bigZ}\WL\WUC{ZINC}))$\1\7
+$\>{bigZ}=\>{bigZ}-\WUC{ARGON};$\2\6
+$\&{if}\,(\>{bigZ}>\WUC{ZINC})$\1\7
+$\{$\6
+$\&{write}\,(\WUC{ERROR\_OUTPUT\_UNIT},\ \39\WO{200})$ ;\6
+\WUC{STOP};\6
+$\}$\2\7
+$\WO{200}$ $\&{format}\,(\.{"\ No\ Pseudo\ potential\ for\ \0this\ atom"})$ \7
+$\>{idparm}=(\>{bigZ}-\WO{1})\ast\>{kpsemx}\ast(\>{lpsemx}+\WO{1})+\>{doff};$\6
+$\>{inparm}=(\>{bigZ}-\WO{1})\ast\>{kpsemx}+\>{noff};$\6
+$\>{pse}=\>{psepot}(\>{nc},\ \39\>{alpha},\ \39\>{ca},\ \39\>{nb},\ \39%
+\>{beta},\ \39\>{ba},\ \39\>{dzu}(\>{inparm}),\ \39\>{dpse}(\>{idparm}),\ \39%
+\>{nupse}(\>{inparm}),\ \39\>{kpsemx},\ \39\>{lpsemx});$\6
+$\>{pse}=\>{pse}\ast\>{fourpi};$\6
+\&{return} $(\>{pse});$\7
+$\}$\7
+\WC{ The (long and tedious) data structure containing the parameters for the
+effective potentials for the atoms included in the set. }\WY\Wendc
+\fi % End of section 12
+
+\WM13.
+
+\WY\WP\4\4\WX{\M{13}}PSE Data\X \X${}\WSQ{}$\6
+\WMd$\WUC{LDIM1P1}$\5
+$\WRS{\$EVAL}\,(\WUC{LDIM1}+\WO{1})$\WPs\6
+\WMd$\WUC{LDIM1PLDIM2}$\5
+$\WRS{\$EVAL}\,(\WUC{LDIM1}+\WUC{LDIM2})$\WPs\6
+\WMd$\WUC{LDIM1PLDIM2P1}$\5
+$\WRS{\$EVAL}\,(\WUC{LDIM1PLDIM2}+\WO{1})$\WPs\6
+\&{data} $\,(\>{dpse}(\|i),\ \39\|i=\WO{1},\ \39\WUC{LDIM1})$ \1${/}\WO{3.48672%
+\^D00},\ \39\WO{0.49988\^D00},\ \39\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39%
+\WO{0.0\^D00},\ \39{-}\WO{0.77469\^D00},$\5
+\WC{ Li }\6
+\ \39$\WO{0.99509\^D00},\ \39{-}\WO{0.02612\^D00},\ \39\WO{0.0\^D00},\ \39%
+\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39{-}\WO{0.27010\^D00},$\5
+\WC{ Be }\6
+\ \39$\WO{1.04649\^D00},\ \39{-}\WO{0.07501\^D00},\ \39\WO{0.0\^D00},\ \39%
+\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39{-}\WO{0.36886\^D00},$\5
+\WC{ B }\6
+\ \39$\WO{1.07785\^D00},\ \39{-}\WO{0.17140\^D00},\ \39\WO{0.0\^D00},\ \39%
+\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39{-}\WO{0.40843\^D00},$\5
+\WC{ C }\6
+\ \39$\WO{1.09851\^D00},\ \39{-}\WO{0.33854\^D00},\ \39\WO{0.0\^D00},\ \39%
+\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39{-}\WO{0.43676\^D00},$\5
+\WC{ N }\6
+\WC{   1.11152d00, -0.60045d00, 0.0d00, 0.0d00, 0.0d00, -0.44108d00,  O }\6
+\ \39$\WO{1.6477\^D00},\ \39\WO{45.0783\^D00},\ \39\WO{0.0\^D00},\ \39\WO{0.0%
+\^D00},\ \39\WO{0.0\^D00},\ \39{-}\WO{7.7907\^D00},$\5
+\WC{ O (new) }\6
+\ \39$\WO{1.12060\^D00},\ \39{-}\WO{0.98560\^D00},\ \39\WO{0.0\^D00},\ \39%
+\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39{-}\WO{0.44625\^D00},$\5
+\WC{ F }\6
+\ \39$\WO{1.12861\^D00},\ \39{-}\WO{1.55047\^D00},\ \39\WO{0.0\^D00},\ \39%
+\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39{-}\WO{0.46631\^D00}{/};$\2\5
+\WC{ Ne }\6
+\&{data} $\,(\>{dpse}(\|i),\ \39\|i=\WUC{LDIM1P1},\ \39\WUC{LDIM1PLDIM2})$ %
+\1${/}\WO{1.74854\^D00},\ \39{-}\WO{0.01388\^D00},\ \39\WO{5}\ast\WO{0.0\^D00},%
+\ \39\WO{1.46565\^D00},\ \39\WO{0.15319\^D00},$\5
+\WC{ Na }\6
+\ \39$\WO{5}\ast\WO{0.0\^D00},\ \39{-}\WO{2.83231\^D00},$\5
+\WC{ Na }\6
+\ \39$\WO{2.00073\^D00},\ \39{-}\WO{0.03023\^D00},\ \39\WO{5}\ast\WO{0.0\^D00},%
+\ \39\WO{1.40926\^D00},\ \39{-}\WO{0.00871\^D00},$\5
+\WC{ Mg }\6
+\ \39$\WO{5}\ast\WO{0.0\^D00},\ \39{-}\WO{92.89133\^D00},$\5
+\WC{ Mg }\6
+\ \39$\WO{2.16121\^D00},\ \39{-}\WO{0.06021\^D00},\ \39\WO{5}\ast\WO{0.0\^D00},%
+\ \39\WO{1.40609\^D00},\ \39{-}\WO{0.02270\^D00},$\5
+\WC{ Al }\6
+\ \39$\WO{5}\ast\WO{0.0\^D00},\ \39{-}\WO{0.93152\^D00},$\5
+\WC{ Al }\6
+\ \39$\WO{2.30683\^D00},\ \39{-}\WO{0.10463\^D00},\ \39\WO{5}\ast\WO{0.0\^D00},%
+\ \39\WO{1.61465\^D00},\ \39{-}\WO{0.04644\^D00},$\5
+\WC{ Si }\6
+\ \39$\WO{5}\ast\WO{0.0\^D00},\ \39{-}\WO{0.18945\^D00},\ \39\WO{2.42266\^D00},%
+\ \39{-}\WO{0.16784\^D00},\ \39\WO{5}\ast\WO{0.0\^D00},\ \39\WO{1.72241\^D00},\
+\39{-}\WO{0.08401\^D00},$\5
+\WC{ P }\6
+\ \39$\WO{5}\ast\WO{0.0\^D00},\ \39{-}\WO{0.40202\^D00},$\5
+\WC{ P }\6
+\ \39$\WO{2.51686\^D00},\ \39{-}\WO{0.25672\^D00},\ \39\WO{5}\ast\WO{0.0\^D00},%
+\ \39\WO{1.79573\^D00},\ \39{-}\WO{0.13150\^D00},$\5
+\WC{ S }\6
+\ \39$\WO{5}\ast\WO{0.0\^D00},\ \39{-}\WO{0.74309\^D00},$\5
+\WC{ S }\6
+\ \39$\WO{2.60459\^D00},\ \39{-}\WO{0.37281\^D00},\ \39\WO{5}\ast\WO{0.0\^D00},%
+\ \39\WO{1.85329\^D00},\ \39{-}\WO{0.20197\^D00},$\5
+\WC{ Cl }\6
+\ \39$\WO{5}\ast\WO{0.0\^D00},\ \39{-}\WO{0.98109\^D00},$\5
+\WC{ Cl }\6
+\ \39$\WO{2.66818\^D00},\ \39{-}\WO{0.52659\^D00},\ \39\WO{5}\ast\WO{0.0\^D00},%
+\ \39\WO{1.90592\^D00},\ \39{-}\WO{0.29464\^D00},$\5
+\WC{ Ar }\6
+\ \39$\WO{5}\ast\WO{0.0\^D00},\ \39{-}\WO{1.35035\^D00}{/};$\2\5
+\WC{ Ar }\6
+\&{data} $\,(\>{dpse}(\|i),\ \39\|i=\WUC{LDIM1PLDIM2P1},\ \39\WUC{DPSE\_DIM})$ %
+\1${/}\WO{135}\ast\WO{0.0\^D00},$\5
+\WC{ Ditto for K to Co }\6
+\ \39$\WO{5.57207\^D00},\ \39{-}\WO{0.11685\^D00},\ \39\WO{0.0\^D00},\ \39%
+\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39%
+\WO{5.49578\^D00},\ \39\WO{0.23560\^D00},\ \39\WO{0.0\^D00},\ \39\WO{0.0\^D00},%
+\ \39\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39{-}\WO{6.10669%
+\^D00},$\5
+\WC{ Ni }\6
+\ \39$\WO{5.75316\^D00},\ \39{-}\WO{0.13096\^D00},\ \39\WO{0.0\^D00},\ \39%
+\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39%
+\WO{5.98399\^D00},\ \39\WO{0.55456\^D00},\ \39\WO{0.0\^D00},\ \39\WO{0.0\^D00},%
+\ \39\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39\WO{0.0\^D00},\ \39{-}\WO{6.12527%
+\^D00},$\5
+\WC{ Cu }\6
+\ \39$\WO{15}\ast\WO{0.0\^D00}{/};$\2\5
+\WC{ Fill in for Zn }\6
+\&{data} ~\1\>{dzu}${/}\WO{1.04883\^D00},\ \39\WO{1.04883\^D00},\ \39%
+\WO{1.40580\^D00},$\5
+\WC{ Li }\6
+\ \39$\WO{0.25784\^D00},\ \39\WO{0.25784\^D00},\ \39\WO{0.96124\^D00},$\5
+\WC{ Be }\6
+\ \39$\WO{0.40255\^D00},\ \39\WO{0.40255\^D00},\ \39\WO{1.91861\^D00},$\5
+\WC{ B }\6
+\ \39$\WO{0.57656\^D00},\ \39\WO{0.57656\^D00},\ \39\WO{3.18301\^D00},$\5
+\WC{ C }\6
+\ \39$\WO{0.77911\^D00},\ \39\WO{0.77911\^D00},\ \39\WO{4.76414\^D00},$\5
+\WC{ N }\6
+\WC{   1.00639d00, 1.00639d00, 6.34314d00,  O }\6
+\ \39$\WO{10.37387\^D00},\ \39\WO{10.37387\^D00},\ \39\WO{25.320084},$\5
+\WC{ O(new) }\6
+\ \39$\WO{1.26132\^D00},\ \39\WO{1.26132\^D00},\ \39\WO{8.17605\^D00},$\5
+\WC{ F }\6
+\ \39$\WO{1.53611\^D00},\ \39\WO{1.53611\^D00},\ \39\WO{10.74498\^D00},$\5
+\WC{ Ne }\6
+\ \39$\WO{2}\ast\WO{0.25753\^D00},\ \39\WO{2}\ast\WO{0.50138\^D00},\ \39%
+\WO{1.01908\^D00},$\5
+\WC{ Na }\6
+\ \39$\WO{2}\ast\WO{0.30666\^D00},\ \39\WO{2}\ast\WO{0.27481\^D00},\ \39%
+\WO{6.35656\^D00},$\5
+\WC{ Mg }\6
+\ \39$\WO{2}\ast\WO{34298\^D00},\ \39\WO{2}\ast\WO{0.28766\^D00},\ \39%
+\WO{0.85476\^D00},$\5
+\WC{ Al }\6
+\ \39$\WO{0.39512\^D00},\ \39\WO{0.39512\^D00},\ \39\WO{0.40442\^D00},\ \39%
+\WO{0.40442\^D00},\ \39\WO{0.25050\^D00},$\5
+\WC{ Si }\6
+\ \39$\WO{0.45424\^D00},\ \39\WO{0.45424\^D00},\ \39\WO{0.49582\^D00},\ \39%
+\WO{0.49582\^D00},\ \39\WO{0.56256\^D00},$\5
+\WC{ P }\6
+\ \39$\WO{0.51644\^D00},\ \39\WO{0.51644\^D00},\ \39\WO{0.59819\^D00},\ \39%
+\WO{0.59819\^D00},\ \39\WO{1.13649\^D00},$\5
+\WC{ S }\6
+\ \39$\WO{0.59299\^D00},\ \39\WO{0.59299\^D00},\ \39\WO{0.69783\^D00},\ \39%
+\WO{0.69783\^D00},\ \39\WO{2.00000\^D00},$\5
+\WC{ Cl }\6
+\ \39$\WO{0.66212\^D00},\ \39\WO{0.66212\^D00},\ \39\WO{0.80903\^D00},\ \39%
+\WO{0.80903\^D00},\ \39\WO{3.50000\^D00},$\5
+\WC{ Ar }\6
+\ \39$\WO{45}\ast\WO{0.0\^D00},$\5
+\WC{ Ditto for K to Co }\6
+\ \39$\WO{0.63800\^D00},\ \39\WO{0.638000\^D00},\ \39\WO{0.70978\^D00},\ \39%
+\WO{0.70978\^D00},\ \39\WO{2.44040\^D00},$\5
+\WC{ Ni }\6
+\ \39$\WO{0.71270\^D00},\ \39\WO{0.71270\^D00},\ \39\WO{0.89496\^D00},\ \39%
+\WO{0.89498\^D00},\ \39\WO{2.67294\^D00},$\5
+\WC{ Cu }\6
+\ \39$\WO{5}\ast\WO{0.0\^D00}{/};$\2\5
+\WC{ Fill in Zn later }\6
+\&{data} ~\1\>{nupse}{/}\5
+\WC{ these are nu + 2 values }\6
+$\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Li }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Be }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ B }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ C }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ N }\6
+\WC{   0, 4, 1,   O  }\6
+\ \39$\WO{1},\ \39\WO{2},\ \39\WO{2},$\5
+\WC{ O (new) }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ F }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Ne }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Na }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Mg }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Al }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Si }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ P }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ S }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Cl }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Ar }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ K }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Ca }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Sc }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Ti }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ V }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Cr }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Mn }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Fe }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Co }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Ni }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1},$\5
+\WC{ Cu }\6
+\ \39$\WO{0},\ \39\WO{4},\ \39\WO{0},\ \39\WO{4},\ \39\WO{1}{/};$\2\5
+\WC{ Zn }\7
+\LANGUAGE{R}\WY\Wendc
+\WU section~\M{12}.
+\fi % End of section 13
+
+\WN14.  PSEPOT. Function to do the actual work of pseudopotential
+integral evaluation.
+The function calculates matrix elements of atomic pseudo-
+potential  Vps  centred on site  A  between two Gaussians centred
+on sites  B  and  C  (all three sites may assume arbitrary positions
+in space; any two of them or all three are allowed to
+coincide).
+
+The coding here is ``developed'' (read that ``mostly copied'') from
+the FORTRAN 66 program described by M. Kolar (Comp. Phys. Communications {\bf
+23},
+275 (1980) whose program description is a model of clear information.
+*/
+
+\WY\WP \Wunnamed{code}{pseudor.f}%
+\7
+\&{double} \&{precision} \&{function}~\1\>{psepot}$(\>{nc},\ \39\>{zc},\ \39%
+\>{ca},\ \39\>{nb},\ \39\>{zb},\ \39\>{ba},\ \39\>{zu},\ \39\>{Td},\ \39\>{nu},%
+\ \39\>{kmax},\ \39\>{lmax});$\2\6
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z);$\2\6
+\&{integer}~\1\>{nc}$(\ast),$ \>{nb}$(\ast),$ \>{nu}$(\ast),$ \>{kmax}$,$ %
+\>{lmax};\2\6
+\&{double} \&{precision}~\1\>{zc}$,$ \>{zb}$,$ \>{ca}$(\ast),$ \>{ba}$(\ast),$ %
+\>{zu}$(\ast),$ \>{Td}$(\ast);$\2 $\{$ \&{double} \&{precision}~\1\>{r1}$,$ %
+\>{r11}$,$ \|r;\2\5
+\WC{ These three are entry points to \WCD{ \>{rinit}}}\6
+\&{integer}~\1\>{rinit}$,$ \>{rl}$,$ \>{rl1};\2\5
+\WC{ These three are the integer entry points to                           the
+same routine: \WCD{ \>{rinit}} }\7
+\WX{\M{15}}psepot Declarations, commons and equivalences\X \X\7
+\WX{\M{16}}Use capi to get the geometric factors\X \X\7
+\>{tzcb}$=\>{zc}+\>{zb};$\6
+$\>{ncb}=\>{ncn}+\>{nbn};$ $\&{if}\,(\>{logc}\WW\>{logb})$\7
+$\{$ \WX{\M{17}}Simple case, both distances zero\X \X $\}$\7
+$\@{log}=\>{logc}\WV\>{logb};$\6
+$\>{td1}=\>{two}\ast\>{tca}\ast\>{zc};$\ $\>{td2}=\>{two}\ast\>{tba}\ast%
+\>{zb};$\ $\>{t2}=\>{zc}\ast\>{zb};$\6
+$\>{tg1}=\>{t2}\ast(\>{tba}-\>{tca})\WEE{\WO{2}};$\ $\>{tg2}=\>{zb}\ast%
+\>{tba2}+\>{zc}\ast\>{tca2};$\6
+$\|a(\WO{1})=\>{td1}+\>{td2};$ $\&{if}\,(\@{log})$\7
+$\{$ \WX{\M{18}}Intermediate case, only one distance zero\X \X $\}$\7
+\WX{\M{19}}General case, both distances non-zero\X \X $\}$\WY\Wendc
+\fi % End of section 14
+
+\WM15. Here are the declaractions for work-space and intermediate storage.
+
+\WY\WP\4\4\WX{\M{15}}psepot Declarations, commons and equivalences\X \X${}%
+\WSQ{}$\6
+\&{logical}~\1\@{log}$,$ \>{logc}$,$ \>{logb}$,$ \>{lgo}$,$ \>{lgl}$(%
+\WO{252}),$ \>{lgl1}$(\WO{233});$\2\6
+\&{double} \&{precision}~\1\>{tpic}$(\WO{9},\ \39\WO{4},\ \39\WO{6}),$ %
+\>{tpib}$(\WO{9},\ \39\WO{4},\ \39\WO{6}),$ \>{tpc}$(\WO{9}),$ \>{tpb}$(%
+\WO{189}),$ \>{ttpp}$(\WO{189});$\2\6
+\&{double} \&{precision}~\1\|a$(\WO{2});$\2\6
+\&{double} \&{precision}~\1\>{zero}$,$ \>{quarter}$,$ \>{half}$,$ \>{one}$,$ %
+\>{two};\2\6
+\&{common}\WCMN\>{cocapi}~\1\>{lgo};\2\6
+\&{common}\WCMN\>{in1}~\1\>{lc}$,$ \>{lc1}$,$ \>{lc2};\2\6
+\&{common}\WCMN\>{c0}~\1\>{tzcb}$,$ \>{td1}$,$ \>{td2}$,$ \>{tg1}$,$ \>{tg2}$,$
+\>{tg3}$,$ \|a$,$ \>{ts}$,$ \>{ncb}$,$ \>{jj}$,$ \>{imax}$,$ \@{log};\2\6
+$\&{equivalence}\,(\>{tpc}(\WO{1}),\ \39\>{tpic}(\WO{1},\ \39\WO{1},\ \39%
+\WO{1}),\ \39\>{ttpp}(\WO{40})),\,(\>{tpb}(\WO{1}),\ \39\>{tpib}(\WO{1},\ \39%
+\WO{1},\ \39\WO{1}),\ \39\>{t0})$\1;\2\6
+\&{data} ~\1\>{zero}${/}\WO{0.0\^D00}{/},$ \>{one}${/}\WO{1.0\^D00}{/},$ %
+\>{two}${/}\WO{2.0\^D00}{/};$\2\6
+\&{data} ~\1\>{quarter}$,$ \>{half}${/}\WO{0.25\^D00},\ \39\WO{0.5\^D00}{/};$\2%
+\WY\Wendc
+\WU section~\M{14}.
+\fi % End of section 15
+
+\WM16. Set up the geometrical factors with \WCD{ \>{capi}}
+
+
+\WY\WP\4\4\WX{\M{16}}Use capi to get the geometric factors\X \X${}\WSQ{}$\6
+$\>{lc}=\>{lmax}+\WO{1};$\ $\>{lc1}=\>{lc}+\WO{1};$\ $\>{lc2}=\>{lc}\ast%
+\>{lc};$\6
+\&{call} $\>{capi}(\>{nc},\ \39\>{ncn},\ \39\>{ca},\ \39\>{tca},\ \39\>{tca2},\
+\39\>{lamx1},\ \39\>{tpic},\ \39\>{logc});$\6
+$\&{if}\,(\WR\>{lgo})$\1\6
+\&{return} $(\>{zero});$\2\6
+$\&{if}\,(\>{logc})$\1\6
+$\{$\6
+$\&{for}\,(\>{lm}=\WO{1};$ $\>{lm}\WL\>{lc2};$ $\>{lm}=\>{lm}+\WO{1})$ \1\6
+$\>{tpb}(\>{lm})=\>{tpc}(\>{lm});$\2\6
+\&{call} $\>{capi}(\>{nb},\ \39\>{nbn},\ \39\>{ba},\ \39\>{tba},\ \39\>{tba2},\
+\39\>{lamx1},\ \39\>{tpic},\ \39\>{logb});$\6
+$\}$\2\6
+\&{else}\1\6
+\&{call} $\>{capi}(\>{nb},\ \39\>{nbn},\ \39\>{ba},\ \39\>{tba},\ \39\>{tba2},\
+\39\>{la1mx1},\ \39\>{tpib},\ \39\>{logb});$\2\6
+$\&{if}\,(\WR\>{lgo})$\1\6
+\&{return} $(\>{zero});$\2\WY\Wendc
+\WU section~\M{14}.
+\fi % End of section 16
+
+\WM17. This code is used when both basis functions are on the same centre
+as the core potential.
+
+
+\WY\WP\4\4\WX{\M{17}}Simple case, both distances zero\X \X${}\WSQ{}$\6
+\WC{  Both distances \WCD{ \>{tca}} and \WCD{ \>{tcb}} are zero }\6
+$\>{t0}=\>{t0}\ast\>{tpc}(\WO{1});$\6
+$\&{if}\,(\>{lc}>\WO{1})$\1\6
+$\{$\6
+$\>{lm2}=\WO{1};$\6
+$\&{for}\,(\|l=\WO{2};$ $\|l\WL\>{lc};$ $\|l=\|l+\WO{1})$ \1\6
+$\{$\6
+$\>{lm1}=\>{lm2}+\WO{1};$\6
+$\>{lm2}=\|l\ast\|l;$\6
+$\>{t2}=\>{zero};$\6
+$\&{for}\,(\>{lm}=\>{lm1};$ $\>{lm}\WL\>{lm2};$ $\>{lm}=\>{lm}+\WO{1})$ \1\6
+$\>{t2}=\>{t2}+\>{tpc}(\>{lm})\ast\>{tpb}(\>{lm});$\2\6
+$\>{tpb}(\|l)=\>{t2};$\6
+$\}$\2\6
+$\}$\2\6
+$\>{t2}=\>{zero};$\6
+$\&{for}\,(\|k=\WO{1};$ $\|k\WL\>{kmax};$ $\|k=\|k+\WO{1})$ \1\6
+$\{$\6
+$\>{t1}=\>{zero};$\6
+$\&{for}\,(\|l=\WO{1};$ $\|l\WL\>{lc};$ $\|l=\|l+\WO{1})$ \1\6
+$\>{t1}=\>{t1}+\>{tpb}(\|l)\ast\>{td}((\|l-\WO{1})\ast\>{kmax}+\|k);$\2\6
+$\&{if}\,(\>{t1}\WS\>{zero})$\1\6
+\&{next};\2\6
+$\>{t2}=\>{t2}+\>{r11}(\>{zu}(\|k),\ \39\>{nu}(\|k))\ast\>{t1};$\6
+$\}$\2\6
+$\>{psepot}=\>{t2};$\6
+\&{return};\WY\Wendc
+\WU section~\M{14}.
+\fi % End of section 17
+
+\WM18. Only one of the basis functions is on a centre different from the
+core-potential
+centre.
+
+
+\WY\WP\4\4\WX{\M{18}}Intermediate case, only one distance zero\X \X${}\WSQ{}$\6
+\WC{    One and only one of both distances \WCD{ \>{tca}}, \WCD{ \>{tba}} is
+nonzero,       swap the parameters if it is the wrong one   }\7
+$\&{if}\,(\WR\>{logb})$\1\6
+$\{$\6
+$\>{n1}=\>{ncn};$\6
+$\>{ncn}=\>{nbn};$\6
+$\>{nbn}=\>{n1};$\6
+$\}$\2\6
+$\>{jj}=\WO{1};$\6
+$\>{imax}=\>{lamx1}+\>{ncn};$\6
+$\>{nc1}=\>{ncn}+\WO{1};$\6
+$\|i=\WO{1};$\ $\>{ii}=\WO{1};$\ $\>{iii}=\WO{0};$\6
+$\&{for}\,(\>{la}=\WO{1};$ $\>{la}\WL\>{lamx1};$ $\>{la}=\>{la}+\WO{1})$ \1\6
+$\{$\6
+$\>{l1}=\@{max0}(\WO{1},\ \39\>{la}-\>{ncn});$\6
+$\&{for}\,(\>{ka}=\WO{1};$ $\>{ka}\WL\>{nc1};$ $\>{ka}=\>{ka}+\WO{1})$ \1\6
+$\{$\6
+$\>{lm2}=(\>{l1}-\WO{1})\WEE{\WO{2}};$\6
+$\>{lgl}(\|i)=\WTRUE;$\6
+$\>{irl}=\>{lc1}-\>{l1};$\6
+$\&{for}\,(\|l=\>{l1};$ $\|l\WL\>{lc};$ $\|l=\|l+\WO{1})$ \1\6
+$\{$\6
+$\>{lm1}=\>{lm2}+\WO{1};$\6
+$\>{lm2}=\|l\ast\|l;$\6
+$\>{t1}=\>{zero};$\6
+$\&{for}\,(\>{lm}=\>{lm1};$ $\>{lm}\WL\>{lm2};$ $\>{lm}=\>{lm}+\WO{1})$ \1\6
+$\>{t1}=\>{t1}+\>{tpb}(\>{lm})\ast\>{tpic}(\>{lm},\ \39\>{ka},\ \39\>{la});$\2\6
+$\>{lgl1}(\>{ii})=\>{t1}\WS\>{zero};$\6
+$\&{if}\,(\>{lgl1}(\>{ii}))$\1\6
+$\{$\6
+$\>{ii}=\>{ii}+\WO{1};$\ \&{next};\6
+$\}$\2\6
+$\>{lgl}(\|i)=\WFALSE;$\6
+$\>{iii}=\>{iii}+\WO{1};$\6
+$\>{ttpp}(\>{iii})=\>{t1};$\6
+$\>{ii}=\>{ii}+\WO{1};$\6
+$\}$\2\6
+$\&{if}\,(\>{lgl}(\|i))$\1\6
+$\>{ii}=\>{ii}-\>{irl};$\2\6
+$\|i=\|i+\WO{1};$\6
+$\}$\2\6
+$\}$\2\6
+$\&{if}\,(\>{iii}\WS\WO{0})$\1\6
+\&{return} $(\>{zero});$\2\6
+$\>{t0}=\>{zero};$\6
+$\&{for}\,(\|k=\WO{1};$ $\|k\WL\>{kmax};$ $\|k=\|k+\WO{1})$ \1\6
+$\{$\6
+$\>{nu1}=\>{rinit}(\>{zu}(\|k),\ \39\>{nu}(\|k))+\>{nbn};$\6
+$\|i=\WO{1};$\ $\>{ii}=\WO{1};$\ $\>{iii}=\WO{0};$\6
+$\&{for}\,(\>{la}=\WO{1};$ $\>{la}\WL\>{lamx1};$ $\>{la}=\>{la}+\WO{1})$ \1\6
+$\{$\6
+$\>{l1}=\@{max0}(\WO{1},\ \39\>{la}-\>{ncn});$\6
+$\>{irl}=\>{rl1}(\>{la});$\5
+\WC{           irl=rl1(la,isilly);     }\6
+$\>{t1}=\>{zero};$\6
+$\&{for}\,(\>{ka}=\WO{1};$ $\>{ka}\WL\>{nc1};$ $\>{ka}=\>{ka}+\WO{1})$ \1\6
+$\{$\6
+$\&{if}\,(\>{lgl}(\|i))$\1\6
+$\{$\6
+$\|i=\|i+\WO{1};$\ \&{next};\6
+$\}$\2\6
+$\>{t2}=\>{zero};$\6
+$\&{for}\,(\|l=\>{l1};$ $\|l\WL\>{lc};$ $\|l=\|l+\WO{1})$ \1\6
+$\{$\6
+$\&{if}\,(\>{lgl1}(\>{ii}))$\1\6
+$\{$\6
+$\>{ii}=\>{ii}+\WO{1};$\ \&{next};\6
+$\}$\2\6
+$\>{iii}=\>{iii}+\WO{1};$\6
+$\>{t2}=\>{t2}+\>{td}((\|l-\WO{1})\ast\>{kmax}+\|k)\ast\>{ttpp}(\>{iii});$\6
+$\>{ii}=\>{ii}+\WO{1};$\6
+$\}$\2\6
+$\&{if}\,(\>{t2}\WS\>{zero})$\1\6
+$\{$\6
+$\|i=\|i+\WO{1};$\ \&{next};\6
+$\}$\2\5
+\WC{               t1=t1+t2*r1(nu1+ka,isilly);  }\6
+$\>{t1}=\>{t1}+\>{t2}\ast\>{r1}(\>{nu1}+\>{ka},\ \39\>{la});$\6
+$\|i=\|i+\WO{1};$\6
+$\}$\2\6
+$\>{t0}=\>{t0}+\>{t1}\ast\>{irl};$\6
+$\}$\2\6
+$\}$\2\6
+$\>{psepot}=\>{t0}\ast\>{half};$\6
+\&{return} $(\>{psepot});$\WY\Wendc
+\WU section~\M{14}.
+\fi % End of section 18
+
+\WM19. The general case, both basis functions are on centres which are
+different
+from the core-potential centre.
+
+\WY\WP\4\4\WX{\M{19}}General case, both distances non-zero\X \X${}\WSQ{}$\6
+\WC{    Both the distances \WCD{ \>{tca}} and \WCD{ \>{tcb}} are not  zero  }\7
+$\>{tg3}=\>{t2}\ast(\>{tba}+\>{tca})\WEE{\WO{2}};$\ $\>{t1}=\>{td1}-\>{td2};$\6
+$\>{ts}=\@{dsign}(\>{one},\ \39\>{t1});$\6
+$\|a(\WO{2})=\>{ts}\ast\>{t1};$\6
+$\>{imax}=\WO{2}\ast(\>{ncb}+\>{lc})-\WO{1};$\ $\>{jj}=\WO{2};$\ $\>{nmax}=%
+\>{ncb}+\WO{1};$\6
+$\>{nc1}=\>{ncn}+\WO{1};$\ $\|i=\WO{1};$\ $\>{ii}=\WO{1};$\ $\>{iii}=\WO{0};$\6
+$\&{for}\,(\>{la}=\WO{1};$ $\>{la}\WL\>{lamx1};$ $\>{la}=\>{la}+\WO{1})$ \1\6
+$\{$\6
+$\>{l2}=\@{max0}(\WO{1},\ \39\>{la}-\>{ncn});$\6
+$\&{for}\,(\>{la1}=\WO{1};$ $\>{la1}\WL\>{la1mx1};$ $\>{la1}=\>{la1}+\WO{1})$ %
+\1\6
+$\{$\6
+$\>{l1}=\@{max0}(\>{l2},\ \39\>{la1}-\>{nbn});$\6
+$\>{irl}=\>{lc1}-\>{l1};$\6
+$\&{for}\,(\|n=\WO{1};$ $\|n\WL\>{nmax};$ $\|n=\|n+\WO{1})$ \1\6
+$\{$\6
+$\>{n1}=\|n+\WO{1};$\6
+$\>{kamin}=\@{max0}(\WO{1},\ \39\|n-\>{nbn});$\6
+$\>{kamax}=\@{min0}(\>{nc1},\ \39\|n);$\6
+$\>{lgl}(\|i)=\WTRUE;$\6
+$\>{lm2}=(\>{l1}-\WO{1})\WEE{\WO{2}};$\6
+$\&{for}\,(\|l=\>{l1};$ $\|l\WL\>{lc};$ $\|l=\|l+\WO{1})$ \1\6
+$\{$\6
+$\>{lm1}=\>{lm2}+\WO{1};$\ $\>{lm2}=\|l\ast\|l;$\6
+$\>{t1}=\>{zero};$\6
+$\&{for}\,(\>{lm}=\>{lm1};$ $\>{lm}\WL\>{lm2};$ $\>{lm}=\>{lm}+\WO{1})$ \1\6
+$\{$\6
+$\&{for}\,(\>{ka}=\>{kamin};$ $\>{ka}\WL\>{kamax};$ $\>{ka}=\>{ka}+\WO{1})$ \1\6
+$\{$\6
+$\>{n1ka}=\>{n1}-\>{ka};$\6
+$\>{t1}=\>{t1}+\>{tpic}(\>{lm},\ \39\>{ka},\ \39\>{la})\ast\>{tpib}(\>{lm},\ %
+\39\>{n1ka},\ \39\>{la1});$\6
+$\}$\2\6
+$\}$\2\6
+$\>{lgl1}(\>{ii})=\>{t1}\WS\>{zero};$\6
+$\&{if}\,(\>{lgl1}(\>{ii}))$\1\6
+$\{$\6
+$\>{ii}=\>{ii}+\WO{1};$\ \&{next};\6
+$\}$\2\6
+$\>{lgl}(\|i)=\WFALSE;$\6
+$\>{iii}=\>{iii}+\WO{1};$\6
+$\>{ttpp}(\>{iii})=\>{t1};$\6
+$\>{ii}=\>{ii}+\WO{1};$\6
+$\}$\2\6
+$\&{if}\,(\>{lgl}(\|i))$\1\6
+$\>{ii}=\>{ii}-\>{irl};$\2\6
+$\|i=\|i+\WO{1};$\6
+$\}$\2\6
+$\}$\2\6
+$\}$\2\6
+$\&{if}\,(\>{iii}\WS\WO{0})$\1\6
+\&{return} $(\>{zero});$\2\6
+$\&{for}\,(\|i=\WO{1};$ $\|i\WL\>{iii};$ $\|i=\|i+\WO{1})$ \1\6
+$\>{tpb}(\|i)=\>{zero};$\2\6
+$\&{for}\,(\|k=\WO{1};$ $\|k\WL\>{kmax};$ $\|k=\|k+\WO{1})$ \1\6
+$\{$\6
+$\>{nu1}=\>{rinit}(\>{zu}(\|k),\ \39\>{nu}(\|k));$\6
+$\|i=\WO{1};$\ $\>{ii}=\WO{1};$\ $\>{iii}=\WO{0};$\6
+$\&{for}\,(\>{la}=\WO{1};$ $\>{la}\WL\>{lamx1};$ $\>{la}=\>{la}+\WO{1})$ \1\6
+$\{$\6
+$\>{l2}=\@{max0}(\WO{1},\ \39\>{la}-\>{ncn});$\6
+$\&{for}\,(\>{la1}=\WO{1};$ $\>{la1}\WL\>{la1mx1};$ $\>{la1}=\>{la1}+\WO{1})$ %
+\1\6
+$\{$\6
+$\>{l1}=\@{max0}(\>{l2},\ \39\>{la1}-\>{nbn});$\6
+$\>{irl}=\>{rl}(\>{la},\ \39\>{la1});$\6
+$\&{for}\,(\|n=\WO{1};$ $\|n\WL\>{nmax};$ $\|n=\|n+\WO{1})$ \1\6
+$\{$\6
+$\&{if}\,(\>{lgl}(\|i))$\1\6
+$\{$\6
+$\|i=\|i+\WO{1};$\ \&{next};\6
+$\}$\2\6
+$\>{t1}=\|r(\>{nu1}+\|n)\ast\>{irl};$\6
+$\&{for}\,(\|l=\>{l1};$ $\|l\WL\>{lc};$ $\|l=\|l+\WO{1})$ \1\6
+$\{$\6
+$\&{if}\,(\>{lgl1}(\>{ii}))$\1\6
+$\{$\6
+$\>{ii}=\>{ii}+\WO{1};$\ \&{next};\6
+$\}$\2\6
+$\>{iii}=\>{iii}+\WO{1};$\6
+$\>{tpb}(\>{iii})=\>{tpb}(\>{iii})+\>{t1}\ast\>{td}((\|l-\WO{1})\ast\>{kmax}+%
+\|k);$\6
+$\>{ii}=\>{ii}+\WO{1};$\6
+$\}$\2\6
+$\|i=\|i+\WO{1};$\6
+$\}$\2\6
+$\}$\2\6
+$\}$\2\6
+$\}$\2\6
+$\>{t1}=\>{zero};$\6
+$\&{for}\,(\|i=\WO{1};$ $\|i\WL\>{iii};$ $\|i=\|i+\WO{1})$ \1\6
+$\{$\6
+$\>{t1}=\>{t1}+\>{ttpp}(\|i)\ast\>{tpb}(\|i);$\6
+$\}$\2\6
+$\>{psepot}=\>{t1}\ast\>{quarter};$\6
+\&{return} $(\>{psepot});$\WY\Wendc
+\WU section~\M{14}.
+\fi % End of section 19
+
+\WN20.  derf.  This is just the simplest polynomial taken from
+Abramowitz and Stegun. It needs checking for accuracy.
+
+\WY\WP \Wunnamed{code}{pseudor.f}%
+\7
+\&{double} \&{precision} \&{function}~\1\>{derf}$(\|x);$\2\6
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z);$\2\6
+\&{double} \&{precision}~\1\|x;\2\7
+$\{$\6
+\&{data} ~\1\>{one}${/}\WO{1.0\^D00}{/},$ \|p${/}\WO{0.3275911\^D00}{/};$\2\6
+\&{data} ~\1\>{a1}$,$ \>{a2}$,$ \>{a3}$,$ \>{a4}$,$ \>{a5}${/}\WO{0.254829592},%
+\ \39{-}\WO{0.284496736\^D00},\ \39\WO{1.421413741\^D00},\ \39{-}%
+\WO{1.453152027\^D00},\ \39\WO{1.061405429\^D00}{/};$\2\6
+$\>{xx}=\@{dabs}(\|x);$\6
+$\|t=\>{one}\WSl(\>{one}+\|p\ast\>{xx});$\6
+$\>{ee}=\@{dexp}({-}\>{xx}\ast\>{xx});$\6
+$\>{derf}=\>{one}-(\>{a1}\ast\|t+\>{a2}\ast\|t\ast\|t+\>{a3}\ast\|t\ast\|t\ast%
+\|t+\>{a4}\ast\|t\ast\|t\ast\|t\ast\|t+\>{a5}\ast\|t\ast\|t\ast\|t\ast\|t\ast%
+\|t)\ast\>{ee};$\6
+\&{return};\6
+$\}$\WY\Wendc
+\fi % End of section 20
+
+\input INDEX.tex
+\input MODULES.tex
+
+\Winfo{"fweave pseudor.web"}  {"pseudor.web"} {(none)}
+ {\Ratfor}
+
+
+\Wcon{20}
+\FWEBend

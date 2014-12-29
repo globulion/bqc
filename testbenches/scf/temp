@@ -1,0 +1,7 @@
+      if (SCF(H,S,nbasis,nelec,nfile,irite,damp,interp,E,HF,V,R,Rold,
+     &         Cbar,epsilon,crit).EQ.YES) then
+          write(*,*) " SUCCESS!!!"
+      else
+          write(*,*) " You have to work it more ..."
+      end if
+

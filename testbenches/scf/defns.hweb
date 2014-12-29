@@ -1,0 +1,39 @@
+/* STRUCTURES */
+
+@m YES                      0
+@m NO                       100
+
+@m ERR                     -10
+@m OK                       10
+
+@m END_OF_FILE             -1
+@m NOT_END_OF_FILE          55
+
+@m LAST_BLOCK               12
+@m NOT_LAST_BLOCK          -12
+
+/* OPERATIONAL CONSTANTS */
+
+@m ARB                      1  
+
+@m BYTES_PER_INTEGER        4
+@m LEAST_BYTE               1
+
+@m NO_OF_TYPES              20
+@m INT_BLOCK_SIZE           20
+
+@m MAX_BASIS_FUNCTIONS      255
+@m MAX_PRIMITIVES           1000
+@m MAX_CENTRES              50
+
+@m MAX_ITERATIONS             60
+
+@m UHF_CALCULATION            11
+@m CLOSED_SHELL_CALCULATION   21
+
+@m MATRIX_SIZE                20000
+
+/* OUTPUT STREAM UNITS */
+
+@m ERROR_OUTPUT_UNIT          6
+@m ERI_UNIT                   17

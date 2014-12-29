@@ -1,0 +1,235 @@
+@r
+
+@* beigen. Old faithful Jacobi diagonisation routine. This version
+is modified to diagonalise a \lq\lq blocked'' matrix. The matrix is
+assumed to be |nblock| sub-matrices along the principal diagonal
+of dimension |iblock(1), iblock(2),| \ldots |iblock(nblock)| with zeroes
+off these blocks. Of course, if |nblock = 1| then |iblock(1) = n|.
+
+\begin{boxedminipage}{4.5in}
+\ \\
+\begin{description}
+\item[NAME]  \      \\
+beigen
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+   subroutine beigen(H,U,n,init,nblock,iblock);
+   implicit double precision (a-h,o-z);
+   double precision H(*), U(*);
+   integer n, init, nblock, iblock(*);
+
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+Diagonalises a symmetric matrix which consists of |nblock|
+symmetric matrices along the diagonal of |H|. The eigenvalues and
+eigenvectors are returned in order of ascending eigenvalue.
+\item[ARGUMENTS] \  \\
+\begin{description}
+\item[H] Input/Outpu:t Matrix to be diagonalised. On output, the 
+eigenvalues are on the main diagonal of |H|.
+\item[U] Input/Output: If |init| is non-zero |U| contains a guess at
+the eigenvector matrix, if not it is initialised to the unit matrix.
+Ouput is the eigenvectors. 
+\item[n] Input: The size of the matrices overall,
+\item[init] Input: zero if |U| is a sensible starting-point for the
+process, non-zero if not.
+\item[nblock] Input: The number of sub-matrices in |H|.
+\item[iblock] Input: |iblock(1)| \ldots |iblock(nblock)| are the
+dimensions of the sub-matrices.
+\end{description}
+
+\item[DIAGNOSTICS] \  \\
+None, possibility of infinite loop but unlikely.
+\ \\ \ \\
+\end{description}
+\end{boxedminipage}
+\clearpage
+
+
+@a
+   subroutine beigen(H,U,n,init,nblock,iblock);
+
+@<Interface declarations@>
+
+   {
+   data zero,eps,one,two,four/0.0d0,1.0d-20,1.0d0,2.0d0,4.0d0/;
+
+
+@<Initialize U @>
+
+   nmax = 0;
+
+   do nsym = 1, nblock; /* Loop over the |nsym| sub-matrices */
+
+      {
+
+/* |nmin| and |nmax| are the limits of the current sub-matrix */
+
+      nmin = nmax + 1; nmax = nmax + iblock(nsym);
+
+/* Start sweep through off-diagonal elements; the sweep is repeated
+   until the largest off-diagonal element of |H| is less than |eps| */
+
+   repeat
+     
+      {
+
+@<Reduce current off-diagonal to zero@> 
+      }
+
+      until ( hmax < eps ) 
+
+   }                       /* End of |nsym| loop on blocks */
+
+@<Sort the eigenvalues and vectors@>
+   return;
+
+   }
+
+@ 
+
+@<Interface declarations@> =
+   implicit double precision (a-h,o-z);
+   double precision H(*), U(*);
+   integer n, init, nblock, iblock(*);
+
+@
+
+This simply sets |U| to the unit matrix. It is used if |init| is zero.
+If |init| is not zero, the incoming |U| is assumed to be a sensible
+starting-point for the calculation.
+
+@<Initialize U @> =
+ if ( init == 0 )    
+   {
+   do i = 1,n;
+      { ii = n*(i-1) + i;
+      do j = 1,n;
+         { ij = n*(j-1) + i;
+         U(ij) = zero;
+         }
+      U(ii) = one;
+      }
+   }
+
+@ This is the central algorithm which calclautes and uses the
+``angle'' which reduces the current off-diagonal element of |H| to
+zero. The effect on the other off-diagonals is computed and the
+largest off-diagonal element saved for convergence testing
+
+@<Reduce current off-diagonal to zero@> =
+      hmax = zero;  /* |hmax| keeps track of the largest off-diagonal
+                     element of |H| */
+
+      do i = nmin+1,nmax;
+
+         { 
+
+         jtop = i-1;
+
+         do j = nmin,jtop;
+
+            { 
+
+@<Calculate Rotation Angle@>
+
+@<Apply Rotation to U @>
+
+@<Apply Rotation to H@>
+
+            } 
+
+         }    
+
+@
+|tan| is $tan(2 \theta)$ where $\theta$ is the rotation angle
+   which makes |H(ij)| vanish. |c| and |s| are $cos \theta$ and
+$sin \theta$ obtained by the usual ``half-angle formula'' from
+$tan(2 \theta)$  
+
+@<Calculate Rotation Angle@> =
+            ii = n*(i-1) + i; jj = n*(j-1) + j; ij = n*(j-1) + i;
+            ji = n*(i-1) + j;        /* positions of matrix elements */
+            hii = H(ii); hjj = H(jj); hij = H(ij); hsq = hij*hij;
+            if ( hsq > hmax ) hmax = hsq;
+            if ( hsq < eps )  next;        /* omit zero H(ij) */
+            del = hii - hjj; sign = one;
+            if ( del < zero )
+              { sign = -one; del = -del; }
+            denom = del + dsqrt(del*del + four*hsq);
+
+
+            tan = two*sign*hij/denom;
+            c = one/dsqrt(one + tan*tan); s = c*tan;
+@
+
+@<Apply Rotation to U @> =
+            do k = 1,n;
+               { kj = n*(j-1) + k; ki = n*(i-1) + k;
+                 jk = n*(k-1) + j; ik = n*(k-1) + i;
+               temp = c*U(kj) - s*U(ki);
+               U(ki) = s*U(kj) + c*U(ki); U(kj) = temp;
+ /* If |k| is niether |i| or |j| then apply the current rotation */
+               if ( (i == k) || (j == k) ) next;
+               temp = c*H(kj) - s*H(ki);
+               H(ki) = s*H(kj) + c*H(ki);
+               H(kj) = temp; H(ik) = H(ki); H(jk) = H(kj);
+               }
+/* This does not make any off-diagonal element zero; in fact it will,
+in general, re-generate ones which have been zeroized in other cycles */
+
+@
+
+@<Apply Rotation to H@> =
+            H(ii) = c*c*hii + s*s*hjj + two*c*s*hij;
+            H(jj) = c*c*hjj + s*s*hii - two*c*s*hij;
+            H(ij) = zero; H(ji) = zero;
+/* This is the key step; it generates one zero off-diagonal element */
+@ 
+Now Sort the eigenvalues and eigenvectors into ascending order.
+OVERALL; i.e. not within each block.
+
+If it is required to sort the eigenvalues and vectors into
+ascending order {\em within\/} each block then this coding must be
+changed. For example, one may wish to occupy the lowest orbitals
+of each of several symmetry types to generate specific states of the
+molecule.
+
+@<Sort the eigenvalues and vectors@> =
+   nmax = 0;
+   do nsym = 1, nblock;
+      {
+      nmin = nmax + 1; nmax = nmax + iblock(nsym);
+      call epsort(H,U,n,nmin,nmax);
+      }
+
+
+@* epsort.   Sort eigenvectors from n1 to n2 into eigenvalue order
+
+@a
+   subroutine epsort(H,U,n,n1,n2);
+   implicit double precision (a-h, o-z);
+   double precision H(*), U(*);
+   integer n, n1, n2;
+   {
+   double precision temp;
+   integer iq, jq, ii, jj, k, ilr, imr;
+
+   iq = (n1-2)*n;
+   do i = n1, n2;
+      { iq = iq + n; ii = (i-1)*n+i;  jq = n*(i-2);
+      do j = i,n2;
+         { jq = jq + n; jj = (j-1)*n+j;
+         if ( H(ii) < H(jj) ) next; /* this means H(1) is lowest! */
+         temp = H(ii);  H(ii) = H(jj);  H(jj) = temp;
+         do k = 1,n;
+            { ilr = iq + k;  imr = jq + k;
+            temp = U(ilr);  U(ilr) = U(imr);  U(imr) = temp;
+            }
+         }
+      }
+   return;
+
+   }
+
+@* INDEX.

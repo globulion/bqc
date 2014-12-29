@@ -1,0 +1,15 @@
+\contentsline {section}{\numberline {1}getint}{1}
+\contentsline {subsection}{}{2}
+\contentsline {section}{\numberline {2}putint}{2}
+\contentsline {subsection}{}{3}
+\contentsline {section}{\numberline {3}genint}{4}
+\contentsline {subsection}{}{5}
+\contentsline {subsection}{}{6}
+\contentsline {subsection}{}{7}
+\contentsline {section}{\numberline {4}pack}{7}
+\contentsline {subsection}{}{7}
+\contentsline {section}{\numberline {5}unpack}{8}
+\contentsline {subsection}{}{8}
+\contentsline {section}{\numberline {6}next\_label}{9}
+\contentsline {subsection}{}{10}
+\contentsline {section}{\numberline {7}INDEX}{11}

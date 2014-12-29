@@ -1,0 +1,127 @@
+@z   General utilities including
+Character-based packing routines. Now standard f77
+    November 1993
+@x
+@r
+
+@ pack. Puts up to six integers (values up to 256)
+into the |character| variable |a|.
+
+@I defs.hweb
+
+@a
+   subroutine pack(a,i,j,k,l,m,n);
+   character*8 a, b;
+   integer i, j, k, l, m, n;
+   {
+   data b/"        "/;
+   a = b;
+   a(1:1) = char(i);@+   a(2:2) = char(j);
+   a(3:3) = char(k);@+   a(4:4) = char(l);
+   a(5:5) = char(m);@+   a(6:6) = char(n);
+   return;
+   }
+
+@ unpack. Extracts the six integers from the |character| variable
+|a|.
+
+@a
+   subroutine unpack(a,i,j,k,l,m,n);
+   character*8 a;
+   integer i, j, k, l, m, n;
+   {
+   i = ichar(a(1:1));@+   j = ichar(a(2:2));
+   k = ichar(a(3:3));@+   l = ichar(a(4:4));
+   m = ichar(a(5:5));@+   n = ichar(a(6:6));
+   return;
+   }
+
+@* putint.   put integral to file
+
+@a
+   subroutine putint(nfile,i,j,k,l,mu,val,pointer,last);
+   implicit double precision (a-h,o-z);
+   save;
+   integer nfile,i,j,k,l,mu,pointer,last;
+   double precision val;
+   {
+   double precision value(INT_BLOCK_SIZE);
+   character*8 labels(INT_BLOCK_SIZE);
+   data maxpointer/INT_BLOCK_SIZE/,id/0/;
+   if ( last == ERR) return;
+   iend = NOT_LAST_BLOCK;
+   if ( pointer == maxpointer )
+
+      {
+
+      write (nfile) pointer,iend,labels,value;
+      pointer = 0;
+
+      }
+
+   pointer = pointer + 1;
+   call pack(labels(pointer),i,j,k,l,mu,id);
+   value(pointer) = val;
+   if ( last == YES )
+
+      {
+
+      iend = LAST_BLOCK;
+      last = ERR;
+      write (nfile) pointer,iend,labels,value;
+
+      }
+
+   return;
+
+   }
+
+@*  getint. Hand out repulsion integrals one at a time
+
+@a
+   integer function getint(file,i,j,k,l,mu,val,pointer);
+
+   integer file, i, j, k, l, mu, pointer;
+   double precision val;
+
+   {
+
+   save;
+
+   integer maxpointer, id, iend;
+   double precision  zero;
+   double precision  value(INT_BLOCK_SIZE);
+   character*8 labels(INT_BLOCK_SIZE);
+   data maxpointer/0/, iend/NOT_LAST_BLOCK/, zero/0.0d00/;
+
+/*   file must be rewound before first use of this function
+   and pointer must be set to 0 */
+
+   if (pointer == maxpointer)   /* pointer must be initialised to 0 */
+
+      {
+
+      if ( iend == LAST_BLOCK)
+
+         {
+
+         val = zero; i = 0; j = 0;
+         k = 0; l = 0; maxpointer = 0; iend = NOT_LAST_BLOCK;
+         return(END_OF_FILE);
+
+         }
+
+      read (file) maxpointer, iend, labels, value;
+
+      pointer = 0;
+
+      }
+
+   pointer = pointer + 1;
+   call unpack(labels(pointer),i,j,k,l,mu,id); /* id is unused */
+   val = value(pointer);
+   return(OK);
+
+   }
+
+@* INDEX.

@@ -1,0 +1,8 @@
+C#define USE1(i,j,k,l)\
+Cirs=m*(j-1)+i;itu=m*(l-1)+k;\
+Ciru=m*(l-1)+i;its=m*(j-1)+k
+C#define USE2(i,j,k,l,val)\
+CG(irs)=G(irs)+2.0d00*R(itu)*val;\
+CG(iru)=G(iru)-R(its)*val
+C#define USE(i,j,k,l,val) USE1(i,j,k,l);USE2(i,j,k,l,var)
+

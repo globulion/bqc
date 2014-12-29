@@ -1,0 +1,98 @@
+#!/usr/bin/python
+"""
+ Make the Basis File input for BQC program. Writes 
+ the input basis file 'inp' in the current directory.
+
+ Usage:
+  [xyz] [basis name] [number of electrons]
+
+"""
+from sys import argv, exit
+print __doc__
+if len(argv)==1: exit()
+from libbbg.utilities import QMFile
+from numpy import zeros, array, float64 as f64
+
+# input data
+a = QMFile()
+a.open(argv[1],basis=argv[2],mol=True)
+mol = a.get_mol()
+bfs = mol.get_bfs()
+a.close()
+nelec = int(argv[3])
+
+# types of GTOs
+ntypes = {'[0 0 0]':1 ,
+          '[1 0 0]':2 , '[0 1 0]':3 , '[0 0 1]':4 ,
+          '[2 0 0]':5 , '[0 2 0]':6 , '[0 0 2]':7 , '[1 1 0]':8 , '[1 0 1]':9 , '[0 1 1]':10,
+          '[3 0 0]':11, '[0 3 0]':12, '[0 0 3]':13, '[2 1 0]':14, '[2 0 1]':15, '[1 2 0]':16, 
+                        '[0 2 1]':17, '[1 0 2]':18, '[0 1 2]':19, '[1 1 1]':20}
+
+# gather the operational arguments
+natoms = len(mol)
+nbasis = len(bfs)
+nt     = bfs.get_bfst()
+
+# collect the basis set
+exps  = list()
+coefs = list()
+origs = list()
+nfirst= list()
+nlast = list()
+
+ngmx = 0
+for i in range(nbasis):
+    bf = bfs.bfs[i]
+    n_cont = len(bf.prims)
+    nfirst.append(ngmx+1)
+    nlast.append(ngmx+n_cont)
+    for j in range(n_cont):
+        origs += list(bf.prims[j].origin) 
+    orig  = bf.origin
+    exps +=bf.pexps
+    coefs+=bf.pcoefs
+    #
+    ngmx += n_cont
+
+# build the final data structures
+vlist = zeros((natoms,4),f64)
+eta   = zeros((ngmx  ,5),f64)
+
+# make vlist
+vlist[:,:3] = mol.get_pos()
+vlist[:,3] = mol.get_atno()
+# make eta
+eta[:,:3] = array(origs,f64).reshape(ngmx,3)
+eta[:,3] = array(exps ,f64)
+eta[:,4] = array(coefs,f64)
+# make other
+ncntr = array(bfs.LIST1, int) + 1
+ncmx  = natoms
+nbfns = nbasis
+# make ntype
+ntype = [ntypes[str(i)] for i in nt]
+
+# save basis set input file
+log = '%19d\n' % nelec
+log+= '%19d %19d %19d\n' % (ncmx, nbfns, ngmx)
+for i in range(ncmx):
+    log+= 4*"%19.10f " % tuple(vlist[i])
+    log+= '\n'
+for i in range(ngmx):
+    log+= 5*"%19.10f " % tuple(eta[i])
+    log+= '\n'
+log+= nbfns*"%19d " % tuple(ntype ) ; log+= '\n'
+log+= nbfns*"%19d " % tuple(ncntr ) ; log+= '\n'
+log+= nbfns*"%19d " % tuple(nfirst) ; log+= '\n'
+log+= nbfns*"%19d " % tuple(nlast ) ; log+= '\n'
+
+
+print " There are %d atomic centers"  % ncmx
+print " There are %d basis functions" % nbfns
+print " There are %d primitive GTFs"  % ngmx
+print
+inp = open('inp','w')
+inp.write(log)
+inp.close()
+
+print " The input file <inp> was saved.\n\n"

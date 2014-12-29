@@ -1,0 +1,326 @@
+% FWEAVE v1.62 (September 23, 1998)
+
+% --- FWEB's macro package ---
+\input fwebmac.sty
+
+% --- Initialization parameters from FWEB's style file `fweb.sty' ---
+\Wbegin[;]
+  % #1 --- [LaTeX.class.options;LaTeX.package.options]
+{article;}
+  % #2 --- {LaTeX.class;LaTeX.package}
+{1em}
+  % #3 --- {indent.TeX}
+{1em}
+  % #4 --- {indent.code}
+{CONTENTS.tex}
+  % #5 --- {contents.TeX}
+{ % #6 ---
+ {\&\WRS}
+  % #1 --- {{format.reserved}{format.RESERVED}}
+ {\|}
+  % #2 --- {format.short_id}
+ {\>\WUC}
+  % #3 --- {{format.id}{format.ID}}
+ {\>\WUC}
+  % #4 --- {{format.outer_macro}{format.OUTER_MACRO}}
+ {\>\WUC}
+  % #5 --- {{format.WEB_macro}{format.WEB_MACRO}}
+ {\@}
+  % #6 --- {format.intrinsic}
+ {\.\.}
+  % #7 --- {{format.keyword}{format.KEYWORD}}
+ {\.}
+  % #8 --- {format.typewriter}
+ {}
+  % #9 --- (For future use)
+}
+{\M}
+  % #7 --- {encap.prefix}
+{;}
+  % #8 --- {doc.preamble;doc.postamble}
+{INDEX}
+  % #9 --- {index.name}
+
+
+% --- Beginning of user's limbo section ---
+
+
+
+
+% --- Limbo text from style-file parameter `limbo.end' ---
+\FWEBtoc
+
+\WN1.  beigen. Old faithful Jacobi diagonisation routine. This version
+is modified to diagonalise a \lq\lq blocked'' matrix. The matrix is
+assumed to be \WCD{ \>{nblock}} sub-matrices along the principal diagonal
+of dimension \WCD{ $\>{iblock}(\WO{1}),\ \>{iblock}(\WO{2})$ $,$} \ldots \WCD{
+$\>{iblock}(\>{nblock})$} with zeroes
+off these blocks. Of course, if \WCD{ $\>{nblock}=\WO{1}$} then \WCD{ $%
+\>{iblock}(\WO{1})=\|n$}.
+
+\begin{minipage}{4.5in}
+\ \\
+\begin{description}
+\item[NAME]  \      \\
+beigen
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+   subroutine beigen(H,U,n,init,nblock,iblock);
+   implicit double precision (a-h,o-z);
+   double precision H(*), U(*);
+   integer n, init, nblock, iblock(*);
+
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+Diagonalises a symmetric matrix which consists of \WCD{ \>{nblock}}
+symmetric matrices along the diagonal of \WCD{ \|H}. The eigenvalues and
+eigenvectors are returned in order of ascending eigenvalue.
+\item[ARGUMENTS] \  \\
+\begin{description}
+\item[H] Input/Outpu:t Matrix to be diagonalised. On output, the
+eigenvalues are on the main diagonal of \WCD{ \|H}.
+\item[U] Input/Output: If \WCD{ \>{init}} is non-zero \WCD{ \|U} contains a
+guess at
+the eigenvector matrix, if not it is initialised to the unit matrix.
+Ouput is the eigenvectors.
+\item[n] Input: The size of the matrices overall,
+\item[init] Input: zero if \WCD{ \|U} is a sensible starting-point for the
+process, non-zero if not.
+\item[nblock] Input: The number of sub-matrices in \WCD{ \|H}.
+\item[iblock] Input: \WCD{ $\>{iblock}(\WO{1})$} \ldots \WCD{ $\>{iblock}(%
+\>{nblock})$} are the
+dimensions of the sub-matrices.
+\end{description}
+
+\item[DIAGNOSTICS] \  \\
+None, possibility of infinite loop but unlikely.
+\ \\ \ \\
+\end{description}
+\end{minipage}
+\clearpage
+
+
+\WY\WP \Wunnamed{code}{beigen.f}%
+ \&{subroutine} \1$\>{beigen}(\|H,\ \39\|U,\ %
+\39\|n,\ \39\>{init},\ \39\>{nblock},\ \39\>{iblock})$\2\7
+\WX{\M{2}}Interface declarations\X \X\7
+\&{data} ~\1\>{zero}$,$ \>{eps}$,$ \>{one}$,$ \>{two}$,$ \>{four}${/}\WO{0.0%
+\^D+00},\ \39\WO{1.0\^D-20},\ \39\WO{1.0\^D+00},\ \39\WO{2.0\^D+00},\ \39%
+\WO{4.0\^D+00}{/}$\2\7
+\WX{\M{3}}Initialize U\X \X\7
+$\>{nmax}=\WO{0}$\6
+\&{do} $\>{nsym}=\WO{1},\ \39\>{nblock}$\1\5
+\WC{ Loop over the \WCD{ \>{nsym}} sub-matrices }\7
+\WC{ \WCD{ \>{nmin}} and \WCD{ \>{nmax}} are the limits of the current
+sub-matrix }\7
+$\>{nmin}=\>{nmax}+\WO{1}$\6
+$\>{nmax}=\>{nmax}+\>{iblock}(\>{nsym})$\7
+\WC{ Start sweep through off-diagonal elements; the sweep is repeated
+      until the largest off-diagonal element of \WCD{ \|H} is less than \WCD{ %
+\>{eps}} }\7
+\&{do} $\>{while}(\>{hmax}>\>{eps})$\1\7
+\WX{\M{4}}Reduce current off-diagonal to zero\X \X\2\7
+\&{end} \&{do}\2\7
+\&{end} \&{do}\5
+\WC{ End of \WCD{ \>{nsym}} loop on blocks }\7
+\WX{\M{8}}Sort the eigenvalues and vectors\X \X\7
+\&{return}\6
+\.{END}\WY\Wendc
+\fi % End of section 1 (sect. 1, p. 1)
+
+\WM2.
+
+\WY\WP\4\4\WX{\M{2}}Interface declarations\X \X${}\WSQ{}$\6
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z)$\2\6
+\&{double} \&{precision}~\1\|H$(\ast),$ \|U$(\ast)$\2\6
+\&{integer}~\1\|n$,$ \>{init}$,$ \>{nblock}$,$ \>{iblock}$(\ast)$\2\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 2 (sect. 1.1, p. 2a)
+
+\WM3.
+
+This simply sets \WCD{ \|U} to the unit matrix. It is used if \WCD{ \>{init}}
+is zero.
+If \WCD{ \>{init}} is not zero, the incoming \WCD{ \|U} is assumed to be a
+sensible
+starting-point for the calculation.
+
+\WY\WP\4\4\WX{\M{3}}Initialize U\X \X${}\WSQ{}$\6
+$\&{if}\,(\>{init}\WS\WO{0})$ \&{then}\1\7
+\&{do} $\|i=\WO{1},\ \39\|n$\1\6
+$\>{ii}=\|n\ast(\|i-\WO{1})+\|i$\7
+\&{do} $\|j=\WO{1},\ \39\|n$\1\6
+$\>{ij}=\|n\ast(\|j-\WO{1})+\|i$\6
+$\|U(\>{ij})=\>{zero}$\2\6
+\&{end} \&{do}\7
+$\|U(\>{ii})=\>{one}$\2\6
+\&{end} \&{do}\2\7
+\&{end} \&{if}\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 3 (sect. 1.2, p. 3a)
+
+\WM4. This is the central algorithm which calclautes and uses the
+``angle'' which reduces the current off-diagonal element of \WCD{ \|H} to
+zero. The effect on the other off-diagonals is computed and the
+largest off-diagonal element saved for convergence testing
+
+\WY\WP\4\4\WX{\M{4}}Reduce current off-diagonal to zero\X \X${}\WSQ{}$\6
+$\>{hmax}=\>{zero}$\5
+\WC{ \WCD{ \>{hmax}} keeps track of the largest off-diagonal
+       element of \WCD{ \|H} }\7
+\&{do} $\|i=\>{nmin}+\WO{1},\ \39\>{nmax}$\1\7
+$\>{jtop}=\|i-\WO{1}$\7
+\&{do} $\|j=\>{nmin},\ \39\>{jtop}$\1\7
+\WX{\M{5}}Calculate Rotation Angle\X \X\6
+\WX{\M{6}}Apply Rotation to U\X \X\6
+\WX{\M{7}}Apply Rotation to H\X \X\2\7
+\&{end} \&{do}\2\7
+\&{end} \&{do}\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 4 (sect. 1.3, p. 3b)
+
+\WM5.
+\WCD{ \@{tan}} is $tan(2 \theta)$ where $\theta$ is the rotation angle
+   which makes \WCD{ $\|H(\>{ij})$} vanish. \WCD{ \|c} and \WCD{ \|s} are $cos %
+\theta$ and
+$sin \theta$ obtained by the usual ``half-angle formula'' from
+$tan(2 \theta)$
+
+\WY\WP\4\4\WX{\M{5}}Calculate Rotation Angle\X \X${}\WSQ{}$\6
+\WC{ positions of matrix elements }\6
+$\>{ii}=\|n\ast(\|i-\WO{1})+\|i;$\6
+$\>{jj}=\|n\ast(\|j-\WO{1})+\|j$\6
+$\>{ij}=\|n\ast(\|j-\WO{1})+\|i;$\6
+$\>{ji}=\|n\ast(\|i-\WO{1})+\|j$\6
+$\>{hii}=\|H(\>{ii});$\6
+$\>{hjj}=\|H(\>{jj});$\6
+$\>{hij}=\|H(\>{ij});$\6
+$\>{hsq}=\>{hij}\ast\>{hij}$\6
+$\&{if}\,(\>{hsq}>\>{hmax})$\1\6
+$\>{hmax}=\>{hsq}$\2\6
+$\&{if}\,(\>{hsq}<\>{eps})$\1\6
+\>{cycle}\2\5
+\WC{ omit zero H(ij) }\6
+$\>{del}=\>{hii}-\>{hjj}$\6
+$\@{sign}=\>{one}$\6
+$\&{if}\,(\>{del}<\>{zero})$ \&{then}\1\6
+$\@{sign}={-}\>{one}$\6
+$\>{del}={-}\>{del}$\2\6
+\&{end} \&{if}\6
+$\>{denom}=\>{del}+\@{dsqrt}(\>{del}\ast\>{del}+\>{four}\ast\>{hsq})$\7
+$\@{tan}=\>{two}\ast\@{sign}\ast\>{hij}\WSl\>{denom}$\6
+$\|c=\>{one}\WSl\@{dsqrt}(\>{one}+\@{tan}\ast\@{tan})$\6
+$\|s=\|c\ast\@{tan}$\Wendc
+\WU section~\M{4}.
+\fi % End of section 5 (sect. 1.4, p. 4)
+
+\WM6.
+
+\WY\WP\4\4\WX{\M{6}}Apply Rotation to U\X \X${}\WSQ{}$\6
+\&{do} $\|k=\WO{1},\ \39\|n$\1\7
+$\>{kj}=\|n\ast(\|j-\WO{1})+\|k$\6
+$\>{ki}=\|n\ast(\|i-\WO{1})+\|k$\6
+$\>{jk}=\|n\ast(\|k-\WO{1})+\|j$\6
+$\>{ik}=\|n\ast(\|k-\WO{1})+\|i$\7
+$\>{temp}=\|c\ast\|U(\>{kj})-\|s\ast\|U(\>{ki})$\6
+$\|U(\>{ki})=\|s\ast\|U(\>{kj})+\|c\ast\|U(\>{ki})$\6
+$\|U(\>{kj})=\>{temp}$\7
+\WC{ If \WCD{ \|k} is niether \WCD{ \|i} or \WCD{ \|j} then apply the current
+rotation }\7
+$\&{if}\,((\|i\WS\|k)\WOR(\|j\WS\|k))$\1\6
+\>{cycle}\2\6
+$\>{temp}=\|c\ast\|H(\>{kj})-\|s\ast\|H(\>{ki})$\6
+$\|H(\>{ki})=\|s\ast\|H(\>{kj})+\|c\ast\|H(\>{ki})$\6
+$\|H(\>{kj})=\>{temp}$\6
+$\|H(\>{ik})=\|H(\>{ki})$\6
+$\|H(\>{jk})=\|H(\>{kj})$\2\6
+\&{end} \&{do}\7
+\WC{ This does not make any off-diagonal element zero; in fact it will,     in
+general, re-generate ones which have been zeroized in other cycles }\WY\Wendc
+\WU section~\M{4}.
+\fi % End of section 6 (sect. 1.5, p. 5a)
+
+\WM7.
+
+\WY\WP\4\4\WX{\M{7}}Apply Rotation to H\X \X${}\WSQ{}$\7
+$\|H(\>{ii})=\|c\ast\|c\ast\>{hii}+\|s\ast\|s\ast\>{hjj}+\>{two}\ast\|c\ast\|s%
+\ast\>{hij}$\6
+$\|H(\>{jj})=\|c\ast\|c\ast\>{hjj}+\|s\ast\|s\ast\>{hii}-\>{two}\ast\|c\ast\|s%
+\ast\>{hij}$\6
+$\|H(\>{ij})=\>{zero}$\6
+$\|H(\>{ji})=\>{zero}$\7
+\WC{ This is the key step; it generates one zero off-diagonal element }\Wendc
+\WU section~\M{4}.
+\fi % End of section 7 (sect. 1.6, p. 5b)
+
+\WM8.
+
+Now Sort the eigenvalues and eigenvectors into ascending order.
+OVERALL; i.e. not within each block.
+
+If it is required to sort the eigenvalues and vectors into
+ascending order {\em within\/} each block then this coding must be
+changed. For example, one may wish to occupy the lowest orbitals
+of each of several symmetry types to generate specific states of the
+molecule.
+
+\WY\WP\4\4\WX{\M{8}}Sort the eigenvalues and vectors\X \X${}\WSQ{}$\7
+$\>{nmax}=\WO{0}$\6
+\&{do} $\>{nsym}=\WO{1},\ \39\>{nblock}$\1\7
+$\>{nmin}=\>{nmax}+\WO{1}$\6
+$\>{nmax}=\>{nmax}+\>{iblock}(\>{nsym})$\6
+\&{call} $\>{epsort}(\|H,\ \39\|U,\ \39\|n,\ \39\>{nmin},\ \39\>{nmax})$\2\7
+\&{end} \&{do}\WY\Wendc
+\WU section~\M{1}.
+\fi % End of section 8 (sect. 1.7, p. 6)
+
+\WN9.  epsort.   Sort eigenvectors from n1 to n2 into eigenvalue order
+
+\WY\WP \Wunnamed{code}{beigen.f}%
+\&{subroutine} \1$\>{epsort}(\|H,\ \39\|U,\ %
+\39\|n,\ \39\>{n1},\ \39\>{n2})$\2\1\6
+\&{implicit} \1\&{double} \&{precision}$\,(\|a-\|h,\ \39\|o-\|z)$\2\6
+\&{double} \&{precision}~\1\|H$(\ast),$ \|U$(\ast)$\2\6
+\&{integer}~\1\|n$,$ \>{n1}$,$ \>{n2}\2\7
+\&{double} \&{precision}~\1\>{temp}\2\6
+\&{integer}~\1\>{iq}$,$ \>{jq}$,$ \>{ii}$,$ \>{jj}$,$ \|k$,$ \>{ilr}$,$ \>{imr}%
+\2\7
+$\>{iq}=(\>{n1}-\WO{2})\ast\|n$\6
+\&{do} $\|i=\>{n1},\ \39\>{n2}$\1\6
+$\>{iq}=\>{iq}+\|n$\6
+$\>{ii}=(\|i-\WO{1})\ast\|n+\|i$\6
+$\>{jq}=\|n\ast(\|i-\WO{2})$\6
+\&{do} $\|j=\|i,\ \39\>{n2}$\1\6
+$\>{jq}=\>{jq}+\|n$\6
+$\>{jj}=(\|j-\WO{1})\ast\|n+\|j$\6
+$\&{if}\,(\|H(\>{ii})<\|H(\>{jj}))$\1\6
+\>{cycle}\2\5
+\WC{ this means H(1) is lowest! }\6
+$\>{temp}=\|H(\>{ii})$\6
+$\|H(\>{ii})=\|H(\>{jj})$\6
+$\|H(\>{jj})=\>{temp}$\6
+\&{do} $\|k=\WO{1},\ \39\|n$\1\6
+$\>{ilr}=\>{iq}+\|k$\6
+$\>{imr}=\>{jq}+\|k$\6
+$\>{temp}=\|U(\>{ilr})$\6
+$\|U(\>{ilr})=\|U(\>{imr})$\6
+$\|U(\>{imr})=\>{temp};$\2\6
+\&{end} \&{do}\2\6
+\&{end} \&{do}\2\6
+\&{end} \&{do}\6
+\&{return}\2\6
+\&{end}\WY\Wendc
+\fi % End of section 9 (sect. 2, p. 7)
+
+\WN10.  INDEX.
+\fi % End of section 10 (sect. 3, p. 8)
+
+\input INDEX.tex
+\input MODULES.tex
+
+\Winfo{"fweave beigen.web"}  {"beigen.web"} {(none)}
+ {\Fortran}
+
+
+\Wcon{10}
+\FWEBend

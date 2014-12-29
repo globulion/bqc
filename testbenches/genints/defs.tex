@@ -1,0 +1,85 @@
+% FWEAVE v1.62 (September 23, 1998)
+
+% --- FWEB's macro package ---
+\input fwebmac.sty
+
+% --- Initialization parameters from FWEB's style file `fweb.sty' ---
+\Wbegin[;]
+  % #1 --- [LaTeX.class.options;LaTeX.package.options]
+{article;}
+  % #2 --- {LaTeX.class;LaTeX.package}
+{1em}
+  % #3 --- {indent.TeX}
+{1em}
+  % #4 --- {indent.code}
+{CONTENTS.tex}
+  % #5 --- {contents.TeX}
+{ % #6 ---
+ {\&\WRS}
+  % #1 --- {{format.reserved}{format.RESERVED}}
+ {\|}
+  % #2 --- {format.short_id}
+ {\>\WUC}
+  % #3 --- {{format.id}{format.ID}}
+ {\>\WUC}
+  % #4 --- {{format.outer_macro}{format.OUTER_MACRO}}
+ {\>\WUC}
+  % #5 --- {{format.WEB_macro}{format.WEB_MACRO}}
+ {\@}
+  % #6 --- {format.intrinsic}
+ {\.\.}
+  % #7 --- {{format.keyword}{format.KEYWORD}}
+ {\.}
+  % #8 --- {format.typewriter}
+ {}
+  % #9 --- (For future use)
+}
+{\M}
+  % #7 --- {encap.prefix}
+{;}
+  % #8 --- {doc.preamble;doc.postamble}
+{INDEX}
+  % #9 --- {index.name}
+
+
+% --- Beginning of user's limbo section ---
+
+ ARB                      1
+ YES                      0
+ NO                       1
+ ERR                     -1
+
+ BYTES_PER_INTEGER        4
+ LEAST_BYTE               1
+
+ END_OF_FILE             -1
+
+ NO_OF_TYPES              20
+ INT_BLOCK_SIZE           20
+
+ LAST_BLOCK               1
+ NOT_LAST_BLOCK           0
+
+ ERROR_OUTPUT_UNIT        6
+
+ MAX_BASIS_FUNCTIONS      255
+ MAX_PRIMITIVES           1000
+ MAX_CENTRES              50
+
+ MAX_ITERATIONS             60
+
+ UHF_CALCULATION            10
+ CLOSED_SHELL_CALCULATION   20
+
+% --- Limbo text from style-file parameter `limbo.end' ---
+\FWEBtoc
+
+\input INDEX.tex
+\input MODULES.tex
+
+\Winfo{"fweave defs.hweb"}  {"defs.hweb"} {(none)}
+ {\Fortran}
+
+
+\Wcon{0}
+\FWEBend

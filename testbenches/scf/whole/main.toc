@@ -1,0 +1,89 @@
+\contentsline {section}{\numberline {1}INTRODUCTION}{1}
+\contentsline {subsubsubsection}{}{1}
+\contentsline {section}{\numberline {2}DODS}{2}
+\contentsline {subsubsubsection}{}{4}
+\contentsline {section}{\numberline {3}SCF}{5}
+\contentsline {subsubsubsection}{}{7}
+\contentsline {subsubsubsection}{}{7}
+\contentsline {subsubsubsection}{}{8}
+\contentsline {subsubsubsection}{}{8}
+\contentsline {subsubsubsection}{}{9}
+\contentsline {subsubsubsection}{}{10}
+\contentsline {subsubsubsection}{}{10}
+\contentsline {subsubsubsection}{}{10}
+\contentsline {subsection}{\numberline {3.1}scfGR}{11}
+\contentsline {subsubsubsection}{}{12}
+\contentsline {subsubsubsection}{}{12}
+\contentsline {subsubsubsection}{}{12}
+\contentsline {subsubsubsection}{}{12}
+\contentsline {subsubsection}{\numberline {3.1.1}GofR}{13}
+\contentsline {subsubsubsection}{}{14}
+\contentsline {subsubsection}{\numberline {3.1.2}order}{14}
+\contentsline {subsubsubsection}{}{14}
+\contentsline {subsection}{\numberline {3.2}scfR}{15}
+\contentsline {subsubsubsection}{}{15}
+\contentsline {section}{\numberline {4}INTEGRALS}{15}
+\contentsline {subsubsubsection}{}{15}
+\contentsline {subsection}{\numberline {4.1}genoei}{16}
+\contentsline {subsubsubsection}{}{17}
+\contentsline {subsubsubsection}{}{18}
+\contentsline {subsubsubsection}{}{19}
+\contentsline {subsubsection}{\numberline {4.1.1}ovrlap}{20}
+\contentsline {subsubsubsection}{}{20}
+\contentsline {subsubsubsection}{}{21}
+\contentsline {subsubsubsection}{}{21}
+\contentsline {subsubsection}{\numberline {4.1.2}aform}{22}
+\contentsline {subsubsubsection}{}{22}
+\contentsline {subsection}{\numberline {4.2}generi}{23}
+\contentsline {subsubsubsection}{}{25}
+\contentsline {subsubsubsection}{}{25}
+\contentsline {subsubsubsection}{}{25}
+\contentsline {subsubsubsection}{}{26}
+\contentsline {subsubsubsection}{}{27}
+\contentsline {subsubsubsection}{}{28}
+\contentsline {subsubsubsection}{}{28}
+\contentsline {subsubsubsection}{}{29}
+\contentsline {subsubsubsection}{}{29}
+\contentsline {subsection}{\numberline {4.3}fj}{30}
+\contentsline {subsubsubsection}{}{30}
+\contentsline {subsubsection}{\numberline {4.3.1}theta}{31}
+\contentsline {subsubsubsection}{}{31}
+\contentsline {subsubsection}{\numberline {4.3.2}bform}{32}
+\contentsline {subsubsubsection}{}{33}
+\contentsline {subsection}{\numberline {4.4}auxg}{34}
+\contentsline {subsubsubsection}{}{34}
+\contentsline {subsubsection}{\numberline {4.4.1}fmch}{35}
+\contentsline {subsubsubsection}{}{37}
+\contentsline {subsubsubsection}{}{37}
+\contentsline {subsubsubsection}{}{37}
+\contentsline {subsubsubsection}{}{38}
+\contentsline {subsubsubsection}{}{38}
+\contentsline {section}{\numberline {5}INTEGRAL STORAGE AND PROCESSING}{38}
+\contentsline {subsubsubsection}{}{38}
+\contentsline {subsection}{\numberline {5.1}getint}{39}
+\contentsline {subsubsubsection}{}{39}
+\contentsline {subsection}{\numberline {5.2}putint}{40}
+\contentsline {subsubsubsection}{}{40}
+\contentsline {subsection}{\numberline {5.3}genint}{41}
+\contentsline {subsubsubsection}{}{42}
+\contentsline {subsubsubsection}{}{43}
+\contentsline {subsubsubsection}{}{44}
+\contentsline {section}{\numberline {6}UTILITIES}{44}
+\contentsline {subsubsubsection}{}{44}
+\contentsline {subsection}{\numberline {6.1}gtprd}{44}
+\contentsline {subsubsubsection}{}{44}
+\contentsline {subsection}{\numberline {6.2}gmprd}{45}
+\contentsline {subsubsubsection}{}{45}
+\contentsline {subsection}{\numberline {6.3}eigen}{46}
+\contentsline {subsubsubsection}{}{47}
+\contentsline {subsection}{\numberline {6.4}pack}{48}
+\contentsline {subsubsubsection}{}{48}
+\contentsline {subsection}{\numberline {6.5}unpack}{48}
+\contentsline {subsubsubsection}{}{48}
+\contentsline {subsection}{\numberline {6.6}next\_label}{49}
+\contentsline {subsubsubsection}{}{50}
+\contentsline {subsection}{\numberline {6.7}shalf}{50}
+\contentsline {subsubsubsection}{}{50}
+\contentsline {subsection}{\numberline {6.8}spinor}{51}
+\contentsline {subsubsubsection}{}{51}
+\contentsline {section}{\numberline {7}INDEX}{52}

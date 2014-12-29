@@ -1,0 +1,139 @@
+This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=latex 2014.7.9)  5 DEC 2014 01:47
+entering extended mode
+ %&-line parsing enabled.
+**pseudor.tex
+(./pseudor.tex
+LaTeX2e <2009/09/24>
+Babel <v3.8l> and hyphenation patterns for english, usenglishmax, dumylang, noh
+yphenation, loaded.
+(/usr/share/texmf/tex/latex/litprog/fwebmac.sty
+\W@count=\count79
+\W@counta=\count80
+\W@tk=\toks14
+\pardimen=\skip41
+\TeXindent=\dimen102
+LaTeX Info: Redefining \# on input line 346.
+LaTeX Info: Redefining \$ on input line 347.
+LaTeX Info: Redefining \% on input line 348.
+LaTeX Info: Redefining \^ on input line 349.
+\rulebox=\box26
+\ruleno=\count81
+\notch=\dimen103
+\W@globalindent=\count82
+\W@ind=\count83
+\W@lastind=\count84
+\b@k=\box27
+\b@kk=\box28
+\W@nBK=\count85
+\Wuparindent=\skip42
+\W@ssmax=\count86
+\W@lsmax=\count87
+\secpenalty=\count88
+\c@subsubsubsection=\count89
+\W@ss=\count90
+\W@lastsect=\count91
+\b@dlevelhelp=\toks15
+LaTeX Info: Redefining \= on input line 1239.
+\dotbox=\box29
+\W@ARRAYarga=\toks16
+\W@ARRAYargb=\toks17
+\contentspageno=\count92
+\pagewidth=\dimen104
+\pageheight=\dimen105
+\fullpageheight=\dimen106
+\pageshift=\dimen107
+\Woutput=\toks18
+\minutes=\count93
+\hours=\count94
+\W@cont=\write3
+\W@ref=\count95
+\W@lpha=\count96
+\W@pmcount=\count97
+\Sbox=\box30
+\Lbox=\box31
+\ttglue=\skip43
+)
+(/usr/share/texmf-texlive/tex/latex/base/article.cls
+Document Class: article 2007/10/19 v1.4h Standard LaTeX document class
+(/usr/share/texmf-texlive/tex/latex/base/size10.clo
+File: size10.clo 2007/10/19 v1.4h Standard LaTeX file (size option)
+)
+\c@part=\count98
+\c@section=\count99
+\c@subsection=\count100
+\c@subsubsection=\count101
+\c@paragraph=\count102
+\c@subparagraph=\count103
+\c@figure=\count104
+\c@table=\count105
+\abovecaptionskip=\skip44
+\belowcaptionskip=\skip45
+\bibindent=\dimen108
+)
+\c@pagemodule=\count106
+\c@W@tempcounter=\count107
+ (./pseudor.aux)
+\openout1 = `pseudor.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 41.
+LaTeX Font Info:    ... okay on input line 41.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <12> on input line 53.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <8> on input line 53.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <6> on input line 53.
+
+(./pseudor.toc)
+\tf@toc=\write4
+\openout4 = `pseudor.toc'.
+
+ [1] *1
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <7> on input line 64.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <5> on input line 64.
+LaTeX Font Info:    Try loading font information for OMS+cmr on input line 137.
+
+ (/usr/share/texmf-texlive/tex/latex/base/omscmr.fd
+File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
+)
+LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <10> not available
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 137.
+
+[1] [2] [3] [4] [5] *12 [6] [7]
+! Missing } inserted.
+<inserted text> 
+                }
+l.508 \WMd$
+           \WUC{LDIM1P1}$\5
+? 
+! Missing } inserted.
+<inserted text> 
+                }
+l.508 \WMd$
+           \WUC{LDIM1P1}$\5
+? 
+! Too many }'s.
+\W@defin ...\W@point \else \hbox {$^{\mathrm {#2}}
+                                                  $}\fi \fi \W@Hspace 
+l.508 \WMd$
+           \WUC{LDIM1P1}$\5
+? 
+! Extra }, or forgotten $.
+<recently read> }
+                 
+l.508 \WMd$
+           \WUC{LDIM1P1}$\5
+? 
+! Missing } inserted
