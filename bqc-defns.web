@@ -21,6 +21,7 @@
 @m WORK_MINV                100
 
 @m MAX_BASIS_FUNCTIONS      256
+@m MAX_BBFP2                32640  /* 256*(256-1)/2 */
 @m MAX_PRIMITIVES           1000
 @m MAX_CENTRES              50
 @m MAX_SHELLS               10
