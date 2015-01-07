@@ -2,16 +2,80 @@
 
 @n
 
-@* INTRODUCTION. This simple program performs LCAO-MO-SCF calculations
+@* INTRODUCTION. 
+
+This simple program performs LCAO-MO calculations
 for an arbitrary molecule with GTF-type basis set size not larger than
-256. Generation of 1-electron integrals is performed directly during calculation.
-2-electron integrals are stored in the file |fort.17| which is a binary file.
-This program reads input file +inp+ which contains basis set structure information
-about the molecule.
+256. Basis functions are allowed to be contracted. 
+Generation of 1-electron integrals is performed directly during calculation.
+2-electron integrals are stored in the file \verb+fort.17+ which is a binary file.
+
+Currently the following methods are available:
+%
+\begin{itemize}
+   \item[$\bullet$] RHF  - Restricted Closed Shell Hartree-Fock
+   \item[$\bullet$] UHF  - Unrestricted Hartree-Fock
+   \item[$\bullet$] ROHF - Restricted Open Shell 'Hartree-Fock'
+   \item[$\bullet$] CIS  - Configuration Interaction with Singles (only closed shells)
+\end{itemize}
+%
+For CIS run RHF wavefunction is used as a reference determinant. At this moment
+there is no guess for molecular orbitals implemented so the computation starts 
+from zero density matrices. Therefore, the convergence is quite poor as for the time being
+and is quite long. For example, in the case of water molecule using STO-3G basis set
+RHF calculations needs 31 iterations.
+
+@*1 Usage. 
+
+BQC program reads input file which contains molecule specification, basis set structure
+and computational task specifications. To run BQC type
+%
+\begin{verbatim}
+./bqc < input_file
+\end{verbatim}
+%
+The input file can be easily prepared by a helper Python script \verb+make-bqc-inp+ 
+provided along with the BQC package. For usage information type 
+%
+\begin{verbatim}
+make-bqc-inp -h
+\end{verbatim}
+%
+to get detailed help for options (setting the charge, multiplicity, etc.).
+To clarify the meaning of each line in such an input file we depict its layout
+below.
+%
+\begin{figure}[h]
+\begin{verbatim}
+ [1] task_type
+ [2] scf_cvg       scf_damp        scf_interp
+ [3] eri_read
+ [4] chg           mult
+ [5] nelec
+ [6] ncmx          nbfns           ngmx
+ [7] X             Y               Z              nZ
+     ...           ...             ...            ...
+     X             Y               Z              alpha          coeff
+     ...           ...             ...            ...            ...
+    (ntype (i), i=1, nbfns) 
+    (ncntr (i), i=1, nbfns) 
+    (nfirst(i), i=1, nbfns) 
+    (nlast (i), i=1, nbfns) 
+
+\end{verbatim}
+\caption{\label{fig:bqc-input} The layout of the BQC input file contents. 
+Abbreviations: 
+\emph{task\_type} - type of the task, see below; \emph{scf\_cvg} - treshold for density matrix 
+convergence during SCF; \emph{scf\_damp} - SCF damping parameter; \emph{scf\_interp} - maximum
+number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI binary file; 
+\emph{chg} - molecular charge; \emph{mult} - multiplicity; \emph{nelec} - total number of electrons;
+\emph{ncmx} - number of atoms; \emph{nbfns} - number of basis functions; \emph{ngmx} - number of GTFs.}
+\end{figure}
+%
 
 @
 
-@* LCAO MO PROGRAM. 
+@* LCAO-MO PROGRAM. 
 
 @I bqc-defns.web
 @a 
@@ -19,46 +83,15 @@ about the molecule.
 /*
       GENERATING INTEGRALS AND CALCULATION OF WFN AND ENERGY
 */
-      double precision vlist(MAX_CENTRES,4)
-      double precision eta(MAX_PRIMITIVES,5)
-      integer nfirst(MAX_BASIS_FUNCTIONS)
-      integer nlast(MAX_BASIS_FUNCTIONS)
-      integer ntype(MAX_BASIS_FUNCTIONS)
-      integer ncntr(MAX_BASIS_FUNCTIONS)
-      integer nr(NO_OF_TYPES,3)
-      integer nbfns, ngmx, ncmx, nelec
-      integer interp, irite
-      double precision S(MATRIX_SIZE),H(MATRIX_SIZE),HF(MATRIX_SIZE)
-      double precision R(MATRIX_SIZE),Rold(MATRIX_SIZE)
-      double precision C(MATRIX_SIZE),Cbar(MATRIX_SIZE),V(MATRIX_SIZE)
-      double precision crit, damp, E, Enuc
-      double precision epsilon(MAX_BASIS_FUNCTIONS)
-      double precision CT(MAX_BASIS_FUNCTIONS,MAX_BASIS_FUNCTIONS)
-      double precision VT(MAX_BBFP2,MAX_BASIS_FUNCTIONS)
-      integer RS(MATRIX_SIZE)
-      double precision xc(MAX_SHELLS,MAX_SHELLS)
-      double precision yc(MAX_SHELLS,MAX_SHELLS)
-      double precision alpha(MAX_SHELLS)
-      double precision b(MAX_SHELLS,MAX_SHELLS)
-      double precision nu(MAX_SHELLS)
-      integer noclst(MAX_SHELLS,MAX_BASIS_FUNCTIONS)
-      integer norbs(MAX_SHELLS)
-      integer scf, grhf
-      double precision calnrp, vv
-      integer i, j, task, read_eri, ntt, charge, multiplicity 
-      integer n_unpaired, nsize
-
-      @< nr list @>
+      @< Program Declarations @>
       @< Program Parameters @>
+      @< Program Formats @>
 
       irite = 12
 
       @< Read Structure Input @>
-
       @< Calculate Nuclear Repulsion Energy @>
-
       @< Generate Molecular Integrals @>
-
       @< Orthogonalize The Basis @>
 
       if (task.EQ.PURE_SCF) then
@@ -83,13 +116,37 @@ about the molecule.
 
       end if
 
-      @< Program Formats @>
-
       STOP
       END
 @
-
-@< nr list @>=
+@< Program Declarations @>=
+      double precision vlist(MAX_CENTRES,4)
+      double precision eta(MAX_PRIMITIVES,5)
+      integer nfirst(MAX_BASIS_FUNCTIONS)
+      integer nlast(MAX_BASIS_FUNCTIONS)
+      integer ntype(MAX_BASIS_FUNCTIONS)
+      integer ncntr(MAX_BASIS_FUNCTIONS)
+      integer nr(NO_OF_TYPES,3)
+      integer nbfns, ngmx, ncmx, nelec
+      integer interp, irite
+      double precision S(MATRIX_SIZE),H(MATRIX_SIZE),HF(MATRIX_SIZE)
+      double precision R(MATRIX_SIZE),Rold(MATRIX_SIZE)
+      double precision C(MATRIX_SIZE),Cbar(MATRIX_SIZE),V(MATRIX_SIZE)
+      double precision crit, damp, E, Enuc
+      double precision epsilon(MAX_BASIS_FUNCTIONS)
+      double precision VT(MAX_BBFP2*MAX_BASIS_FUNCTIONS)
+      integer RS(MATRIX_SIZE)
+      double precision xc(MAX_SHELLS,MAX_SHELLS)
+      double precision yc(MAX_SHELLS,MAX_SHELLS)
+      double precision alpha(MAX_SHELLS)
+      double precision b(MAX_SHELLS,MAX_SHELLS)
+      double precision nu(MAX_SHELLS)
+      integer noclst(MAX_SHELLS,MAX_BASIS_FUNCTIONS)
+      integer norbs(MAX_SHELLS)
+      integer scf, grhf
+      double precision calnrp, vv
+      integer i, j, task, read_eri, ntt, charge, multiplicity 
+      integer n_unpaired, nsize
      /* convention to store/use GTO types */
       data nr /
      &     0,1,0,0,2,0,0,1,1,0,3,0,0,2,2,1,0,1,0,1,
@@ -117,7 +174,6 @@ about the molecule.
 
       n_unpaired = multiplicity - 1
 @       
-
 @< Calculate Nuclear Repulsion Energy @>=
       Enuc = CalNRP(vlist, ncmx)
       write(ERROR_OUTPUT_UNIT,206) Enuc
@@ -194,7 +250,7 @@ about the molecule.
       if (nelec.GT.zero) then /* closed shell case */ 
           nocc    = nelec/2
           m       = nbfns
-      else                /* open shell case */
+      else                    /* open shell case */
           nocc    = abs(nelec)
           m       = nbfns * 2
       end if
@@ -218,9 +274,8 @@ about the molecule.
 @< Transform Molecular Integrals @>=
       ntt = nbfns * (nbfns + 1) / 2
       write(ERROR_OUTPUT_UNIT,*) " TRANSFORMATION OF INTEGRALS TO MO BASIS"
-      call pmat(S,nbfns,nbfns,irite)
-      call mkCvec(S,CT,nbfns)
-      call tran2e(ERI_UNIT_AO,ERI_UNIT_MO,nbfns,ntt,CT,C,RS,VT)
+c      call mkCvec(S,CT,nbfns)
+      call tran2e(ERI_UNIT_AO,ERI_UNIT_MO,nbfns,ntt,S,C,RS,VT)
 @
 
 @* RHF and UHF. 
@@ -416,7 +471,6 @@ Happy!
       else
          write(ERROR_OUTPUT_UNIT, 202) kount
          call porbe(epsilon, m, nocc)
-         if (irite.GT.0) call pmat(C,m,m,irite)
       endif
 @
 
@@ -1442,18 +1496,8 @@ Note that in the case of RHF reference $v=2$ while for UHF $v=1$.
 \ \\
 \end{minipage}
 
-@m KUSE(r,s,b,a) BigK = (a-1) * mn+(r-nocc);
-                 BigL = (b-1) * mn+(s-nocc);
-                 KL = nt*(BigL-1) + BigK;
-                 LK = nt*(BigK-1) + BigL;
-                 HCI(KL) = HCI(KL) - val;
-                 if (BigK.NE.BigL) HCI(LK) = HCI(LK) - val
-@m JUSE(r,a,b,s) BigK = (a-1) * mn+(r-nocc);
-                 BigL = (b-1) * mn+(s-nocc);
-                 KL = nt*(BigL-1) + BigK;
-                 LK = nt*(BigK-1) + BigL;
-                 HCI(KL) = HCI(KL) + val*v;
-                 if (BigK.NE.BigL) HCI(LK) = HCI(LK) + val*v
+@m KUSE(r,s,b,a) BigK = ((a)-1) * mn+((r)-nocc); BigL = ((b)-1) * mn+((s)-nocc); KL = nt*(BigL-1) + BigK; LK = nt*(BigK-1) + BigL; HCI(KL) = HCI(KL) - val; if (BigK.NE.BigL) HCI(LK) = HCI(LK) - val
+@m JUSE(r,a,b,s) BigK = ((a)-1) * mn+((r)-nocc); BigL = ((b)-1) * mn+((s)-nocc); KL = nt*(BigL-1) + BigK; LK = nt*(BigK-1) + BigL; HCI(KL) = HCI(KL) + val*v; if (BigK.NE.BigL) HCI(LK) = HCI(LK) + val*v
 
 @a
       subroutine H_CIS(HCI, nbasis, nocc, epsilon, nfile, v, nsize)
@@ -1477,7 +1521,7 @@ Note that in the case of RHF reference $v=2$ while for UHF $v=1$.
       rewind nfile
       point = 0
       do while (getint(nfile,i,j,k,l,mu,val,point).NE.END_OF_FILE) 
-c         write(*,*) i,j,k,l,val
+         write(*,*) i,j,k,l,val
          @< (VO,VO) integral contributions @>
          @< (VV,OO) integral contributions @>
       end do
@@ -2781,8 +2825,8 @@ None
 @a
       subroutine tran2e(nfile1,nfile2,nbasis,ntt,C,W,RS,V)
       implicit double precision (a-h,o-z)
-      double precision C(MAX_BASIS_FUNCTIONS,*)
-      double precision V(MAX_BBFP2,*)
+      double precision C(*)
+      double precision V(*)
       double precision W(*)
       integer RS(*)
       integer nbasis,ntt,nfile1,nfile2
@@ -2828,6 +2872,7 @@ None
       integer i,j,k,l /* labels for output MO integrals */
                                                                        
       integer r,s,t,u /* labels for input AO integrals */
+      integer klj, sj, kls, iii, iri, rttr
                                                                        
       integer rtt, rsx,tux, maxkl,kl,lmax   /* working temporaries */
       double precision val
@@ -2852,7 +2897,8 @@ None
 
       do r = 1, nbasis
          do rtt = 1, ntt
-           V(rtt,r) = zero
+           rttr = nbasis*(r-1) + rtt
+           V(rttr) = zero
          end do
       end do
 @ 
@@ -2874,7 +2920,7 @@ belt and braces (belt and suspenders in the USA).
 
 @< Transform r to i @>=
 
-@m USE(r,s,t,u) if (t.GE.u) then ; indtu=RS((t))+(u); V(indtu,(s))=V(indtu,(s))+C((r),i)*val; end if
+@m USE(r,s,t,u) if ((t).GE.(u)) then ; indtu=RS((t))+(u); iii = nbasis*((s)-1) + indtu; iri = nbasis*(i-1) + (r); V(iii)=V(iii)+C(iri)*val; end if
 
 /* |getint| reads the AO integrals which are the usual non-redundant set */
 
@@ -2908,7 +2954,7 @@ belt and braces (belt and suspenders in the USA).
 and |i| */
 
       do s = 1, nbasis
-         call CdgVC(nbasis,V(1,s),C,W)
+         call CdgVC(nbasis,V(nbasis*(s-1)+1),C,W)
       end do
 @ 
 @< Transform s to j @>=
@@ -2918,7 +2964,8 @@ and |i| */
 
       do  kl = 1, maxkl
          do  s = 1, nbasis
-            W(s) = V(kl,s)
+            kls = nbasis*(s-1) + kl
+            W(s) = V(kls)
          end do
 
 /* |W| is workspace to enable the transformed
@@ -2926,9 +2973,11 @@ and |i| */
   The transformation is just a matrix multiplication */
 
          do j = 1,i
-           V(kl,j) = zero
+           klj = nbasis*(j-1) + kl
+           V(klj) = zero
            do s = 1,nbasis
-              V(kl,j) = V(kl,j) + C(s,j)*W(s)
+              sj = nbasis*(j-1) + s
+              V(klj) = V(klj) + C(sj)*W(s)
            end do
          end do
       end do
@@ -2957,7 +3006,8 @@ packed for output to  |putint| */
             if ( i .EQ. k) lmax = j
             do l = 1, lmax
                kl = RS(k) + l
-               val = V(kl,j)
+               klj = nbasis*(j-1) + kl
+               val = V(klj)
 
 /* If you want to leave out small integrals from the output file,
 |nfile2|, this is the place to do it: |if ( val < crit ) next; | would
@@ -3337,8 +3387,8 @@ four standard loops which are used to generate (or, more rarely) process
 the electron repulsion integrals. 
 
 The sets of integer values are generated in the usual
-standard order in canonical form, that is, equivalent to the set of loops: \\
- |
+standard order in canonical form, that is, equivalent to the set of loops:
+\begin{verbatim}
    do i = 1,n;
       {
       do j = 1,i;
@@ -3354,8 +3404,8 @@ standard order in canonical form, that is, equivalent to the set of loops: \\
             }
          }
       }
- |
-\ \\
+\end{verbatim}
+%
 Note that, just as is the case with the |do|-loops,
 the whole process must be {\em initialised\/} by
 setting initial values of |i|, |j|, |k| and |l|. 
