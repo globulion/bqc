@@ -198,20 +198,28 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
          V(i) = S(i)
       end do
 @
+@< Transform Back To Original Basis @>=
+      call gmprd(V,S,C,nbfns,nbfns,nbfns)
+@
+@< Transform Molecular Integrals @>=
+      write(ERROR_OUTPUT_UNIT,*) " TRANSFORMATION OF INTEGRALS TO MO BASIS"
+      call tran2e(ERI_UNIT_AO,ERI_UNIT_MO,nbfns,C,S,RS,VT)
+@
 @< Perform SCF @>=
       if (irite.GT.0) then
-          write(irite,*) " CORE HAMILTONIAN"
+          write(irite,*) " CORE HAMILTONIAN - NON-ORTHOGONAL BASIS"
           call pmat(H,nbfns,nbfns,irite)
       end if
-      if (scf(H,S,nbfns,nelec,ERI_UNIT_AO,irite,damp,interp,E,HF,V,R,
+      if (scf(H,S,nbfns,nelec,ERI_UNIT_AO,irite,damp,interp,E,HF,VT,R,
      &            Rold,Cbar,epsilon,crit).EQ.OK) then
           write(*,*) " SCF DONE."
           write(ERROR_OUTPUT_UNIT,200) E+Enuc
+          @< Transform Back To Original Basis @>
           if (irite.GT.0) then
-             write(irite,*) " DENSITY MATRIX"
+             write(irite,*) " DENSITY MATRIX (ORTHOGONAL BASIS)"
              call pmat(R,nbfns,nbfns,irite)
-             write(irite,*) " MO COEFFICIENTS"
-             call pmat(S,nbfns,nbfns,irite)
+             write(irite,*) " MO COEFFICIENTS (NON-ORTHOGONAL BASIS)"
+             call pmat(C,nbfns,nbfns,irite)
           end if
       else
           write(*,*) " SCF FAILED. "
@@ -271,10 +279,6 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
 @< Program Formats @>=
   200 format(" FINAL TOTAL ENERGY= ",f16.8)
   206 format(" NUCLEAR REPULSION ENERGY= ", f12.6)
-@
-@< Transform Molecular Integrals @>=
-      write(ERROR_OUTPUT_UNIT,*) " TRANSFORMATION OF INTEGRALS TO MO BASIS"
-      call tran2e(ERI_UNIT_AO,ERI_UNIT_MO,nbfns,S,C,RS,VT)
 @
 
 @* RHF and UHF. 
