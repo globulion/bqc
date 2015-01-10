@@ -134,7 +134,7 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       double precision C(MATRIX_SIZE),Cbar(MATRIX_SIZE),V(MATRIX_SIZE)
       double precision crit, damp, E, Enuc
       double precision epsilon(MAX_BASIS_FUNCTIONS)
-      double precision VT(MATRIX_SIZE)
+      double precision VT(MATRIX_SIZE_BIG)
       integer RS(MATRIX_SIZE)
       double precision xc(MAX_SHELLS,MAX_SHELLS)
       double precision yc(MAX_SHELLS,MAX_SHELLS)
@@ -203,7 +203,7 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
 @
 @< Transform Molecular Integrals @>=
       write(ERROR_OUTPUT_UNIT,*) " TRANSFORMATION OF INTEGRALS TO MO BASIS"
-      call tran2e(ERI_UNIT_AO,ERI_UNIT_MO,nbfns,C,S,RS,VT)
+      call tran2e(ERI_UNIT_AO,ERI_UNIT_MO,nbfns,S,C,RS,VT)
 @
 @< Perform SCF @>=
       if (irite.GT.0) then
@@ -214,12 +214,12 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
      &            Rold,Cbar,epsilon,crit).EQ.OK) then
           write(*,*) " SCF DONE."
           write(ERROR_OUTPUT_UNIT,200) E+Enuc
-          @< Transform Back To Original Basis @>
+/*          @< Transform Back To Original Basis @> */
           if (irite.GT.0) then
              write(irite,*) " DENSITY MATRIX (ORTHOGONAL BASIS)"
              call pmat(R,nbfns,nbfns,irite)
              write(irite,*) " MO COEFFICIENTS (NON-ORTHOGONAL BASIS)"
-             call pmat(C,nbfns,nbfns,irite)
+             call pmat(S,nbfns,nbfns,irite)
           end if
       else
           write(*,*) " SCF FAILED. "
@@ -268,7 +268,11 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       call H_CIS(H, m, nocc, epsilon, ERI_UNIT_MO, vv, nsize)
       write(*,*) " DIAGONALIZATION OF CIS HAMILTONIAN OF DIM ", nsize
       call eigen(H, Cbar, nsize)
-      write(*,*) (H(nocc*(m-nocc)*(i-1)+i), i=1,5)
+      do i=1,5
+         epsilon(i) = H(nocc*(m-nocc)*(i-1)+i)
+      end do
+      write(ERROR_OUTPUT_UNIT,209)
+      call pvec(epsilon,5)
       write(irite,*)
       call pmat(H,nsize,nsize,irite)
 @
@@ -279,6 +283,7 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
 @< Program Formats @>=
   200 format(" FINAL TOTAL ENERGY= ",f16.8)
   206 format(" NUCLEAR REPULSION ENERGY= ", f12.6)
+  209 format(/," --- EXCITED STATE ENERGIES ---",/)
 @
 
 @* RHF and UHF. 
@@ -363,12 +368,10 @@ Happy!
       integer function SCF(H,C,nbasis,nelec,nfile,irite,damp,interp,E,HF,V,R,
      &                     Rold,Cbar,epsilon,crit)
 
-      @< Global SCF Declarations @>
-
-      @< Internal SCF Declarations @>
+      @< SCF Interface Declarations @>
+      @< SCF Local Declarations @>
 
       @< Select SCF Type @>
-
       @< Set initial matrices and counters @>
 
       do while ((icon.NE.0).AND.(kount.LT.MAX_ITERATIONS)) 
@@ -378,15 +381,14 @@ Happy!
       end do
 
       @< Write the output result @> 
-
-      @< Formats @>
+      @< SCF Formats @>
 
       return
       end
 
 @
 
-@< Global SCF Declarations @>=
+@< SCF Interface Declarations @>=
       implicit double precision (a-h,o-z)
       integer nbasis, nelec, nfile, irite
       integer interp
@@ -396,7 +398,7 @@ Happy!
       double precision E, damp, crit
 @
 
-@< Internal SCF Declarations @>=
+@< SCF Local Declarations @>=
       integer scftype, kount, nocc, m, mm, i
       double precision term, turm, Rsum
       double precision zero, half
@@ -431,27 +433,49 @@ Happy!
 @   
 
 @< Sigle SCF iteration @>=
+
+      @< SCF Iter: Initialize counters @>
+      @< SCF Iter: Start Accumulating Energy @>
+      @< SCF Iter: Form G Matrix @>
+      @< SCF Iter: Calculate Total Energy @>                                            
+      @< SCF Iter: Transform HF To Orthogonal Basis And Diagonalize @>            
+      @< SCF Iter: Compute Density Matrix in Original Basis @>
+      @< SCF Iter: Check For Density Matrix Convergence @>
+
+@
+@< SCF Iter: Initialize counters @>=
       kount = kount + 1
       E = zero; icon = 0
+@
+@< SCF Iter: Start Accumulating Energy @>=
       do i = 1, mm
          HF(i) = H(i)
          E = E + R(i)*HF(i)
       enddo
+@
+@< SCF Iter: Form G Matrix @>=
       call scfGR(R, HF, nbasis, nfile, scftype)
+@
+@< SCF Iter: Calculate Total Energy @>=
       do i = 1, mm
          E = E + R(i)*HF(i)
       enddo
 
       if (scftype.EQ.UHF_CALCULATION) E = half*E
-                                                        
+@
+@< SCF Iter: Transform HF To Orthogonal Basis And Diagonalize @>=
       call gtprd(C, HF, R, m, m, m)
       call gmprd(R, C, HF, m, m, m)
       call eigen(HF, Cbar, m)
       do i = 1, m
          epsilon(i) = HF(m*(i-1)+i)
       enddo
+@
+@< SCF Iter: Compute Density Matrix in Original Basis @>=
       call gmprd(C, Cbar, V, m, m, m)
       call scfR(V, R, m, nocc)
+@
+@< SCF Iter: Check For Density Matrix Convergence @>=
       Rsum = zero
       do i = 1, mm
          turm = R(i) - Rold(i)
@@ -464,7 +488,6 @@ Happy!
       enddo
       write(ERROR_OUTPUT_UNIT, 200) E, Rsum
 @
-
 @< Write the output result @>=
       write(ERROR_OUTPUT_UNIT, 201) Rsum, icon
 
@@ -477,7 +500,7 @@ Happy!
       endif
 @
 
-@< Formats @>=
+@< SCF Formats @>=
  200  format(" Current Electronic Energy = ", f16.8, " Change = ",f16.8)
  201  format(" Convergence in R = ", f12.5,i6, "  Changing")
  202  format(" SCF converged in", i4, " iterations")
@@ -748,18 +771,15 @@ as calculation proceeds. Message on convergence failure.
      &                      nfile,nu,x,y,alpha,b,en,HF,R,eps,              
      &                      Work,Hbar,U,initial_scf,irite)                 
       @< Grhf Interface Declarations @>
-
       @< Grhf Local Declarations @>
+      @< Grhf Formats @>
 
       n = nbasis ; nn = n*n
       grhf = OK
 
       @< Choose which effective Fock matrix @>
-      
       @< Invert the orthogonalisation matrix @> 
-      
       @< Compute total number of occupied orbitals @>
-      
       @< Calculate the R matrices if the input U is a sensible one @>
 
       iteration = 0
@@ -770,8 +790,6 @@ as calculation proceeds. Message on convergence failure.
          @< One iteration of GRHF-SCF cycle @>
 
       end do
-
-      @< Grhf Formats @>
 
       return 
       end
@@ -834,21 +852,15 @@ It is further broken down into smaller modules as appropriate.
       else
 
          @< Put one-electron Hamiltonian into each Fock matrix @>
-         
          @< Use the repulsion integrals to form the Fock matrices @>
-         
          @< Scale the Fock matrices by occupation number @>
-         
          @< Choose the appropriate form of the effective Fock matrix @>
-         
          @< Transpose the inverse-orthogonaliser for convenience @>
 
       end if
 
       @< Transform and diagonalise the single Fock matrix @>
-      
       @< Transform back to the original basis and form the new R @>
-      
       @< Check for convergence and prepare to re-cycle @>
 
 @ If no guess at the R matrices is available, set the
@@ -1126,7 +1138,6 @@ for any linear combination of $\mbox{\large \boldmath{G}}$ matrices.
       subroutine grhfGR(R,G,n,nfile,nu,x,y,number_of_shells,Rwork)
 
       @< GrhfGR Interface Declarations @>
-
       @< GrhfGR Local Declarations @>
 
       /* Loop over all shell G  matrices   */
@@ -1134,7 +1145,6 @@ for any linear combination of $\mbox{\large \boldmath{G}}$ matrices.
       do shellh = 1, number_of_shells
 
          @< Set up the Combinations of R matrices @>
-
          @< Obtain the repulsion integrals and form the Gs @>
 
       end do
@@ -1279,13 +1289,9 @@ Hamiltonian for the combined set of shells: the general McWeenyan.
      &                Work1,Work2,Hbar)
 
       @< Hone Interface Declarations @>
-
       @< Hone Local Declarations @>
-      
       @< Hone initialisations @> 
-      
       @< Add the off-diagonal projections @> 
-      
       @< Now the diagonal terms including level shifters @> 
       
       return
@@ -1364,13 +1370,9 @@ Hamiltonian for the combined set of shells: the original McWeenyan.
       subroutine Hhalf(HF,R,n,Work1,Work2,Hbar)
 
       @< Hhalf Interface Declarations @> 
-
       @< Hhalf Local Declarations @> 
-      
       @< Hhalf initialisation @> 
-      
       @< Form (R1+R2)(2H1-H2)(R1+R2) @> 
-      
       @< Add in (R1+RZ)(H1)(R1+RZ) + (R2+RZ)(H2)(R2+RZ) @> 
 
       return
@@ -1499,8 +1501,17 @@ Note that in the case of RHF reference $v=2$ while for UHF $v=1$.
 \ \\
 \end{minipage}
 
-@m KUSE(r,s,b,a) BigK = ((a)-1) * mn+((r)-nocc); BigL = ((b)-1) * mn+((s)-nocc); KL = nt*(BigL-1) + BigK; LK = nt*(BigK-1) + BigL; HCI(KL) = HCI(KL) - val; if (BigK.NE.BigL) HCI(LK) = HCI(LK) - val
-@m JUSE(r,a,b,s) BigK = ((a)-1) * mn+((r)-nocc); BigL = ((b)-1) * mn+((s)-nocc); KL = nt*(BigL-1) + BigK; LK = nt*(BigK-1) + BigL; HCI(KL) = HCI(KL) + val*v; if (BigK.NE.BigL) HCI(LK) = HCI(LK) + val*v
+@m JUSE(r,a,s,b) BigK = ((a)-1) * mn+((r)-nocc); 
+                 BigL = ((b)-1) * mn+((s)-nocc); 
+                 KL = nt*(BigL-1) + BigK; 
+                 HCI(KL) = HCI(KL) + val*v; 
+                 LK = nt*(BigK-1) + BigL;
+                 if (BigK.NE.BigL) HCI(LK) = HCI(LK) + val*v
+
+@m KUSE(r,s,a,b) BigK = ((a)-1) * mn+((r)-nocc); 
+                 BigL = ((b)-1) * mn+((s)-nocc); 
+                 KL = nt*(BigL-1) + BigK; 
+                 HCI(KL) = HCI(KL) - val
 
 @a
       subroutine H_CIS(HCI, nbasis, nocc, epsilon, nfile, v, nsize)
@@ -1536,32 +1547,47 @@ Note that in the case of RHF reference $v=2$ while for UHF $v=1$.
       point = 0
       do while (getint(nfile,i,j,k,l,mu,val,point).NE.END_OF_FILE) 
          @< (VO,VO) integral contributions @>
-         @< (VV,OO) integral contributions @>
+         @< (VV,OO) integral contributions @> 
       end do
 @
 @< (VO,VO) integral contributions @>=
       if ((i.GT.nocc).AND.(j.LE.nocc).AND.(k.GT.nocc).AND.(l.LE.nocc))
      &then
           JUSE(i,j,k,l)
+/*          if (i.NE.k) then
+              if (j.NE.l) then
+                  JUSE(k,j,i,l)
+                  JUSE(i,l,k,j)
+                  JUSE(k,l,i,j)
+              else
+                  JUSE(k,j,i,l)
+              end if
+          else
+              if (j.NE.l) then
+                  JUSE(i,l,k,j)
+              end if
+          end if
+*/
       end if
 @
 @< (VV,OO) integral contributions @>=
       if ((i.GT.nocc).AND.(j.GT.nocc).AND.(k.LE.nocc).AND.(l.LE.nocc))
      &then
-          KUSE(i,j,k,l)   /* (ij,kl) */
-
+          KUSE(i,j,k,l)
           if (i.NE.j) then
-             KUSE(j,i,k,l) /* (ji,kl) */
-
-             if (k.NE.l) then
-                 KUSE(j,i,l,k)  /* (ji,lk) */
-                 KUSE(i,j,l,k)  /* (ij,lk) */
-             end if           
+              if (k.NE.l) then
+                  KUSE(j,i,k,l)
+                  KUSE(j,i,l,k)
+                  KUSE(i,j,l,k)
+              else
+                  KUSE(j,i,k,l)
+              end if
           else
-             if (k.NE.l) then
-                 KUSE(i,j,l,k)  /* (ii,lk) */
-             end if 
+              if (k.NE.l) then
+                  KUSE(i,j,l,k)
+              end if
           end if
+
       end if
 @
 @< Orbital energies contributions @>=

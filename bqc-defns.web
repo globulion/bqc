@@ -18,7 +18,7 @@
 @m NO_OF_TYPES              20
 @m INT_BLOCK_SIZE           1000
 
-@m WORK_MINV                100
+@m WORK_MINV                10000
 
 @m MAX_BASIS_FUNCTIONS      256
 @m MAX_BBFP2                32640  /* 256*(256-1)/2 */
@@ -39,6 +39,7 @@
 @m MCSCF                     93
 
 @m MATRIX_SIZE                262144
+@m MATRIX_SIZE_BIG            10000000
 
 @m ERROR_OUTPUT_UNIT          6
 @m ERI_UNIT_AO                17
