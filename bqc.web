@@ -273,6 +273,7 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       end do
       write(ERROR_OUTPUT_UNIT,209)
       call pvec(epsilon,5)
+      call writCI(Cbar,5,nocc,nbfns) 
       write(irite,*)
       call pmat(H,nsize,nsize,irite)
 @
@@ -3686,6 +3687,72 @@ None
       end
 @
 
+@*2 writCI. Prints the CI information. 
+
+\begin{minipage}{4.5in}
+  \ \\
+\begin{description}
+\item[NAME] writCI \\
+  Print the output of CI calculation.
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+      subroutine writCI(CI, k, nocc, nbasis)
+      double precision CI(*)
+      integer k, nocc, nbasis
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+ The output contains the |k| first columns of CI eigenvectors and shows the CI coefficients
+ related with a particular slater determinants if all of the coefficients are greater than specified threshold.
+ Maximum value of |k| is 10.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[CI]   Input: CI eigenvectors
+\item[k]    Input: Number of columns to print 
+\item[nocc] Input: Number of occupied orbitals
+\item[nbasis] Input: Basis set size
+\end{description}
+\item[DIAGNOSTICS] \ \\
+None
+\end{description}
+\ \\
+\end{minipage}
+
+@a
+      subroutine writCI(CIcoeff,k,nocc,nbasis)
+      double precision CIcoeff(*)
+      integer k, nocc, nbasis
+      
+      double precision u(10), d, crit
+      integer kk, ia, ir, kkk
+      logical lprint
+      data crit/1.0D-02/
+
+      if (k.GT.10) then
+          write(*,*) " To many columns requested in writCI."
+          return
+      end if
+
+      write(ERROR_OUTPUT_UNIT,201)
+      do ia = 1, nocc
+      do ir = nocc+1, nbasis
+         kk = (ia-1)*(nbasis-nocc) + ir - nocc
+         lprint = .FALSE.
+         do j = 1, k
+            kkk = (nbasis-nocc)*nocc*j + kk
+            d = CIcoeff(kkk)
+            u(j) = d
+            if (d.GT.crit) lprint = .TRUE.
+         end do
+         if (lprint) write(ERROR_OUTPUT_UNIT,202) ia,ir,(u(j),j=1,k)
+      end do
+      end do
+      write(ERROR_OUTPUT_UNIT,*)
+  201 format(/," --- CIS SLATER DETERMINANT'S CONTRIBUTIONS TO EXCITED",
+     &       " STATES ---",/ )
+  202 format(i6,"  -->",i6,"  :",10f16.6)
+      return
+      end
+@
 @*1 CalNRP. Calculates the nuclear repulsion energy.
 
 @a
