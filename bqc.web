@@ -198,9 +198,6 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
          V(i) = S(i)
       end do
 @
-@< Transform Back To Original Basis @>=
-      call gmprd(V,S,C,nbfns,nbfns,nbfns)
-@
 @< Transform Molecular Integrals @>=
       write(ERROR_OUTPUT_UNIT,*) " TRANSFORMATION OF INTEGRALS TO MO BASIS"
       call tran2e(ERI_UNIT_AO,ERI_UNIT_MO,nbfns,S,C,RS,VT)
@@ -214,7 +211,6 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
      &            Rold,Cbar,epsilon,crit).EQ.OK) then
           write(*,*) " SCF DONE."
           write(ERROR_OUTPUT_UNIT,200) E+Enuc
-/*          @< Transform Back To Original Basis @> */
           if (irite.GT.0) then
              write(irite,*) " DENSITY MATRIX (ORTHOGONAL BASIS)"
              call pmat(R,nbfns,nbfns,irite)
@@ -282,7 +278,7 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       STOP
 @
 @< Program Formats @>=
-  200 format(" FINAL TOTAL ENERGY= ",f16.8)
+  200 format(" FINAL TOTAL ENERGY= ",f16.8,/)
   206 format(" NUCLEAR REPULSION ENERGY= ", f12.6)
   209 format(/," --- EXCITED STATE ENERGIES ---",/)
 @
@@ -292,80 +288,7 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
 This is  Version 1 of the Hartree-Fock theory implemented
 for closed shells (RHF) and open shells (UHF-DODS) calculations.
 
-\ \\ \ \\
-\begin{minipage}{4.5in}
-\ \\
-\begin{description}
-\item[NAME] \    SCF     \\
- Perform LCAO-MO-SCF calculation on a molecule.
-
-\item[SYNOPSIS] \     \\
- {\tt double precision function scf(H, C, nbasis, nelec, nfile, \\
-                              irite, damp, interp, E, HF, V, R, Rold, Ubar, eps, crit)
-   \ \\
-  integer nbasis, nelec, nfile, irite \\
-  double precision damp, E \\
-  double precision H(ARB), C(ARB), HF(ARB), V(ARB), R(ARB) \\
-  double precision Rold(ARB), Ubar(ARB), eps(ARB) \\
- }
-
-\item[DESCRIPTION] \  \\
- Perform LCAO-MO calculation of either closed-shell RHF type or more general
-open-shell (real) UHF-DODS type. The method is traditional Roothan repeated
-diagonalizations of Hartree-Fock matrix until self-consistency is reached:
-\[
-   {\bf F} \cdot {\bf C} = {\bf S} \cdot {\bf C} \cdot {\boldmath \epsilon}
-\]
-
-\item[ARGUMENTS] \    \\
-\begin{description}
-\item[H] Input: One-electron Hamiltonian of size ({\tt nbasis x nbasis}), i.e.,
-                matrix elements of one-electron operator
-\item[C] Input/Output: An initial MO matrix - it must at least
-                orthigonalize the basis. Normally, it is simply the orthogonalization
-                matrix ${\bf S}^{-\frac{1}{2}}$. On output the SCF {\bf C} matrix
-                is placed here.
-\item[nbasis] Input: the number of \emph{spatial} orbitals in the basis (i.e., half
-                of the number of the spin-basis set functions if {\tt nelec} $\ge 0$)
-\item[nelec]  Input: The number of electrons in the system. 
-\item[nfile]  The electron-repulsion file unit.
-\item[itite]  Channel number for convergence information or zero if this information
-              is not necessary.
-\item[damp]   Hartree-Fock damping parameter.
-\item[interp] Interpolation parameter. If 0 no interpolation will be undertaken.
-\item[HF]     Output: for use as the Fock matrix
-\item[V]      Workspace: 
-\item[R]      Output: Density matrix
-\item[Rold]   Workspace:
-\item[Ubar]   Workspace:
-\item[eps]    Output: orbital energies (first {\tt nelec} are the occupied orbitals)
-\item[E]      Output: Total HF electronic energy
-\item[crit]   Convergence of the SCF procedure
-\end{description}
-
-\item[RETURNS] \    \\
-%\begin{description}
-   {\tt YES} if the calculation is converged in {\tt MAX\_SCF\_ITERATIONS} \\
-   {\tt NO } if no convergence is met. Typical usage:
-   {\tt if ( SCF(......) .EQ. YES ) then \\
-               output succesful calculation
-   }
-%\end{description}
-
-\item[SEE ALSO] \    \\
-%\begin{description}
- {\tt scfR, scfGR, eigen} 
-%\end{description}
-
-\item[DIAGNOSTICS] \  \\
-Happy!
-\end{description}
-\ \\ \ \\
-\end{minipage}
-\ \\ \ \\
-
 @a
-
       integer function SCF(H,C,nbasis,nelec,nfile,irite,damp,interp,E,HF,V,R,
      &                     Rold,Cbar,epsilon,crit)
 
@@ -709,63 +632,6 @@ C
 @* GRHF. This is an implementation of the General Energy Functional
 which can be succesfully used in the diverse methods such as ROHF, MCSCF
 and others.
-A rather cursory manual page is prepended. \ \\
-\newcommand{\nmat}[1]{\mbox{\large \boldmath $ #1$}}
-\newcommand{\nmatt}[1]{\mbox{\boldmath $ #1$}}
-\begin{minipage}{4.5in}
-\ \\
-\begin{description}
-\item[NAME] grhf
-
-\item[SYNOPSIS] \ \\
-\begin{verbatim}
-   subroutine grhf(H,V,nbasis,number_of_shells,norbs,noclst,
-                  nfile,nu,x,y,alpha,b,en,HF,R,eps,
-                  Work,Hbar,U, initial_scf,irite);
-\end{verbatim}
-\item[DESCRIPTION] \ \\
-Solves the spin-restricted many-shell ``Hartree-Fock'' problem.
-\item[ARGUMENTS] \ \\
-\begin{description}
-\item[H] Input: One-electron Hamiltonian. 
-\item[V] Input: Orthogonalistion Matrix.
-\item[nbasis] Input: Number of basis functions.
-\item[number\_of\_shells] Input: self explanatory
-\item[norbs] Input: |norbs(i), i=1,number_of_shells| are the number
-of MOs in each shell.
-\item[noclst] Input: |noclst(j,i), i = 1,norbs(j), j= 1,number_of_shells|
-are the sequence numbers of the orbitals in each shell.
-\item[nfile] Input: Logical file for repulsion integrals.
-\item[nu] Input: |nu(i), i = 1, number_of_shells| are
-the shell occupation  numbers.
-\item[x,y] Input: Symmetric matrices 
-(|number_of_shells|$\times$|number_of_shells|) of coupling coefficients. 
-\item[alpha] Input |alpha(i), i=1,number_of_shells| are ``level
-shifters'' for the shells.
-\item[b] Input: an 
-(|number_of_shells|$\times$|number_of_shells|) 
-anti-symmetric  matrix of ``damp factors''
-\item[HF] Workspace:  Large enough for a stack of
-|number_of_shells| Fock matrices.
-\item[R] Workspace: Must be large enough for a stack of
-|number_of_shells| density matrices.
-\item[Work] Workspace: Large enough for a stack of
-|number_of_shells|  matrices.
-\item[Hbar] Workspace:  The McWeenyan.
-\item[eps] Output: Eigenvalues of McWeenyan.
-\item[U] Input/Output: An initial set of MO
-coefficients if |initial_scf = NO|. On output final MO coefficients.
-
-\end{description}
-
-\item[DIAGNOSTICS] \  \\
-Routine output of Energy and convergence information
-as calculation proceeds. Message on convergence failure.
-\end{description}
-\ \\ \ \\
-\end{minipage}
-\clearpage
-
 
 @a
       integer function grhf(H,V,nbasis,number_of_shells,norbs,noclst, 
@@ -1469,38 +1335,6 @@ whereas for DCI matrix elements we must compute
 Note that in the case of RHF reference $v=2$ while for UHF $v=1$.
 
 @*1 H\_CIS. Generate the CIS Hamiltonian.
-
-\begin{minipage}{4.5in}
-  \ \\
-\begin{description}
-\item[NAME] H\_CIS \\
-  Generate explicit CIS Hamiltonian matrix
-\item[SYNOPSIS] \ \\
-\begin{verbatim}
-      subroutine H_CIS(HCI, nbasis, nocc, epsilon, nfile, v, nsize)
-
-      double precision HCI(*), epsilon(*), v
-      integer nbasis, nocc, nfile, nsize
-\end{verbatim}
-\item[DESCRIPTION] \ \\
- Make the CIS matrix in explicit matrix-list form HCI(*). The size of the
- matrix is $(nocc*(nbasis-nocc)+1)^2$.
-\item[ARGUMENTS] \ \\
-\begin{description}
-\item[HCI]     Input/Output: CIS Hamiltonian matrix
-\item[nbasis]  Input: Basis size (total number of orbitals)
-\item[nocc]    Input: Number of occupied orbitals
-\item[epsilon] Input: Orbital energies
-\item[nfile]   Input: File unit for ERI in MO space
-\item[v]       Input: 2 when reference is RHF case, 1 for UHF reference determinant
-\item[nsize]   Output: Dimension of CIS Hamiltonian
-\end{description}
-\item[DIAGNOSTICS] \ \\
- Since the resulting CIS matrix is generally very large this subroutine 
- cannot be used for larger systems in larger basis sets.
-\end{description}
-\ \\
-\end{minipage}
 
 @m JUSE(r,a,s,b) BigK = ((a)-1) * mn+((r)-nocc); 
                  BigL = ((b)-1) * mn+((s)-nocc); 
@@ -2476,46 +2310,6 @@ of $\nu$ required and other values will be obtained by downward recursion of the
 which also requires the value of $\exp(-x)$ to be available.
 %
 
-\ \\ \ \\
-\begin{minipage}{4.5in}
-\ \\
-\begin{description}
-\item[NAME] \         \\
- fmch
-
-\item[SYNOPSIS] \     \\
- {\tt double precision function fmch(nu,x,y) \\
-   \ \\
-  implicit double precision (a-h,o-z) \\
-  double precision x, y \\
-  integer nu \\
- }
-
-\item[DESCRIPTION] \  \\
- Computes
-\[
-  F_\nu (x) = \int_0^1 t^{2\nu} e^{-x t^2} dt
-\]
-given $\nu$ and $x$. It is used in the evaluation of GTF
-nuclear attraction and electron-repulsion integrals.
-
-\item[ARGUMENTS] \    \\
-\begin{description}
-\item[nu] Input: The value of $\nu$ in the explicit formula above ({\tt integer})
-\item[x] Input: $x$ in the formula ({\tt double precision})
-\item[y] Input: $\exp(-x)$, assumed to be available.
-\end{description}
-
-\item[DIAGNOSTICS] \  \\
-If the relevant series of expansion used do not converge to a tolerance
-of $10^{-8}$, an error message is printed on standard output and the computation
-aborted.
-\end{description}
-\ \\ \ \\
-\end{minipage}
-\ \\ \ \\
-
-
 @a
       double precision function fmch(nu, x, y)
       @< Fmch Interface Declarations @>
@@ -2742,7 +2536,7 @@ C
              val = generi(i,j,k,l,0,eta,ngmx,nfirst,nlast,ntype,nr,
      &                            NO_OF_TYPES)
              if (dabs(val).LT.CRIT_ERI) cycle
-             CALL putint(nfile,i,j,k,l,mu,val,pointer,last)
+             call putint(nfile,i,j,k,l,mu,val,pointer,last)
           end do
       end if
 C
@@ -2811,44 +2605,7 @@ been computed) and is read |nbasis| times;
 once for each transformed index.
 
 Integrals over the new basis generated by |C| are output into
-|nfile2| in the usual standard |putint| format. \ \\
-\begin{minipage}{4.5in}
-\ \\
-\begin{description}
-\item[NAME]  \      \\
-tran2e
-\item[SYNOPSIS] \ \\
-\begin{verbatim}
-   subroutine tran2e(nfile1,nfile2,nbasis,C,W,RS,V)
-   implicit double precision (a-h,o-z)
-   double precision C(nbasis,nbasis),V(ntt,nbasis)
-   double precision  W(*)
-   integer RS(*)
-   integer nbasis,nfile1,nfile2
-\end{verbatim}
-\item[DESCRIPTION] \ \\
-Transforms the repulsion integrals residing on |nfile1| to the
-ones defined by the transformation matrix |C| and puts them onto
-file |nfile2|.
-\item[ARGUMENTS] \  \\
-\begin{description}
-\item[nfile1] Input: The logical number of the ({\tt getint}-legible)
-input repulsion integrals.
-\item[nfile2] Input: The logical number of the ({\tt putint}-generated)
-output repulsion integrals.
-\item[nbasis] Input: The number of basis functions.
-\item[C] Input: |nbasis|$\times$|nbasis| matrix of transformation
-coefficients (columns define new orbitals).
-\item[V, W, RS] Workspace. |RS| is an integer indexing array.
-\end{description}
-
-\item[DIAGNOSTICS] \  \\
-None
-\end{description}
-\ \\ \ \\
-\end{minipage}
-
-\clearpage
+|nfile2| in the usual standard |putint| format.
 
 @a
       subroutine tran2e(nfile1,nfile2,nbasis,C,W,RS,V)
@@ -3564,30 +3321,6 @@ matrices and tensors) in a special way.
 
 @*2 pvec. Print the entire vector as it stands.
 
-\begin{minipage}{4.5in}
-  \ \\
-\begin{description}
-\item[NAME] pvec \\
-  Print entire vector as it stands. Maximum number of text columns in one line is 8.
-\item[SYNOPSIS] \ \\
-\begin{verbatim}
-      subroutine pvec(vec, n)
-      double precision vec(*)
-      integer n
-\end{verbatim}
-\item[DESCRIPTION] \ \\
- None.
-\item[ARGUMENTS] \ \\
-\begin{description}
-\item[vec]  Input: Vector to be printed
-\item[n]    Input: Length of the vector
-\end{description}
-\item[DIAGNOSTICS] \ \\
-None
-\end{description}
-\ \\
-\end{minipage}
-
 @a
       subroutine pvec(vec,n)
       /* n - length of the vector */
@@ -3601,32 +3334,6 @@ None
 @ 
 
 @*2 pmat. Print the entire matrix as it stands.
-
-\begin{minipage}{4.5in}
-  \ \\
-\begin{description}
-\item[NAME] pmat \\
-  Print entire matrix as it stands. Maximum number of text columns in one line is 10.
-\item[SYNOPSIS] \ \\
-\begin{verbatim}
-      subroutine pmat(mat, n, m, iout)
-      double precision mat(*)
-      integer n, m, iout
-\end{verbatim}
-\item[DESCRIPTION] \ \\
- None.
-\item[ARGUMENTS] \ \\
-\begin{description}
-\item[mat]  Input: Matrix to be printed
-\item[n]    Input: Number of collumns in the matrix
-\item[m]    Input: Number of rows in the matrix
-\item[m]    Input: Output file unit
-\end{description}
-\item[DIAGNOSTICS] \ \\
-None
-\end{description}
-\ \\
-\end{minipage}
 
 @a
       subroutine pmat(mat,n,m,iout)
@@ -3646,31 +3353,6 @@ None
 
 @*2 porbe. Prints the orbital energies.
 
-\begin{minipage}{4.5in}
-  \ \\
-\begin{description}
-\item[NAME] porbe \\
-  Print orbital energies on the screen.
-\item[SYNOPSIS] \ \\
-\begin{verbatim}
-      subroutine pvec(eps, n, nocc)
-      double precision eps(*)
-      integer n, nocc
-\end{verbatim}
-\item[DESCRIPTION] \ \\
- The output is devided into occupied orbitals and virtual orbitals.
-\item[ARGUMENTS] \ \\
-\begin{description}
-\item[eps]  Input: Orbital energies
-\item[n]    Input: Basis size (total number of orbitals)
-\item[nocc] Input: Number of occupied orbitals
-\end{description}
-\item[DIAGNOSTICS] \ \\
-None
-\end{description}
-\ \\
-\end{minipage}
-
 @a
       subroutine porbe(eps,n,nocc)
       double precision eps(*)
@@ -3688,34 +3370,6 @@ None
 @
 
 @*2 writCI. Prints the CI information. 
-
-\begin{minipage}{4.5in}
-  \ \\
-\begin{description}
-\item[NAME] writCI \\
-  Print the output of CI calculation.
-\item[SYNOPSIS] \ \\
-\begin{verbatim}
-      subroutine writCI(CI, k, nocc, nbasis)
-      double precision CI(*)
-      integer k, nocc, nbasis
-\end{verbatim}
-\item[DESCRIPTION] \ \\
- The output contains the |k| first columns of CI eigenvectors and shows the CI coefficients
- related with a particular slater determinants if all of the coefficients are greater than specified threshold.
- Maximum value of |k| is 10.
-\item[ARGUMENTS] \ \\
-\begin{description}
-\item[CI]   Input: CI eigenvectors
-\item[k]    Input: Number of columns to print 
-\item[nocc] Input: Number of occupied orbitals
-\item[nbasis] Input: Basis set size
-\end{description}
-\item[DIAGNOSTICS] \ \\
-None
-\end{description}
-\ \\
-\end{minipage}
 
 @a
       subroutine writCI(CIcoeff,k,nocc,nbasis)
@@ -3779,27 +3433,384 @@ None
       end
 @
 
-@*1 mkCvec. Generate the wavefunction coefficient matrix ${\bf C}$
-of size |nbasis| $\times$ |nbasis| from the matrix 1-D array stored
-in the memory.
+@* MANUAL PAGES.
 
-@a
-      subroutine mkCvec(C,CT,nbasis)
-      double precision C(*)
-      double precision CT(MAX_BASIS_FUNCTIONS,*)
-      integer nbasis
+% ---------------------------------------------------------------------------------
+% MANUAL: SCF
+% ---------------------------------------------------------------------------------
 
-      integer i, j, ij
+\ \\ \ \\
+\begin{minipage}{6.1in}
+\ \\
+\begin{description}
+\item[NAME] \    SCF     \\
+ Perform LCAO-MO-SCF calculation on a molecule.
 
-      do i = 1, nbasis
-         do j = 1, nbasis
-            ij = nbasis*(j-1) + i
-            CT(i,j) = C(ij)
-         end do
-      end do
+\item[SYNOPSIS] \     \\
+ {\tt double precision function scf(H, C, nbasis, nelec, nfile, \\
+                              irite, damp, interp, E, HF, V, R, Rold, Ubar, eps, crit)
+   \ \\
+  integer nbasis, nelec, nfile, irite \\
+  double precision damp, E \\
+  double precision H(ARB), C(ARB), HF(ARB), V(ARB), R(ARB) \\
+  double precision Rold(ARB), Ubar(ARB), eps(ARB) \\
+ }
 
-      return
-      end
-@
+\item[DESCRIPTION] \  \\
+ Perform LCAO-MO calculation of either closed-shell RHF type or more general
+open-shell (real) UHF-DODS type. The method is traditional Roothan repeated
+diagonalizations of Hartree-Fock matrix until self-consistency is reached:
+\[
+   {\bf F} \cdot {\bf C} = {\bf S} \cdot {\bf C} \cdot {\boldmath \epsilon}
+\]
+
+\item[ARGUMENTS] \    \\
+\begin{description}
+\item[H] Input: One-electron Hamiltonian of size ({\tt nbasis x nbasis}), i.e.,
+                matrix elements of one-electron operator
+\item[C] Input/Output: An initial MO matrix - it must at least
+                orthigonalize the basis. Normally, it is simply the orthogonalization
+                matrix ${\bf S}^{-\frac{1}{2}}$. On output the SCF {\bf C} matrix
+                is placed here.
+\item[nbasis] Input: the number of \emph{spatial} orbitals in the basis (i.e., half
+                of the number of the spin-basis set functions if {\tt nelec} $\ge 0$)
+\item[nelec]  Input: The number of electrons in the system. 
+\item[nfile]  The electron-repulsion file unit.
+\item[itite]  Channel number for convergence information or zero if this information
+              is not necessary.
+\item[damp]   Hartree-Fock damping parameter.
+\item[interp] Interpolation parameter. If 0 no interpolation will be undertaken.
+\item[HF]     Output: for use as the Fock matrix
+\item[V]      Workspace: 
+\item[R]      Output: Density matrix
+\item[Rold]   Workspace:
+\item[Ubar]   Workspace:
+\item[eps]    Output: orbital energies (first {\tt nelec} are the occupied orbitals)
+\item[E]      Output: Total HF electronic energy
+\item[crit]   Convergence of the SCF procedure
+\end{description}
+
+\item[RETURNS] \    \\
+%\begin{description}
+   {\tt YES} if the calculation is converged in {\tt MAX\_SCF\_ITERATIONS} \\
+   {\tt NO } if no convergence is met. Typical usage:
+   {\tt if ( SCF(......) .EQ. YES ) then \\
+               output succesful calculation
+   }
+%\end{description}
+
+\item[SEE ALSO] \    \\
+%\begin{description}
+ {\tt scfR, scfGR, eigen} 
+%\end{description}
+
+\item[DIAGNOSTICS] \  \\
+Happy!
+\end{description}
+\ \\ \ \\
+\end{minipage}
+\clearpage
+
+% ---------------------------------------------------------------------------------
+% MANUAL: GRHF
+% ---------------------------------------------------------------------------------
+
+\newcommand{\nmat}[1]{\mbox{\large \boldmath $ #1$}}
+\newcommand{\nmatt}[1]{\mbox{\boldmath $ #1$}}
+\begin{minipage}{6.1in}
+\ \\
+\begin{description}
+\item[NAME] grhf
+
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+   subroutine grhf(H,V,nbasis,number_of_shells,norbs,noclst,
+                  nfile,nu,x,y,alpha,b,en,HF,R,eps,
+                  Work,Hbar,U, initial_scf,irite);
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+Solves the spin-restricted many-shell ``Hartree-Fock'' problem.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[H] Input: One-electron Hamiltonian. 
+\item[V] Input: Orthogonalistion Matrix.
+\item[nbasis] Input: Number of basis functions.
+\item[number\_of\_shells] Input: self explanatory
+\item[norbs] Input: |norbs(i), i=1,number_of_shells| are the number
+of MOs in each shell.
+\item[noclst] Input: |noclst(j,i), i = 1,norbs(j), j= 1,number_of_shells|
+are the sequence numbers of the orbitals in each shell.
+\item[nfile] Input: Logical file for repulsion integrals.
+\item[nu] Input: |nu(i), i = 1, number_of_shells| are
+the shell occupation  numbers.
+\item[x,y] Input: Symmetric matrices 
+(|number_of_shells|$\times$|number_of_shells|) of coupling coefficients. 
+\item[alpha] Input |alpha(i), i=1,number_of_shells| are ``level
+shifters'' for the shells.
+\item[b] Input: an 
+(|number_of_shells|$\times$|number_of_shells|) 
+anti-symmetric  matrix of ``damp factors''
+\item[HF] Workspace:  Large enough for a stack of
+|number_of_shells| Fock matrices.
+\item[R] Workspace: Must be large enough for a stack of
+|number_of_shells| density matrices.
+\item[Work] Workspace: Large enough for a stack of
+|number_of_shells|  matrices.
+\item[Hbar] Workspace:  The McWeenyan.
+\item[eps] Output: Eigenvalues of McWeenyan.
+\item[U] Input/Output: An initial set of MO
+coefficients if |initial_scf = NO|. On output final MO coefficients.
+
+\end{description}
+
+\item[DIAGNOSTICS] \  \\
+Routine output of Energy and convergence information
+as calculation proceeds. Message on convergence failure.
+\end{description}
+\ \\ \ \\
+\end{minipage}
+\clearpage
+
+% ---------------------------------------------------------------------------------
+% MANUAL: H_CIS
+% ---------------------------------------------------------------------------------
+
+\begin{minipage}{6.1in}
+  \ \\
+\begin{description}
+\item[NAME] H\_CIS \\
+  Generate explicit CIS Hamiltonian matrix
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+      subroutine H_CIS(HCI, nbasis, nocc, epsilon, nfile, v, nsize)
+
+      double precision HCI(*), epsilon(*), v
+      integer nbasis, nocc, nfile, nsize
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+ Make the CIS matrix in explicit matrix-list form HCI(*). The size of the
+ matrix is $(nocc*(nbasis-nocc)+1)^2$.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[HCI]     Input/Output: CIS Hamiltonian matrix
+\item[nbasis]  Input: Basis size (total number of orbitals)
+\item[nocc]    Input: Number of occupied orbitals
+\item[epsilon] Input: Orbital energies
+\item[nfile]   Input: File unit for ERI in MO space
+\item[v]       Input: 2 when reference is RHF case, 1 for UHF reference determinant
+\item[nsize]   Output: Dimension of CIS Hamiltonian
+\end{description}
+\item[DIAGNOSTICS] \ \\
+ Since the resulting CIS matrix is generally very large this subroutine 
+ cannot be used for larger systems in larger basis sets.
+\end{description}
+\ \\
+\end{minipage}
+\clearpage
+
+% ---------------------------------------------------------------------------------
+% MANUAL: FMCH
+% ---------------------------------------------------------------------------------
+
+\begin{minipage}{6.1in}
+\ \\
+\begin{description}
+\item[NAME] \         \\
+ fmch
+
+\item[SYNOPSIS] \     \\
+ {\tt double precision function fmch(nu,x,y) \\
+   \ \\
+  implicit double precision (a-h,o-z) \\
+  double precision x, y \\
+  integer nu \\
+ }
+
+\item[DESCRIPTION] \  \\
+ Computes
+\[
+  F_\nu (x) = \int_0^1 t^{2\nu} e^{-x t^2} dt
+\]
+given $\nu$ and $x$. It is used in the evaluation of GTF
+nuclear attraction and electron-repulsion integrals.
+
+\item[ARGUMENTS] \    \\
+\begin{description}
+\item[nu] Input: The value of $\nu$ in the explicit formula above ({\tt integer})
+\item[x] Input: $x$ in the formula ({\tt double precision})
+\item[y] Input: $\exp(-x)$, assumed to be available.
+\end{description}
+
+\item[DIAGNOSTICS] \  \\
+If the relevant series of expansion used do not converge to a tolerance
+of $10^{-8}$, an error message is printed on standard output and the computation
+aborted.
+\end{description}
+\ \\ \ \\
+\end{minipage}
+\clearpage
+
+% ---------------------------------------------------------------------------------
+% MANUAL: TRAN2E
+% ---------------------------------------------------------------------------------
+
+\begin{minipage}{6.1in}
+\ \\
+\begin{description}
+\item[NAME]  \      \\
+tran2e
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+   subroutine tran2e(nfile1,nfile2,nbasis,C,W,RS,V)
+   implicit double precision (a-h,o-z)
+   double precision C(nbasis,nbasis),V(ntt,nbasis)
+   double precision  W(*)
+   integer RS(*)
+   integer nbasis,nfile1,nfile2
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+Transforms the repulsion integrals residing on |nfile1| to the
+ones defined by the transformation matrix |C| and puts them onto
+file |nfile2|.
+\item[ARGUMENTS] \  \\
+\begin{description}
+\item[nfile1] Input: The logical number of the ({\tt getint}-legible)
+input repulsion integrals.
+\item[nfile2] Input: The logical number of the ({\tt putint}-generated)
+output repulsion integrals.
+\item[nbasis] Input: The number of basis functions.
+\item[C] Input: |nbasis|$\times$|nbasis| matrix of transformation
+coefficients (columns define new orbitals).
+\item[V, W, RS] Workspace. |RS| is an integer indexing array.
+\end{description}
+
+\item[DIAGNOSTICS] \  \\
+None
+\end{description}
+\ \\ \ \\
+\end{minipage}
+\clearpage
+
+% ---------------------------------------------------------------------------------
+% MANUAL: PVEC
+% ---------------------------------------------------------------------------------
+
+\begin{minipage}{6.1in}
+  \ \\
+\begin{description}
+\item[NAME] pvec \\
+  Print entire vector as it stands. Maximum number of text columns in one line is 8.
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+      subroutine pvec(vec, n)
+      double precision vec(*)
+      integer n
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+ None.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[vec]  Input: Vector to be printed
+\item[n]    Input: Length of the vector
+\end{description}
+\item[DIAGNOSTICS] \ \\
+None
+\end{description}
+\ \\
+\end{minipage}
+\clearpage
+
+% ---------------------------------------------------------------------------------
+% MANUAL: PMAT
+% ---------------------------------------------------------------------------------
+
+\begin{minipage}{6.1in}
+  \ \\
+\begin{description}
+\item[NAME] pmat \\
+  Print entire matrix as it stands. Maximum number of text columns in one line is 10.
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+      subroutine pmat(mat, n, m, iout)
+      double precision mat(*)
+      integer n, m, iout
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+ None.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[mat]  Input: Matrix to be printed
+\item[n]    Input: Number of collumns in the matrix
+\item[m]    Input: Number of rows in the matrix
+\item[m]    Input: Output file unit
+\end{description}
+\item[DIAGNOSTICS] \ \\
+None
+\end{description}
+\ \\
+\end{minipage}
+\clearpage
+
+% ---------------------------------------------------------------------------------
+% MANUAL: PORBE
+% ---------------------------------------------------------------------------------
+
+\begin{minipage}{6.1in}
+  \ \\
+\begin{description}
+\item[NAME] porbe \\
+  Print orbital energies on the screen.
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+      subroutine porbe(eps, n, nocc)
+      double precision eps(*)
+      integer n, nocc
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+ The output is devided into occupied orbitals and virtual orbitals.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[eps]  Input: Orbital energies
+\item[n]    Input: Basis size (total number of orbitals)
+\item[nocc] Input: Number of occupied orbitals
+\end{description}
+\item[DIAGNOSTICS] \ \\
+None
+\end{description}
+\ \\
+\end{minipage}
+\clearpage
+
+% ---------------------------------------------------------------------------------
+% MANUAL: WRITCI
+% ---------------------------------------------------------------------------------
+
+\begin{minipage}{6.1in}
+  \ \\
+\begin{description}
+\item[NAME] writCI \\
+  Print the output of CI calculation.
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+      subroutine writCI(CI, k, nocc, nbasis)
+      double precision CI(*)
+      integer k, nocc, nbasis
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+ The output contains the |k| first columns of CI eigenvectors and shows the CI coefficients
+ related with a particular slater determinants if all of the coefficients are greater than specified threshold.
+ Maximum value of |k| is 10.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[CI]   Input: CI eigenvectors
+\item[k]    Input: Number of columns to print 
+\item[nocc] Input: Number of occupied orbitals
+\item[nbasis] Input: Basis set size
+\end{description}
+\item[DIAGNOSTICS] \ \\
+None
+\end{description}
+\ \\
+\end{minipage}
 
 @* INDEX.
