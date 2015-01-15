@@ -12,6 +12,7 @@ Now implemented features:
 
 * Basis sets: cartesian GTFs of types s, p, d, f
 * RHF/UHF-DODS calculations
+* CIS calculations for singlet excited states (closed shells only)
 
 This program is based on the material from "Handbook of Computational Quantum Chemistry"
 of David. B.Cook
