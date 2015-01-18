@@ -20,6 +20,7 @@ mol = a.get_mol()
 bfs = mol.get_bfs()
 a.close()
 nelec = mol.get_atno().sum()
+nstate1, nstate2 = 1, 1
 
 # types of GTOs
 ntypes = {'[0 0 0]':1 ,
@@ -83,6 +84,7 @@ log = '%19d\n' % task
 log+= '%19.4E %19.4E %19d\n' % (crit, damp, interp)
 log+= '%19d\n' % read_eri
 log+= '%19d %19d\n' % (charge, multiplicity)
+log+= '%19d %19d\n' % (nstate1, nstate2)
 log+= '%19d\n' % nelec
 log+= '%19d %19d %19d\n' % (ncmx, nbfns, ngmx)
 for i in range(ncmx):
