@@ -41,12 +41,12 @@ syn region  webText    start='"'   end='"'
 syn keyword webStatement integer double precision implicit character real complex rewind cycle
 syn keyword webStatement while do end end do enddo if endif end if select case go to goto save exit
 syn keyword webStatement format write read open return data parameter equivalence continue else then
-syn keyword webFunction  call
+syn keyword webFunction  call logical
 syn keyword webInclude   STOP subroutine function program
 syn keyword webStatement INTEGER DOUBLE PRECISION IMPLICIT CHARACTER REAL COMPLEX REWIND CYCLE
 syn keyword webStatement WHILE DO END END DO ENDDO IF ENDIF END IF SELECT CASE GO TO GOTO SAVE EXIT
 syn keyword webStatement FORMAT WRITE READ OPEN RETURN DATA PARAMETER EQUIVALENCE CONTINUE ELSE THEN
-syn keyword webFunction  CALL
+syn keyword webFunction  CALL LOGICAL
 syn keyword webInclude   STOP SUBROUTINE FUNCTION PROGRAM
 
 syn match   webOperator     "\.\s*\(eq\|ne\)\s*\."
