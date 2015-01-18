@@ -146,7 +146,7 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       integer scf, grhf
       double precision calnrp, vv
       integer i, j, task, read_eri, charge, multiplicity 
-      integer n_unpaired, nsize
+      integer n_unpaired, nsize, nstate1, nstate2
      /* convention to store/use GTO types */
       data nr /
      &     0,1,0,0,2,0,0,1,1,0,3,0,0,2,2,1,0,1,0,1,
@@ -161,6 +161,7 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       read(INPUT_UNIT,*) crit, damp, interp                          /* SCF parmeters */
       read(INPUT_UNIT,*) read_eri                                    /* Flag of reading eri */
       read(INPUT_UNIT,*) charge, multiplicity
+      read(INPUT_UNIT,*) nstate1, nstate2                            /* Transition states */
       read(INPUT_UNIT,*) nelec                                       /* number of electrons */
       read(INPUT_UNIT,*) ncmx, nbfns, ngmx                           /* number of atoms, bfns and GTFs */
       read(INPUT_UNIT,*) (vlist(i,1), vlist(i,2), vlist(i,3),        /* atomic coordinates and charges */
@@ -258,6 +259,7 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
           nocc    = abs(nelec)
           m       = nbfns * 2
       end if
+      nvirt = nbfns - nocc
       vv = two
       if (nelec.LT.0) vv = one
       write(*,*) " CONSTRUCTING EXPLICIT CIS HAMILTONIAN"
@@ -272,6 +274,22 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       call writCI(Cbar,5,nocc,nbfns) 
       write(irite,*)
       call pmat(H,nsize,nsize,irite)
+
+c      if (nstate1.GT.nstate2) then
+c         write(*,*) " Switch the order of states please! Terminating."
+c         STOP
+c      end if
+      kk1 = (nstate1-1)*nvirt*nocc + 1
+      kk2 = (nstate2-1)*nvirt*nocc + 1
+      call cisR(S, Cbar(kk1), Cbar(kk2), nbfns, nocc, epsilon, R)
+      write(irite,*) " CIS DENSITY MATRIX BETWEEN STATES ", nstate1, nstate2
+      call pmat(R, nbfns, nbfns, irite)
+      write(*,210) nstate1
+      call pvec(epsilon, nbfns)
+      if (nstate1.NE.nstate2) then
+      write(*,210) nstate2
+      call pvec(epsilon(nbfns+1), nbfns)
+      end if
 @
 @< Perform MCSCF @>=
       write(*,*) " MCSCF NOT IMPLEMENTED YET. QUITTING ..."
@@ -281,6 +299,7 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
   200 format(" FINAL TOTAL ENERGY= ",f16.8,/)
   206 format(" NUCLEAR REPULSION ENERGY= ", f12.6)
   209 format(/," --- EXCITED STATE ENERGIES ---",/)
+  210 format(" --- NATURAL ORBITAL OCCUPANCIES FOR STATE ", i3, " ---")
 @
 
 @* RHF and UHF. 
@@ -1334,7 +1353,7 @@ whereas for DCI matrix elements we must compute
 %
 Note that in the case of RHF reference $v=2$ while for UHF $v=1$.
 
-@*1 H\_CIS. Generate the CIS Hamiltonian.
+@*2 H\_CIS. Generate the CIS Hamiltonian.
 
 @m JUSE(r,a,s,b) BigK = ((a)-1) * mn+((r)-nocc); 
                  BigL = ((b)-1) * mn+((s)-nocc); 
@@ -1451,6 +1470,183 @@ Note that in the case of RHF reference $v=2$ while for UHF $v=1$.
       integer r, s, a, b
       integer getint
       data one,zero/1.00D+00,0.00D+00/
+@
+
+@*1 Generation of CIS density matrices. 
+
+From the CIS eigenvectors one can compute excited state density matrices 
+as well as transition density matrices between either ground and excited states
+or two different excited states. From such transition density matrices one can easily
+compute ordinary and transition multipole moments (CAMM/TrCAMM). 
+
+First lets write down the expression for spatial state or transition density:
+%
+\begin{equation}\label{eq:rho1cis}
+\rho^{(AB)} ({\bf r}) = \sum_n^{\rm NOs} \sum_m^{\rm NOs} \chi^{(A)}_m ({\bf r}) \chi^{(B)*}_n ({\bf r}) \; ,
+\end{equation}
+%
+where $\chi^{(A)}_m ({\bf r})$ is the $m$-th \emph{natural orbital} for electronic state $A$.
+The natural orbitals are expanded in LCAO series in basis set space
+%
+\begin{equation}\label{eq:chinocis}
+\chi^{(A)}_m ({\bf r}) = \sum_i c_{im}^{(A)} \phi_i ({\bf r})  \; .
+\end{equation}
+%
+The expansion coefficients can be found from CIS eigenvectors. We have
+%
+\begin{equation}\label{eq:cimcis}
+c_{im}^{(A)} = \sum_a \sum_r \vert C_a^{r,(A)} \vert^2 c_{im} ^{ar} \nu_n^{ar}  \; .
+\end{equation}
+%
+In the above equation $c_{im}$ coefficients are appropriate elements of reference wavefunction
+eigenvectors that are associated with the configuration $a\rightarrow r$, whereas $\nu_n^{ar}$
+are the occupancies of orbitals in these configurations (generally they are either one or zero
+if the reference is an HF wave function). 
+
+Substituting Eq.\ref{eq:chinocis} and Eq.\ref{eq:cimcis} into Eq.\ref{eq:rho1cis} we obtain
+the neat expression for density in basis set space
+%
+\begin{equation}\label{eq:rho2cis}
+\rho^{(AB)} ({\bf r}) = \sum_{ij} R_{ij}^{(AB)} \phi_i ({\bf r}) \phi_j^* ({\bf r}) \; ,
+\end{equation}
+%
+where ${\bf R}$ is the density matrix expressed in basis set space. Note that the electronic states
+$A$ and $B$ are here arbitrary. The elements of ${\bf R}$ are
+%
+\begin{equation}
+R_{ij}^{(AB)} = \sum_{nm} c_{im}^{(A)} c_{jn}^{(B)*}  \; .
+\end{equation}
+%
+Additionally, one can define the natural orbital occupation numbers which can be between zero and one:
+%
+\begin{equation}\label{eq:cimcis}
+c_{im}^{(A)} = \sum_a \sum_r \vert C_a^{r,(A)} \vert^2 \nu_n^{ar}  \; .
+\end{equation}
+%
+These calculations are coded in the subroutines:
+%
+\begin{itemize}
+ \item |cisR| -- formation of density matrices
+ \item |cisNo| -- formation of natural orbital LCAO coefficients
+\end{itemize}
+
+@*2 cisR. Generate CIS density matrix.
+
+@a
+      subroutine cisR(Cref, Dk1, Dk2, nbasis, nocc, vocc, R)
+      @< CisR Interface Declarations @>
+      @< CisR Local Declarations @>
+
+      nn = nbasis * nbasis
+
+      @< Compute LCAO-NO coefficients for states k1 and k2 @>
+      @< Generate the density matrix @>
+
+      return
+      end
+@
+@< Compute LCAO-NO coefficients for states k1 and k2 @>=
+      call cisno( Cref, Dk1, nbasis, nocc, vocc(1), R(nn+1) )
+      call cisno( Cref, Dk2, nbasis, nocc, vocc(nbasis+1), R(2*nn+1) )
+@
+@< Generate the density matrix @>=
+      do i = 1, nbasis
+      do j = 1, nbasis
+         ij = (j-1)*nbasis + i
+         rd = 0.0D+00
+         do n = 1, nbasis
+            in = (n-1)*nbasis + i
+            do m = 1, nbasis
+               jm = (m-1)*nbasis + j
+               rd = rd + R(nn+in) * R(2*nn+jm)
+            end do
+         end do
+         R(ij) = rd
+      end do
+      end do
+@
+@< CisR Interface Declarations @>=
+      double precision Dk1(*), Dk2(*), R(*), Cref(*), vocc(*)
+      integer nbasis, nocc
+@
+@< CisR Local Declarations @>=
+      double precision rd
+      integer nn, i, j, ij, n, m, in, jm
+@
+
+@*1. cisno. Generate CIS natural orbitals.
+
+@a
+      subroutine cisno(Cref, Dk, nbasis, nocc, vocc, C)
+      @< Cisno Interface Declarations @>
+      @< Cisno Local Declarations @>
+
+      nvirt = nbasis - nocc
+      ntt = nocc*nvirt
+
+      @< Zero-out C and vocc @>
+      do ia = 1, nocc
+      do ir = nocc+1, nbasis
+         nd = (ia-1)*nvirt + ir - nocc
+         d = Dk(nd)
+         d = d*d
+         do n = 1, nbasis
+            @< Accumulate n-th Natural Orbital @>
+         end do     
+      end do
+      end do
+
+      return
+      end
+      @< Function for determining the determinant @>
+@
+@< Accumulate n-th Natural Orbital @>=
+      if (lciscf(n, ia, ir, nocc)) then
+         vocc(n) = vocc(n) + d         /* occupation numbers */
+         do i = 1, nbasis
+            in = (n-1)*nbasis + i
+            C(in) = C(in) + d * Cref(in)  /* LCAO-NO coefficients */
+         end do
+      end if
+@
+@< Function for determining the determinant @>=
+      logical function lciscf(i, a, r, nocc)
+      integer i, a, r, nocc
+      if (i.LE.nocc) then
+          if (i.NE.a) then
+              lciscf = .true. 
+              return
+          else
+              lciscf = .false.
+              return
+          end if
+      else
+          if (i.EQ.r) then
+              lciscf = .true.
+              return
+          else
+              lciscf = .false.
+              return
+          end if
+      end if
+      end
+@
+@< Zero-out C and vocc @>=
+      do i = 1, nbasis * nbasis
+         C(i) = 0.0D+00
+      end do 
+      do i = 1, nbasis
+         vocc(i) = 0.0D+00
+      end do
+@
+@< Cisno Interface Declarations @>=
+      double precision Cref(*), C(*), Dk(*), vocc(*)
+      integer nbasis, nocc
+@
+@< Cisno Local Declarations @>=
+      double precision d
+      logical lciscf
+      integer ia, ir, in, ntt, nd, nvirt
 @
 
 @* INTEGRALS.
@@ -3386,13 +3582,14 @@ matrices and tensors) in a special way.
           return
       end if
 
+      nvirt = nbasis - nocc
       write(ERROR_OUTPUT_UNIT,201)
       do ia = 1, nocc
       do ir = nocc+1, nbasis
-         kk = (ia-1)*(nbasis-nocc) + ir - nocc
+         kk = (ia-1)*nvirt + ir - nocc
          lprint = .FALSE.
          do j = 1, k
-            kkk = (nbasis-nocc)*nocc*j + kk
+            kkk = nvirt*nocc*(j-1) + kk
             d = CIcoeff(kkk)
             u(j) = d
             if (d.GT.crit) lprint = .TRUE.
