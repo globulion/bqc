@@ -275,20 +275,20 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       write(irite,*)
       call pmat(H,nsize,nsize,irite)
 
-c      if (nstate1.GT.nstate2) then
-c         write(*,*) " Switch the order of states please! Terminating."
-c         STOP
-c      end if
-      kk1 = (nstate1-1)*nvirt*nocc + 1
-      kk2 = (nstate2-1)*nvirt*nocc + 1
-      call cisR(S, Cbar(kk1), Cbar(kk2), nbfns, nocc, epsilon, R)
+      call cisR(S, Cbar, nstate1, nstate2, nbfns, nocc, epsilon, R)
       write(irite,*) " CIS DENSITY MATRIX BETWEEN STATES ", nstate1, nstate2
       call pmat(R, nbfns, nbfns, irite)
-      write(*,210) nstate1
-      call pvec(epsilon, nbfns)
-      if (nstate1.NE.nstate2) then
-      write(*,210) nstate2
-      call pvec(epsilon(nbfns+1), nbfns)
+
+      if (nstate1.NE.0) then
+          write(*,210) nstate1
+      else
+          write(*,210) nstate2
+      end if         
+      call pvec(epsilon(1), nbfns)
+
+      if ((nstate1.NE.nstate2).AND.(nstate1.NE.0)) then
+          write(*,210) nstate2
+          call pvec(epsilon(nbfns+1), nbfns)
       end if
 @
 @< Perform MCSCF @>=
@@ -1533,11 +1533,14 @@ These calculations are coded in the subroutines:
 @*2 cisR. Generate CIS density matrix.
 
 @a
-      subroutine cisR(Cref, Dk1, Dk2, nbasis, nocc, vocc, R)
+      subroutine cisR(Cref, Dk, k1, k2, nbasis, nocc, vocc, R)
       @< CisR Interface Declarations @>
       @< CisR Local Declarations @>
+      @< Check if level ordering convention is obeyed @>
 
       nn = nbasis * nbasis
+      nvirt = nbasis - nocc
+      ntt = nocc * nvirt
 
       @< Compute LCAO-NO coefficients for states k1 and k2 @>
       @< Generate the density matrix @>
@@ -1546,40 +1549,69 @@ These calculations are coded in the subroutines:
       end
 @
 @< Compute LCAO-NO coefficients for states k1 and k2 @>=
-      call cisno( Cref, Dk1, nbasis, nocc, vocc(1), R(nn+1) )
-      call cisno( Cref, Dk2, nbasis, nocc, vocc(nbasis+1), R(2*nn+1) )
+      nk2 = ntt*(k2-1) + 1
+      if (k1.GT.0) then
+         nk1 = ntt*(k1-1) + 1
+         call cisno( Cref, Dk(nk1), nbasis, nocc, vocc(1), R(nn+1) )
+         call cisno( Cref, Dk(nk2), nbasis, nocc, vocc(nbasis+1), R(2*nn+1) )
+      else
+         call cisno( Cref, Dk(nk2), nbasis, nocc, vocc(1), R(nn+1) )
+      end if
 @
 @< Generate the density matrix @>=
-      do i = 1, nbasis
-      do j = 1, nbasis
-         ij = (j-1)*nbasis + i
-         rd = 0.0D+00
-         do n = 1, nbasis
-            in = (n-1)*nbasis + i
-            do m = 1, nbasis
-               jm = (m-1)*nbasis + j
-               rd = rd + R(nn+in) * R(2*nn+jm)
-            end do
-         end do
-         R(ij) = rd
-      end do
-      end do
+      if (k1.GT.0) then
+          do i = 1, nbasis                         
+          do j = 1, nbasis
+             ij = (j-1)*nbasis + i
+             rd = 0.0D+00
+             do n = 1, nbasis
+                in = (n-1)*nbasis + i
+                do m = 1, nbasis
+                   jm = (m-1)*nbasis + j
+                   rd = rd + R(nn+in) * R(2*nn+jm)
+                end do
+             end do
+             R(ij) = rd
+          end do
+          end do
+      else
+          do i = 1, nbasis                         
+          do j = 1, nbasis
+             ij = (j-1)*nbasis + i
+             rd = 0.0D+00
+             do n = 1, nbasis
+                in = (n-1)*nbasis + i
+                do m = 1, nbasis
+                   jm = (m-1)*nbasis + j
+                   rd = rd + Cref(in) * R(nn+jm)
+                end do
+             end do
+             R(ij) = rd
+          end do
+          end do
+      end if
+@
+@< Check if level ordering convention is obeyed @>=
+      if (k1.GT.k2) then
+          write(*,*) " Change the order of states please! Termination."
+          STOP
+      end if
 @
 @< CisR Interface Declarations @>=
-      double precision Dk1(*), Dk2(*), R(*), Cref(*), vocc(*)
-      integer nbasis, nocc
+      double precision Dk(*), R(*), Cref(*), vocc(*)
+      integer nbasis, nocc, k1, k2
 @
 @< CisR Local Declarations @>=
       double precision rd
-      integer nn, i, j, ij, n, m, in, jm
+      integer nn, i, j, ij, n, m, in, jm, nvirt, ntt, nk1, nk2
 @
 
-@*1. cisno. Generate CIS natural orbitals.
+@*1. cisNO. Generate CIS natural orbitals.
 
 @a
-      subroutine cisno(Cref, Dk, nbasis, nocc, vocc, C)
-      @< Cisno Interface Declarations @>
-      @< Cisno Local Declarations @>
+      subroutine cisNO(Cref, Dk, nbasis, nocc, vocc, C)
+      @< CisNO Interface Declarations @>
+      @< CisNO Local Declarations @>
 
       nvirt = nbasis - nocc
       ntt = nocc*nvirt
@@ -1639,11 +1671,11 @@ These calculations are coded in the subroutines:
          vocc(i) = 0.0D+00
       end do
 @
-@< Cisno Interface Declarations @>=
+@< CisNO Interface Declarations @>=
       double precision Cref(*), C(*), Dk(*), vocc(*)
       integer nbasis, nocc
 @
-@< Cisno Local Declarations @>=
+@< CisNO Local Declarations @>=
       double precision d
       logical lciscf
       integer ia, ir, in, ntt, nd, nvirt
