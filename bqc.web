@@ -90,31 +90,36 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       irite = 12
 
       @< Read Structure Input @>
-      @< Calculate Nuclear Repulsion Energy @>
-      @< Generate Molecular Integrals @>
-      @< Orthogonalize The Basis @>
 
-      if (task.EQ.PURE_SCF) then
+      do nf = 1, nfrag
 
-         @< Perform SCF @> 
-  
-      else if (task.EQ.ROHF) then
+         @< Calculate Nuclear Repulsion Energy @> 
+         @< Generate Molecular Integrals @>
+         @< Orthogonalize The Basis @>
+                                                  
+         if (task.EQ.PURE_SCF) then
+                                                  
+            @< Perform SCF @> 
+                                                  
+         else if (task.EQ.ROHF) then
+                                                  
+            @< Perform ROHF @>
+                                                  
+         else if (task.EQ.DCI) then
+                                                  
+            @< Perform SCF @> 
+            @< Transform Molecular Integrals @>
+            @< Perform CIS @>
+                                                  
+         else if (task.EQ.MCSCF) then
+                                                  
+            @< Perform SCF @> 
+            @< Transform Molecular Integrals @>
+            @< Perform MCSCF @>
+                                                  
+         end if
 
-         @< Perform ROHF @>
-
-      else if (task.EQ.DCI) then
-
-         @< Perform SCF @> 
-         @< Transform Molecular Integrals @>
-         @< Perform CIS @>
-
-      else if (task.EQ.MCSCF) then
-
-         @< Perform SCF @> 
-         @< Transform Molecular Integrals @>
-         @< Perform MCSCF @>
-
-      end if
+      end do
 
       STOP
       END
@@ -127,7 +132,11 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       integer ntype(MAX_BASIS_FUNCTIONS)
       integer ncntr(MAX_BASIS_FUNCTIONS)
       integer nr(NO_OF_TYPES,3)
-      integer nbfns, ngmx, ncmx, nelec
+      integer nbfns(MAX_FRAGS), ngmx(MAX_FRAGS), ncmx(MAX_FRAGS), nelec(MAX_FRAGS)
+      integer charge(MAX_FRAGS), multiplicity(MAX_FRAGS)
+      integer nstate1(MAX_FRAGS), nstate2(MAX_FRAGS)
+      integer noffsn(MAX_FRAGS), noffsg(MAX_FRAGS), noffsb(MAX_FRAGS)
+      integer n_unpaired(MAX_FRAGS)
       integer interp, irite
       double precision S(MATRIX_SIZE),H(MATRIX_SIZE),HF(MATRIX_SIZE)
       double precision R(MATRIX_SIZE),Rold(MATRIX_SIZE)
@@ -145,8 +154,8 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       integer norbs(MAX_SHELLS)
       integer scf, grhf
       double precision calnrp, vv
-      integer i, j, task, read_eri, charge, multiplicity 
-      integer n_unpaired, nsize, nstate1, nstate2
+      integer i, j, task, read_eri
+      integer nsize, nfrag
      /* convention to store/use GTO types */
       data nr /
      &     0,1,0,0,2,0,0,1,1,0,3,0,0,2,2,1,0,1,0,1,
@@ -160,65 +169,87 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       read(INPUT_UNIT,*) task                                        /* The task integer identifier */
       read(INPUT_UNIT,*) crit, damp, interp                          /* SCF parmeters */
       read(INPUT_UNIT,*) read_eri                                    /* Flag of reading eri */
-      read(INPUT_UNIT,*) charge, multiplicity
-      read(INPUT_UNIT,*) nstate1, nstate2                            /* Transition states */
-      read(INPUT_UNIT,*) nelec                                       /* number of electrons */
-      read(INPUT_UNIT,*) ncmx, nbfns, ngmx                           /* number of atoms, bfns and GTFs */
-      read(INPUT_UNIT,*) (vlist(i,1), vlist(i,2), vlist(i,3),        /* atomic coordinates and charges */
-     &                    vlist(i,4), i=1,ncmx)
-      read(INPUT_UNIT,*) (eta(i,1), eta(i,2), eta(i,3), eta(i,4),    /* GTF's specifications */ 
-     &                    eta(i,5), i=1, ngmx)
-      read(INPUT_UNIT,*) (ntype (i), i=1, nbfns)                     /* */
-      read(INPUT_UNIT,*) (ncntr (i), i=1, nbfns)
-      read(INPUT_UNIT,*) (nfirst(i), i=1, nbfns)
-      read(INPUT_UNIT,*) (nlast (i), i=1, nbfns)
+      read(INPUT_UNIT,*) nfrag                                       /* Number of QM fragments */
+      read(INPUT_UNIT,*) (charge(i), i=1, nfrag)
+      read(INPUT_UNIT,*) (multiplicity(i), i=1, nfrag)
+      read(INPUT_UNIT,*) (nstate1(i), i=1, nfrag)
+      read(INPUT_UNIT,*) (nstate2(i), i=1, nfrag)                    /* Transition states */
+      read(INPUT_UNIT,*) (nelec(i), i=1, nfrag)                      /* number of electrons */
+      read(INPUT_UNIT,*) (ncmx(i), i=1, nfrag)
+      read(INPUT_UNIT,*) (nbfns(i), i=1, nfrag)
+      read(INPUT_UNIT,*) (ngmx(i), i=1, nfrag)                       /* number of atoms, bfns and GTFs */
+      read(INPUT_UNIT,*) (noffsn(i), i=1, nfrag)                     /* Offset for nuclei */
+      read(INPUT_UNIT,*) (noffsb(i), i=1, nfrag)                     /* Offset for basis functions */
+      read(INPUT_UNIT,*) (noffsg(i), i=1, nfrag)                     /* Offset for GTFs */
+   
+      @< Get total size of input data @>
 
-      n_unpaired = multiplicity - 1
+      read(INPUT_UNIT,*) (vlist(i,1), vlist(i,2), vlist(i,3),        /* atomic coordinates and charges */
+     &                    vlist(i,4), i=1,ncmx_tot)
+      read(INPUT_UNIT,*) (eta(i,1), eta(i,2), eta(i,3), eta(i,4),    /* GTF's specifications */ 
+     &                    eta(i,5), i=1, ngmx_tot)
+      read(INPUT_UNIT,*) (ntype (i), i=1, nbfns_tot)                 /* */
+      read(INPUT_UNIT,*) (ncntr (i), i=1, nbfns_tot)
+      read(INPUT_UNIT,*) (nfirst(i), i=1, nbfns_tot)
+      read(INPUT_UNIT,*) (nlast (i), i=1, nbfns_tot)
+
 @       
+@< Get total size of input data @>=
+      ngmx_tot = 0
+      ncmx_tot = 0
+      nbfns_tot= 0
+      do i = 1, nfrag
+         ngmx_tot = ngmx_tot + ngmx(i)
+         ncmx_tot = ncmx_tot + ncmx(i)
+         nbfns_tot = nbfns_tot + nbfns(i)
+         n_unpaired(i) = multiplicity(i) - 1
+      end do
+@
 @< Calculate Nuclear Repulsion Energy @>=
-      Enuc = CalNRP(vlist, ncmx)
+      Enuc = CalNRP(vlist, ncmx(nf), noffsn(nf))
       write(ERROR_OUTPUT_UNIT,206) Enuc
 @
 @< Generate Molecular Integrals @>=
       write(*,*) " CALCULATION OF MOLECULAR INTEGRALS"
-      noffsn = 0; noffsg = 0; noffsb = 0
-      call genint(ngmx,nbfns,eta,ntype,ncntr,nfirst,nlast,
-     &            vlist,ncmx,ncmx,S,H,ERI_UNIT_AO,read_eri,
-     &            noffsn, noffsg, noffsb)
+      noffsn_nf = noffsn(nf); noffsg_nf = noffsg(nf); noffsb_nf = noffsb(nf)
+      call genint(ngmx(nf),nbfns(nf),eta,ntype,ncntr,nfirst,nlast,
+     &            vlist,ncmx(nf),ncmx(nf),S,H,ERI_UNIT_AO,read_eri,
+     &            noffsn_nf, noffsg_nf, noffsb_nf)
 @
 @< Orthogonalize The Basis @>=
+      nbasis = nbfns(nf)
       if (irite.GT.0) then
          write(irite,*) " OVERLAP MATRIX"
-         call pmat(S,nbfns,nbfns,irite)
+         call pmat(S,nbasis,nbasis,irite)
       end if
-      call shalf(S,R,Cbar,nbfns)
+      call shalf(S,R,Cbar,nbasis)
       if (irite.GT.0) then
          write(irite,*) " ORTOGONALIZING MATRIX"
-         call pmat(S,nbfns,nbfns,irite)
+         call pmat(S,nbasis,nbasis,irite)
       end if
       /* save the orthogonalizer */
-      do i=1,nbfns*nbfns
+      do i=1,nbasis*nbasis
          V(i) = S(i)
       end do
 @
 @< Transform Molecular Integrals @>=
       write(ERROR_OUTPUT_UNIT,*) " TRANSFORMATION OF INTEGRALS TO MO BASIS"
-      call tran2e(ERI_UNIT_AO,ERI_UNIT_MO,nbfns,S,C,RS,VT)
+      call tran2e(ERI_UNIT_AO,ERI_UNIT_MO,nbfns(nf),S,C,RS,VT)
 @
 @< Perform SCF @>=
       if (irite.GT.0) then
           write(irite,*) " CORE HAMILTONIAN - NON-ORTHOGONAL BASIS"
-          call pmat(H,nbfns,nbfns,irite)
+          call pmat(H,nbasis,nbasis,irite)
       end if
-      if (scf(H,S,nbfns,nelec,ERI_UNIT_AO,irite,damp,interp,E,HF,VT,R,
+      if (scf(H,S,nbasis,nelec(nf),ERI_UNIT_AO,irite,damp,interp,E,HF,VT,R,
      &            Rold,Cbar,epsilon,crit).EQ.OK) then
           write(*,*) " SCF DONE."
           write(ERROR_OUTPUT_UNIT,200) E+Enuc
           if (irite.GT.0) then
              write(irite,*) " DENSITY MATRIX (ORTHOGONAL BASIS)"
-             call pmat(R,nbfns,nbfns,irite)
+             call pmat(R,nbasis,nbasis,irite)
              write(irite,*) " MO COEFFICIENTS (NON-ORTHOGONAL BASIS)"
-             call pmat(S,nbfns,nbfns,irite)
+             call pmat(S,nbasis,nbasis,irite)
           end if
       else
           write(*,*) " SCF FAILED. "
@@ -228,8 +259,8 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       /* setup the memorials for ROHF */
       number_of_shells = 2
       nu(1) = two; nu(2) = one
-      norbs(1) =(nelec - n_unpaired)/2
-      norbs(2) = n_unpaired
+      norbs(1) =(nelec(nf) - n_unpaired(nf))/2
+      norbs(2) = n_unpaired(nf)
       alpha(1) = zero; alpha(2) = zero
       xc(1,1) = one ; xc(1,2) = one ; xc(2,1) = one ; xc(2,2) = one
       yc(1,1) = half; yc(1,2) = half; yc(2,1) = half; yc(2,2) = one
@@ -244,26 +275,26 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       end do
       /* perform ROHF calculation */     
       initial_scf = YES
-      if (grhf(H,S,nbfns,2,norbs,noclst,ERI_UNIT_AO,nu,xc,yc,alpha,b,E,
+      if (grhf(H,S,nbasis,2,norbs,noclst,ERI_UNIT_AO,nu,xc,yc,alpha,b,E,
      &        HF,R,epsilon,Cbar,V,C,initial_scf,irite).EQ.OK) then
           write(*,*) " SCF DONE."
-          call porbe(epsilon, nbfns, norbs(1)+norbs(2))
+          call porbe(epsilon, nbasis, norbs(1)+norbs(2))
           write(ERROR_OUTPUT_UNIT,200) E+Enuc
       else
           write(*,*) " SCF FAILED. "
       end if
 @
 @< Perform CIS @>=
-      if (nelec.GT.zero) then /* closed shell case */ 
-          nocc    = nelec/2
-          m       = nbfns
+      if (nelec(nf).GT.zero) then /* closed shell case */ 
+          nocc    = nelec(nf)/2
+          m       = nbasis
       else                    /* open shell case */
-          nocc    = abs(nelec)
-          m       = nbfns * 2
+          nocc    = abs(nelec(nf))
+          m       = nbasis * 2
       end if
-      nvirt = nbfns - nocc
+      nvirt = nbasis - nocc
       vv = two
-      if (nelec.LT.0) vv = one
+      if (nelec(nf).LT.0) vv = one
       write(*,*) " CONSTRUCTING EXPLICIT CIS HAMILTONIAN"
       call H_CIS(H, m, nocc, epsilon, ERI_UNIT_MO, vv, nsize)
       write(*,*) " DIAGONALIZATION OF CIS HAMILTONIAN OF DIM ", nsize
@@ -273,24 +304,25 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       end do
       write(ERROR_OUTPUT_UNIT,209)
       call pvec(epsilon,5)
-      call writCI(Cbar,5,nocc,nbfns) 
+      call writCI(Cbar,5,nocc,nbasis) 
       write(irite,*)
       call pmat(H,nsize,nsize,irite)
 
-      call cisR(S, Cbar, nstate1, nstate2, nbfns, nocc, epsilon, R)
-      write(irite,*) " CIS DENSITY MATRIX BETWEEN STATES ", nstate1, nstate2
-      call pmat(R, nbfns, nbfns, irite)
+      ns1 = nstate1(nf); ns2 = nstate2(nf)
+      call cisR(S, Cbar, ns1, ns2, nbasis, nocc, epsilon, R)
+      write(irite,*) " CIS DENSITY MATRIX BETWEEN STATES ", ns1, ns2
+      call pmat(R, nbasis, nbasis, irite)
 
-      if (nstate1.NE.0) then
-          write(*,210) nstate1
+      if (ns1.NE.0) then
+          write(*,210) ns1
       else
-          write(*,210) nstate2
+          write(*,210) ns2
       end if         
-      call pvec(epsilon(1), nbfns)
+      call pvec(epsilon(1), nbasis)
 
-      if ((nstate1.NE.nstate2).AND.(nstate1.NE.0)) then
-          write(*,210) nstate2
-          call pvec(epsilon(nbfns+1), nbfns)
+      if ((ns1.NE.ns2).AND.(ns1.NE.0)) then
+          write(*,210) ns2
+          call pvec(epsilon(nbasis+1), nbasis)
       end if
 @
 @< Perform MCSCF @>=
@@ -3675,9 +3707,9 @@ matrices and tensors) in a special way.
 @*1 CalNRP. Calculates the nuclear repulsion energy.
 
 @a
-      double precision function CalNRP(vlist, ncmx)
+      double precision function CalNRP(vlist, ncmx, noffsn)
       double precision vlist(MAX_CENTRES,4)
-      integer ncmx
+      integer ncmx, noffsn
 
       double precision rij, zero, one, dx, dy, dz
       integer i, j
@@ -3685,12 +3717,14 @@ matrices and tensors) in a special way.
 
       CalNRP = zero
       do i=1, ncmx
+         nbi = noffsn + i
          do j=1, i-1
-            dx = vlist(i,1)-vlist(j,1)
-            dy = vlist(i,2)-vlist(j,2)
-            dz = vlist(i,3)-vlist(j,3)
+            nbj = noffsn + j
+            dx = vlist(nbi,1)-vlist(nbj,1)
+            dy = vlist(nbi,2)-vlist(nbj,2)
+            dz = vlist(nbi,3)-vlist(nbj,3)
             rij= dsqrt(dx*dx+dy*dy+dz*dz)
-            CalNRP = CalNRP + vlist(i,4) * vlist(j,4) / rij
+            CalNRP = CalNRP + vlist(nbi,4) * vlist(nbj,4) / rij
          end do
       end do
 
