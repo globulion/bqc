@@ -20,6 +20,7 @@
 
 @m WORK_MINV                10000
 
+@m MAX_FRAGS                4
 @m MAX_BASIS_FUNCTIONS      256
 @m MAX_BBFP2                32640  /* 256*(256-1)/2 */
 @m MAX_PRIMITIVES           1000
