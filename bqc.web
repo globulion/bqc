@@ -181,8 +181,10 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
 @
 @< Generate Molecular Integrals @>=
       write(*,*) " CALCULATION OF MOLECULAR INTEGRALS"
+      noffsn = 0; noffsg = 0; noffsb = 0
       call genint(ngmx,nbfns,eta,ntype,ncntr,nfirst,nlast,
-     &            vlist,ncmx,ncmx,S,H,ERI_UNIT_AO,read_eri)
+     &            vlist,ncmx,ncmx,S,H,ERI_UNIT_AO,read_eri,
+     &            noffsn, noffsg, noffsb)
 @
 @< Orthogonalize The Basis @>=
       if (irite.GT.0) then
@@ -1700,9 +1702,11 @@ integrals are computed as a sum of geometrical factors computed by
 
 @a
       double precision function genoei(i, j, eta, ngmx, nfirst,
-     &      nlast, ntype, nr, ntmx, vlist, noc, ncmx, ovltot, kintot)
+     &      nlast, ntype, nr, ntmx, vlist, noc, ncmx, ovltot, kintot,
+     &      noffsn, noffsg, noffsb)
       implicit double precision (a-h,o-z) 
       integer i, j, ngmx, ncmx, noc, ntmx 
+      integer noffsn, noffsg, noffsb 
       integer nfirst(*), nlast(*), ntype(*), nr(ntmx,3) 
       double precision ovltot, kintot 
       double precision eta(MAX_PRIMITIVES,5), vlist(MAX_CENTRES,4) 
@@ -1716,10 +1720,12 @@ integrals are computed as a sum of geometrical factors computed by
       @< One-electron Integer Setup @>   
 
 /* Inter-nuclear distance */
- 
-      rAB = (eta(iss,1)-eta(jss,1))**2 + 
-     &      (eta(iss,2)-eta(jss,2))**2 + 
-     &      (eta(iss,3)-eta(jss,3))**2 
+
+      nbiss = noffsg + iss 
+      nbjss = noffsg + jss 
+      rAB = (eta(nbiss,1)-eta(nbjss,1))**2 + 
+     &      (eta(nbiss,2)-eta(nbjss,2))**2 + 
+     &      (eta(nbiss,3)-eta(nbjss,3))**2 
 
 /* Initialise all accumulators   */
 
@@ -1764,7 +1770,7 @@ integrals are computed as a sum of geometrical factors computed by
                   end do
                end do
                                                                                            
-               tnai = tnai -pn*vlist(n,4)
+               tnai = tnai -pn*vlist(noffsn+n,4)
                                                                                            
             end do                /* end of loop over nuclei */
             totnai = totnai + prefa*tnai
@@ -1791,7 +1797,9 @@ working space {\em etc.}
 structures and obtain the contraction limits etc.
 
 @< One-electron Integer Setup @>=
-      ityp=ntype(i)  ; jtyp = ntype(j)                                      
+      nbi = noffsb + i
+      nbj = noffsb + j
+      ityp=ntype(nbi)  ; jtyp = ntype(nbj)                                      
       l1 = nr(ityp,1); m1 = nr(ityp,2); n1 = nr(ityp,3)
       l2 = nr(jtyp,1); m2 = nr(jtyp,2); n2 = nr(jtyp,3)
       imax = l1+l2+1 ; jmax = m1+m2+1 ; kmax = n1+n2+1
@@ -1799,8 +1807,8 @@ structures and obtain the contraction limits etc.
       if ( maxall.LT.jmax ) maxall = jmax
       if ( maxall.LT.kmax ) maxall = kmax
       if ( maxall.LT.2 )  maxall = 2  /* when all functions are "s" type */
-      iss = nfirst(i); il = nlast(i)
-      jss = nfirst(j); jl = nlast(j)
+      iss = nfirst(nbi); il = nlast(nbi)
+      jss = nfirst(nbj); jl = nlast(nbj)
 
 
 @ This simple code gets the Cartesian overlap components and
@@ -1960,9 +1968,10 @@ $$
 @ Get the co-ordinates of the attracting nucleus with respect to $\vec{P}$.
 
 @< Nuclear data @>=
-      cpx = p(1) - vlist(n,1)
-      cpy = p(2) - vlist(n,2)
-      cpz = p(3) - vlist(n,3)
+      nbn = noffsn + n
+      cpx = p(1) - vlist(nbn,1)
+      cpy = p(2) - vlist(nbn,2)
+      cpz = p(3) - vlist(nbn,3)
       pcsq = cpx*cpx + cpy*cpy + cpz*cpz
 
 
@@ -1973,25 +1982,30 @@ consulted for a detailed description of the calling sequence.
 
 @a
       double precision function generi(i,j,k,l,xyorz,eta,ngmx,nfirst, 
-     &                                         nlast,ntype,nr,ntmx)
+     &                                         nlast,ntype,nr,ntmx,
+     &                                         noffsn, noffsg, noffsb)
                                                                       
       implicit double precision (a-h,o-z)
       integer i, j, k, l, xyorz, ngmx, ntmx
       double precision eta(MAX_PRIMITIVES,5)
       integer nfirst(*), nlast(*), ntype(*), nr(ntmx,3)
+      integer noffsn, noffsg, noffsb
 
       @< Generi Local Declarations@>
    
       @< Factorials @>
    
       @< Two-electron Integer Setup @>
-   
-      rAB = (eta(is,1)-eta(js,1))**2 + 
-     &      (eta(is,2)-eta(js,2))**2 + 
-     &      (eta(is,3)-eta(js,3))**2
-      rCD = (eta(ks,1)-eta(ls,1))**2 + 
-     &      (eta(ks,2)-eta(ls,2))**2 + 
-     &      (eta(ks,3)-eta(ls,3))**2
+  
+      nbis = noffsg + is   ; nbks = noffsg + ks
+      nbjs = noffsg + js   ; nbls = noffsg + ls
+       
+      rAB = (eta(nbis,1)-eta(nbjs,1))**2 + 
+     &      (eta(nbis,2)-eta(nbjs,2))**2 + 
+     &      (eta(nbis,3)-eta(nbjs,3))**2
+      rCD = (eta(nbks,1)-eta(nbls,1))**2 + 
+     &      (eta(nbks,2)-eta(nbls,2))**2 + 
+     &      (eta(nbks,3)-eta(nbls,3))**2
    
       generi = zero
    
@@ -2068,10 +2082,15 @@ each of the four basis functions and the limits of the contraction
 in each case.
 
 @< Two-electron Integer Setup @>=
-      ityp = ntype(i)    
-      jtyp = ntype(j)
-      ktyp = ntype(k)
-      ltyp = ntype(l)
+      nbi = noffsb + i
+      nbj = noffsb + j
+      nbk = noffsb + k
+      nbl = noffsb + l
+
+      ityp = ntype(nbi)    
+      jtyp = ntype(nbj)
+      ktyp = ntype(nbk)
+      ltyp = ntype(nbl)
       l1   = nr(ityp, 1)
       m1   = nr(ityp, 2)
       n1   = nr(ityp, 3)
@@ -2084,22 +2103,25 @@ in each case.
       l4   = nr(ltyp, 1)
       m4   = nr(ltyp, 2)
       n4   = nr(ltyp, 3)
-      is   = nfirst(i)
-      il   = nlast(i)
-      js   = nfirst(j)
-      jl   = nlast(j)
-      ks   = nfirst(k)
-      kl   = nlast(k)
-      ls   = nfirst(l)
-      ll   = nlast(l)
+      is   = nfirst(nbi)
+      il   = nlast(nbi)
+      js   = nfirst(nbj)
+      jl   = nlast(nbj)
+      ks   = nfirst(nbk)
+      kl   = nlast(nbk)
+      ls   = nfirst(nbl)
+      ll   = nlast(nbl)
 
 @ Use the Gaussian Product Theorem to find the position vector
 $\vec{P}$, of the product of the two Gaussian exponential factors
 of the basis functions for electron 1.
 
 @< Compute PA @>=
-      aexp = eta(irun,4); anorm = eta(irun,5) 
-      bexp = eta(jrun,4); bnorm = eta(jrun,5)
+      nbirun = noffsg + irun
+      nbjrun = noffsg + jrun     
+
+      aexp = eta(nbirun,4); anorm = eta(nbirun,5) 
+      bexp = eta(nbjrun,4); bnorm = eta(nbjrun,5)
 
 /* |aexp| and |bexp| are the primitive GTF exponents for
    GTF |irun| and |jrun|, |anorm| and |bnorm| are the
@@ -2107,18 +2129,18 @@ of the basis functions for electron 1.
    |prefa|  */
 
       t1 = aexp + bexp; deleft = one/t1                  
+      
+      p(1) = (aexp*eta(nbirun,1)+bexp*eta(nbjrun,1))*deleft
+      p(2) = (aexp*eta(nbirun,2)+bexp*eta(nbjrun,2))*deleft
+      p(3) = (aexp*eta(nbirun,3)+bexp*eta(nbjrun,3))*deleft
                                                         
-      p(1) = (aexp*eta(irun,1)+bexp*eta(jrun,1))*deleft
-      p(2) = (aexp*eta(irun,2)+bexp*eta(jrun,2))*deleft
-      p(3) = (aexp*eta(irun,3)+bexp*eta(jrun,3))*deleft
+      pax = p(1) - eta(nbirun,1)
+      pay = p(2) - eta(nbirun,2)
+      paz = p(3) - eta(nbirun,3)
                                                         
-      pax = p(1) - eta(irun,1)
-      pay = p(2) - eta(irun,2)
-      paz = p(3) - eta(irun,3)
-                                                        
-      pbx = p(1) - eta(jrun,1)
-      pby = p(2) - eta(jrun,2)
-      pbz = p(3) - eta(jrun,3)
+      pbx = p(1) - eta(nbjrun,1)
+      pby = p(2) - eta(nbjrun,2)
+      pbz = p(3) - eta(nbjrun,3)
                                                         
       prefa = dexp(-aexp*bexp*rAB/t1)*pi*anorm*bnorm/t1
 
@@ -2127,8 +2149,11 @@ $\vec{Q}$, of the product of the two Gaussian exponential factors
 of the basis functions for electron 2.
 
 @< Compute QC @>=
-      cexpp = eta(krun,4); cnorm = eta(krun,5) 
-      dexpp = eta(lrun,4); dnorm = eta(lrun,5)
+      nbkrun = noffsg + krun
+      nblrun = noffsg + lrun
+
+      cexpp = eta(nbkrun,4); cnorm = eta(nbkrun,5) 
+      dexpp = eta(nblrun,4); dnorm = eta(nblrun,5)
 
 /* |cexp| and |dexp| are the primitive GTF exponents for
    GTF |krun| and |lrun|, |cnorm| and |dnorm| are the
@@ -2139,17 +2164,17 @@ of the basis functions for electron 2.
       t2m1   = one/t2
       fordel = t2m1 + deleft
                                                          
-      q(1) = (cexpp*eta(krun,1)+dexpp*eta(lrun,1))*t2m1
-      q(2) = (cexpp*eta(krun,2)+dexpp*eta(lrun,2))*t2m1
-      q(3) = (cexpp*eta(krun,3)+dexpp*eta(lrun,3))*t2m1
+      q(1) = (cexpp*eta(nbkrun,1)+dexpp*eta(nblrun,1))*t2m1
+      q(2) = (cexpp*eta(nbkrun,2)+dexpp*eta(nblrun,2))*t2m1
+      q(3) = (cexpp*eta(nbkrun,3)+dexpp*eta(nblrun,3))*t2m1
                                                          
-      qcx = q(1) - eta(krun,1)
-      qcy = q(2) - eta(krun,2)
-      qcz = q(3) - eta(krun,3)
+      qcx = q(1) - eta(nbkrun,1)
+      qcy = q(2) - eta(nbkrun,2)
+      qcz = q(3) - eta(nbkrun,3)
                                                          
-      qdx = q(1) - eta(lrun,1)
-      qdy = q(2) - eta(lrun,2)
-      qdz = q(3) - eta(lrun,3)
+      qdx = q(1) - eta(nblrun,1)
+      qdy = q(2) - eta(nblrun,2)
+      qdz = q(3) - eta(nblrun,3)
                                                          
       r(1) = p(1)-q(1)
       r(2) = p(2)-q(2)
@@ -2646,24 +2671,24 @@ from the |file|.
       character*8 labels(INT_BLOCK_SIZE)
       data max_pointer/INT_BLOCK_SIZE/, iend/NOT_LAST_BLOCK/
       data zero/0.0D00/
-  
+ 
    /* File must be rewound before first use of this function
       and pointer must be set to 0 */
   
-      if (pointer.EQ.max_pointer) then
-          if (iend.EQ.LAST_BLOCK) then
-              val = zero; i = 0; j = 0; k = 0; l = 0
-              max_pointer = 0; iend = NOT_LAST_BLOCK
-              getint = END_OF_FILE
-              return
+          if (pointer.EQ.max_pointer) then                
+              if (iend.EQ.LAST_BLOCK) then
+                  val = zero; i = 0; j = 0; k = 0; l = 0
+                  max_pointer = 0; iend = NOT_LAST_BLOCK
+                  getint = END_OF_FILE
+                  return
+              end if
+              read(file) max_pointer, iend, labels, value
+              pointer = 0
           end if
-          read(file) max_pointer, iend, labels, value
-          pointer = 0
-      end if
-      pointer = pointer + 1
-      call unpack(labels(pointer),i,j,k,l,mu,id)
-      val = value(pointer)
-      getint = OK
+          pointer = pointer + 1
+          call unpack(labels(pointer),i,j,k,l,mu,id)
+          val = value(pointer)
+          getint = OK
 
       return
       end
@@ -2707,9 +2732,11 @@ from the |file|.
 
 @a
       subroutine genint (ngmx, nbfns, eta, ntype, ncntr, nfirst, 
-     &                   nlast, vlist, ncmx, noc, S, H, nfile, read_eri)
+     &                   nlast, vlist, ncmx, noc, S, H, nfile, read_eri,
+     &                   noffsn, noffsg, noffsb)
       integer ngmx, nbfns, noc, ncmx
       integer read_eri
+      integer noffsn, noffsg, noffsb
       double precision eta(MAX_PRIMITIVES, 5), vlist(MAX_CENTRES, 4)
       double precision S(ARB), H(ARB)
       integer ntype(ARB), nfirst(ARB), nlast(ARB), ncntr(ARB), nfile
@@ -2746,7 +2773,8 @@ C
          do j=1, i
             ij = (j-1)*nbfns+i; ji = (i-1)*nbfns+j
             H(ij) = genoei(i,j,eta,ngmx,nfirst,nlast,ntype,
-     &               nr,NO_OF_TYPES,vlist,noc,ncmx,ovltot,kintot)
+     &               nr,NO_OF_TYPES,vlist,noc,ncmx,ovltot,kintot,
+     &               noffsn, noffsg, noffsb)
             H(ji) = H(ij)
             S(ij) = ovltot; S(ji) = ovltot
          end do
@@ -2762,7 +2790,9 @@ C
           do while (next_label(i,j,k,l,nbfns).EQ.YES)
              if (l.EQ.nbfns) last = YES
              val = generi(i,j,k,l,0,eta,ngmx,nfirst,nlast,ntype,nr,
-     &                            NO_OF_TYPES)
+     &                            NO_OF_TYPES,
+     &               noffsn, noffsg, noffsb)
+
              if (dabs(val).LT.CRIT_ERI) cycle
              call putint(nfile,i,j,k,l,mu,val,pointer,last)
           end do
@@ -2774,47 +2804,53 @@ C
 
 @< Copy GTO contraction coeffs to gtoC @>=
       do i=1,ngmx
-         gtoC(i) = eta(i,5)
+         gtoC(noffsg+i) = eta(noffsg+i,5)
       end do
 @
 @< Normalize the primitives @>=
       /* First, normalize the primitives */
       do j = 1, nbfns
-         jtyp = ntype(j); js = nfirst(j); jf = nlast(j)
+         nbjj = noffsb+j
+         jtyp = ntype(nbjj); js = nfirst(nbjj); jf = nlast(nbjj)
          l = nr(jtyp,1); m = nr(jtyp,2); n = nr(jtyp,3)
          do i = js, jf
-            alpha = eta(i,4); SOO = pitern*(half/alpha)**onep5
+            alpha = eta(noffsg+i,4); SOO = pitern*(half/alpha)**onep5
             t1 = dfact(l+1)/alpha**l
             t2 = dfact(m+1)/alpha**m
             t3 = dfact(n+1)/alpha**n
-            eta(i,5) = one/dsqrt(SOO*t1*t2*t3)
+            eta(noffsg+i,5) = one/dsqrt(SOO*t1*t2*t3)
          end do
       end do
       /* Now normalize the basis functions */
       do j = 1, nbfns
-         jtyp = ntype(j); js = nfirst(j); jf = nlast(j)
+         nbjj = noffsb + j
+         jtyp = ntype(nbjj); js = nfirst(nbjj); jf = nlast(nbjj)
          l = nr(jtyp,1); m = nr(jtyp,2); n = nr(jtyp,3)
 
          sum = zero
          do ii = js, jf
+            nbii = noffsg + ii
             do jj = js, jf
-               t = one/(eta(ii,4)+eta(jj,4))
-               SOO = pitern*(t**onep5)*eta(ii,5)*eta(jj,5)
+               nbjj = noffsg + jj
+               t = one/(eta(nbii,4)+eta(nbjj,4))
+               SOO = pitern*(t**onep5)*eta(nbii,5)*eta(nbjj,5)
                t = half*t
                t1 = dfact(l+1)*t**l
                t2 = dfact(m+1)*t**m
                t3 = dfact(n+1)*t**n
-               sum = sum + gtoC(ii)*gtoC(jj)*SOO*t1*t2*t3
+               sum = sum + gtoC(nbii)*gtoC(nbjj)*SOO*t1*t2*t3
             end do
          end do
          sum = one / dsqrt(sum)
          do ii = js, jf
-            gtoC(ii) = gtoC(ii) * sum
+            nbii = noffsg + ii
+            gtoC(nbii) = gtoC(nbii) * sum
          end do
       end do
  
       do ii = 1, ngmx
-         eta(ii,5) = eta(ii,5) * gtoC(ii)
+         nbii = noffsg + ii
+         eta(nbii,5) = eta(nbii,5) * gtoC(nbii)
       end do
 @
 @*1 Integral transfotmations.
