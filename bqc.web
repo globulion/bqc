@@ -91,38 +91,86 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
 
       @< Read Structure Input @>
 
-      do nf = 1, nfrag
+      if (task.LT.DFI) then
+          do nf = 1, nfrag                             
+                                                       
+             @< Calculate Nuclear Repulsion Energy @> 
+             @< Generate Molecular Integrals @>
+             @< Orthogonalize The Basis @>
+                                                      
+             if (task.EQ.PURE_SCF) then
+                                                      
+                @< Perform SCF @> 
+                                                      
+             else if (task.EQ.ROHF) then
+                                                      
+                @< Perform ROHF @>
+                                                      
+             else if (task.EQ.DCI) then
+                                                      
+                @< Perform SCF @> 
+                @< Transform Molecular Integrals @>
+                @< Perform CIS @>
+                                                      
+             else if (task.EQ.MCSCF) then
+                                                      
+                @< Perform SCF @> 
+                @< Transform Molecular Integrals @>
+                @< Perform MCSCF @>
+                                                      
+             end if
+                                                       
+          end do
 
-         @< Calculate Nuclear Repulsion Energy @> 
-         @< Generate Molecular Integrals @>
-         @< Orthogonalize The Basis @>
-                                                  
-         if (task.EQ.PURE_SCF) then
-                                                  
-            @< Perform SCF @> 
-                                                  
-         else if (task.EQ.ROHF) then
-                                                  
-            @< Perform ROHF @>
-                                                  
-         else if (task.EQ.DCI) then
-                                                  
-            @< Perform SCF @> 
-            @< Transform Molecular Integrals @>
-            @< Perform CIS @>
-                                                  
-         else if (task.EQ.MCSCF) then
-                                                  
-            @< Perform SCF @> 
-            @< Transform Molecular Integrals @>
-            @< Perform MCSCF @>
-                                                  
-         end if
+      else
+          @< Perform DFI @> 
 
-      end do
+          if (task.EQ.TDFICIS) then
+             @< Perform TDFI-CIS @>
+          end if
+      end if
 
       STOP
       END
+@
+@< Perform TDFI-CIS @>=
+      write(*,*) " TDFI-CIS ISN'T IMPLEMENTED YET. TERMINATION..."
+      STOP
+@
+@< Perform DFI @>=
+      do nf = 1, nfrag
+
+         write(*,*) " --- CALCULATION FOR MOLECULE ", nf, " ---"
+
+         @< Calculate Nuclear Repulsion Energy @>
+
+         noffsn_nf = noffsn(nf); noffsg_nf = noffsg(nf); noffsb_nf = noffsb(nf)
+         nbasis = nbfns(nf)
+         nn = nbasis * nbasis
+         noffsm = (nf-1) * nn
+         noffsv = (nf-1) * nbasis
+
+         /* Calculate integrals for the current fragment */
+         call genint(ngmx(nf),nbfns(nf),eta,ntype,ncntr,nfirst,nlast,
+     &               vlist,ncmx(nf),ncmx(nf),S(noffsm+1),H(noffsm+1),ERI_UNIT_AO,read_eri,
+     &               noffsn_nf, noffsg_nf, noffsb_nf)
+
+         /* Orthogonalize the basis */
+         call shalf(S(noffsm+1),R,Cbar,nbasis)
+         do i = 1, nn
+            V(noffsm+i) = S(noffsm+i)
+         end do
+
+         /* Solve Hartree-Fock equations */
+         if (scf(H(noffsm+1),S(noffsm+1),nbasis,nelec(nf),ERI_UNIT_AO,irite,damp,interp,E,HF(noffsm+1),VT,R(noffsm+1), 
+     &               Rold,Cbar,epsilon(noffsv+1),crit).EQ.OK) then
+             write(*,*) " SCF DONE."
+             write(ERROR_OUTPUT_UNIT,200) E+Enuc
+         else
+             write(*,*) " SCF FAILED. "
+         end if
+
+      end do      
 @
 @< Program Declarations @>=
       double precision vlist(MAX_CENTRES,4)

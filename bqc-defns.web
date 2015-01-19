@@ -38,6 +38,8 @@
 @m ROHF                      91
 @m DCI                       92
 @m MCSCF                     93
+@m DFI                       100
+@m TDFICIS                   101
 
 @m MATRIX_SIZE                262144
 @m MATRIX_SIZE_BIG            10000000
