@@ -226,7 +226,7 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
          noffsba = noffsb(nfa)
          noffsga = noffsg(nfa)
 
-         @< DFI-Iter: Initialize the gas-phase core Hamiltonian @>
+         @< DFI-Iter: Initialize the gas-phase core Hamiltonian for fragment |a| @>
 
          /* Iterate over other fragments to complete DFI core Hamiltonian */
          do nfb = 1, nfrag
@@ -248,7 +248,7 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
                                                                                             
                    @< DFI-Iter: Contribution to fragment |a| from electron density of fragment |b| @>
 
-                   @< DFI-Iter: Accumulate DFI core Hamiltonian matrix for current fragment @>
+                   @< DFI-Iter: Accumulate DFI core Hamiltonian matrix for fragment |a| @>
 
                 end do
                 end do
@@ -258,27 +258,27 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
 
          @< DFI-Iter: Start accumulate energy for fragment |a| here @>
 
-         @< DFI-Iter: Compute G matrix from fragment ERIs and current density matrixes @>
+         @< DFI-Iter: Compute G matrix from fragment ERIs and |a|'s density matrixes @>
 
-         @< DFI-Iter: End with fragment energy @>
+         @< DFI-Iter: End with energy of fragment |a| @>
 
-         @< DFI-Iter: Diagonalize DFI-Fock matrix for current fragment @>
+         @< DFI-Iter: Diagonalize DFI-Fock matrix for fragment |a| @>
 
-         @< DFI-Iter: Compute new density matrix @>
+         @< DFI-Iter: Compute new density matrix for fragment |a| @>
 
       end do
 
       @< DFI-Iter: Compute the total energy of the system @>
 @
 
-@< DFI-Iter: Initialize the gas-phase core Hamiltonian @>=
+@< DFI-Iter: Initialize the gas-phase core Hamiltonian for fragment |a| @>=
       do i = 1, nana
          HF(noffsma+i) = H(noffsma+i)
       end do
 @
 @< DFI-Iter: Contribution to fragment |a| from nuclei of fragment |b| @>=
       vij = genvei(i, j, eta, ngmxa, nfirst,
-     &                   nlast, ntype, nr, ntmx, vlist, nocb, nocb,
+     &                   nlast, ntype, nr, 20, vlist, ncmxb, ncmxb,
      &                   noffsnb, noffsga, noffsba)
 @
 @< DFI-Iter: Contribution to fragment |a| from electron density of fragment |b| @>=
@@ -292,11 +292,11 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
      &                      nlast,ntype,nr,20,
      &                      noffsga, noffsba, noffsgb, noffsbb, EXCHANGE)
          vij = vij + R(noffsmb+kl) * (two*vJ - vK)
-C         vij = vij + R(noffsmb+kl) * two*vJ
+C        vij = vij + R(noffsmb+kl) * two*vJ
       end do
       end do
 @
-@< DFI-Iter: Accumulate DFI core Hamiltonian matrix for current fragment @>=
+@< DFI-Iter: Accumulate DFI core Hamiltonian matrix for fragment |a| @>=
       ij = nbasisa*(j-1) + i
       HF(noffsma+ij) = HF(noffsma+ij) + vij
 
@@ -311,16 +311,16 @@ C         vij = vij + R(noffsmb+kl) * two*vJ
          E = E + R(noffsma+i) * HF(noffsma+i)
       end do
 @
-@< DFI-Iter: Compute G matrix from fragment ERIs and current density matrixes @>=
+@< DFI-Iter: Compute G matrix from fragment ERIs and |a|'s density matrixes @>=
       call scfGR(R(noffsma+1), HF(noffsma+1), na, ERI_UNIT_AO+1+nfa, CLOSED_SHELL_CALCULATION)
 @
-@< DFI-Iter: End with fragment energy @>=
+@< DFI-Iter: End with energy of fragment |a| @>=
       do i = 1, nana
          E = E + R(noffsma+i) * HF(noffsma+i)
       end do
       small(nfa) = E   /* store the current fragment energy */
 @
-@< DFI-Iter: Diagonalize DFI-Fock matrix for current fragment @>=
+@< DFI-Iter: Diagonalize DFI-Fock matrix for fragment |a| @>=
       call gtprd(S(noffsma+1), HF(noffsma+1), Rold, na, na, na) 
       call gmprd(Rold, S(noffsma+1), HF(noffsma+1), na, na, na)
       call eigen(HF(noffsma+1), Cbar, na)
@@ -330,7 +330,7 @@ C         vij = vij + R(noffsmb+kl) * two*vJ
 c      write(*,*) " ITERATION ", iter
 c      call pvec(epsilon(noffsva+1), 10)
 @
-@< DFI-Iter: Compute new density matrix @>=
+@< DFI-Iter: Compute new density matrix for fragment |a| @>=
       call gmprd(S(noffsma+1), Cbar, C, na, na, na)
       call scfR(C, VT, na, nelec(nfa)/2)    /* Close-shell case assumed */
 
