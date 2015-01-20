@@ -51,3 +51,6 @@
 
 @m FOCK_GENERAL               1234
 @m FOCK_HALF_CLOSED           2345
+
+@m COULOMB                    1342
+@m EXCHANGE                   4530

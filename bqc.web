@@ -126,7 +126,9 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
           @< Perform DFI @> 
 
           if (task.EQ.TDFICIS) then
+
              @< Perform TDFI-CIS @>
+
           end if
       end if
 
@@ -147,22 +149,23 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
          noffsn_nf = noffsn(nf); noffsg_nf = noffsg(nf); noffsb_nf = noffsb(nf)
          nbasis = nbfns(nf)
          nn = nbasis * nbasis
-         noffsm = (nf-1) * nn
-         noffsv = (nf-1) * nbasis
+         n  = nbasis
+         noffsm = (nf-1) * nn           /* linear memory offset for matrix */
+         noffsv = (nf-1) * nbasis       /* linear memory offset for vector */
 
          /* Calculate integrals for the current fragment */
          call genint(ngmx(nf),nbfns(nf),eta,ntype,ncntr,nfirst,nlast,
-     &               vlist,ncmx(nf),ncmx(nf),S(noffsm+1),H(noffsm+1),ERI_UNIT_AO,read_eri,
+     &               vlist,ncmx(nf),ncmx(nf),S(noffsm+1),H(noffsm+1),ERI_UNIT_AO+nf+1,read_eri,
      &               noffsn_nf, noffsg_nf, noffsb_nf)
 
          /* Orthogonalize the basis */
-         call shalf(S(noffsm+1),R,Cbar,nbasis)
+         call shalf(S(noffsm+1),R(noffsm+1),Cbar,nbasis)
          do i = 1, nn
             V(noffsm+i) = S(noffsm+i)
          end do
 
-         /* Solve Hartree-Fock equations */
-         if (scf(H(noffsm+1),S(noffsm+1),nbasis,nelec(nf),ERI_UNIT_AO,irite,damp,interp,E,HF(noffsm+1),VT,R(noffsm+1), 
+         /* Solve Hartree-Fock equations in gas-phase */
+         if (scf(H(noffsm+1),S(noffsm+1),nbasis,nelec(nf),ERI_UNIT_AO+nf+1,irite,damp,interp,E,HF(noffsm+1),VT,R(noffsm+1), 
      &               Rold,Cbar,epsilon(noffsv+1),crit).EQ.OK) then
              write(*,*) " SCF DONE."
              write(ERROR_OUTPUT_UNIT,200) E+Enuc
@@ -170,7 +173,122 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
              write(*,*) " SCF FAILED. "
          end if
 
+         /* Transform Fock matrix to AO basis --- not necessary */
+c         call gmprd(S(noffsm+1), HF(noffsm+1), Rold, n, n, n) 
+c         call gkprd(Rold, S(noffsm+1), HF(noffsm+1), n, n, n)
       end do      
+
+      /* Start DFI iterations */
+      write(*,*) " STARTING DFI ITERATIONS"
+      icon = 100
+      iter = 0
+
+      do while(iter.LT.30)
+         iter = iter + 1
+         do nfa = 1, nfrag                                                                     
+            nbasisa = nbfns(nfa)
+            ngmxa   = ngmx(nfa)
+
+            na = nbasisa; nana = na*na
+            noffsva = (nfa-1) * na
+            noffsma = (nfa-1) * nana
+            noffsna = noffsn(nfa)
+            noffsba = noffsb(nfa)
+            noffsga = noffsg(nfa)
+
+            /* Copy the gas-phase core Hamiltonian */
+            do i = 1, nana
+               VT(noffsma+i) = H(noffsma+i)
+            end do
+            /* Iterate over other fragments to complete DFI core Hamiltonian */
+            do nfb = 1, nfrag
+               if (nfb.NE.nfa) then
+                   nbasisb = nbfns(nfb)
+                   ngmxb = ngmx(nfb)
+                   ncmxb = ncmx(nfb) 
+                                    
+                   nb = nbasisb; nbnb = nb*nb
+                   noffsvb = (nfb-1) * nb
+                   noffsmb = (nfb-1) * nbnb
+                   noffsnb = noffsn(nfb)
+                   noffsbb = noffsb(nfb)
+                   noffsgb = noffsg(nfb)
+                   do i = 1, nbasisa
+                   do j = 1, i
+                      /* Contribution to fragment |a| from nuclei of fragment |b| */
+                      vij = genvei(i, j, eta, ngmxa, nfirst,
+     &                                   nlast, ntype, nr, ntmx, vlist, nocb, nocb,
+     &                                   noffsnb, noffsga, noffsba)
+                      ij = nbasisa*(j-1) + i
+                      VT(noffsma+ij) = VT(noffsma+ij) + vij
+                      if (i.NE.j) then
+                          ji = nbasisa*(i-1) + j
+                          VT(noffsma+ji) = VT(noffsma+ji) + vij
+                      end if
+                                                                                               
+                      /* Contribution to fragment |a| from electron density of fragment |b| */
+                      do k = 1, nbasisb
+                      do l = 1, nbasisb
+                         kl = nbasisb*(l-1) + k
+                         vJ = generi2(i,j,k,l,0,eta,nfirst, 
+     &                                      nlast,ntype,nr,20,
+     &                                      noffsga, noffsba, noffsgb, noffsbb, COULOMB)
+                         vK = generi2(i,l,k,j,0,eta,nfirst, 
+     &                                      nlast,ntype,nr,20,
+     &                                      noffsga, noffsba, noffsgb, noffsbb, EXCHANGE)
+                         vv = R(noffsmb+kl) * (two*vJ - vK)
+
+                         VT(noffsma+ij) = VT(noffsma+ij) + vv
+                         E = E + vv
+                      end do
+                      end do
+                   end do
+                   end do
+                                                                                               
+               end if
+            end do
+
+            /* Start accumulate energy for fragment |a| here */
+            E = zero
+            do i = 1, nana
+               E = E + R(noffsma+i) * VT(noffsma+i)
+            end do
+            /* Compute G matrix from fragment ERIs and current density matrixes */
+            call scfGR(R(noffsma+1), VT(noffsma+1), na, ERI_UNIT_AO+1+nfa, CLOSED_SHELL_CALCULATION)
+            /* End with total energy */
+            do i = 1, nana
+               E = E + R(noffsma+i) * VT(noffsma+i)
+            end do
+            write(*,*) " ENERGY OF FRAGMENT ", nfa, " IS ", E
+
+            /* Diagonalize Fock matrix */
+            call gtprd(S(noffsma+1), VT(noffsma+1), Rold, na, na, na) 
+            call gmprd(Rold, S(noffsma+1), VT(noffsma+1), na, na, na)
+            call eigen(VT(noffsma+1), Cbar, na)
+            do i = 1, na
+               epsilon(noffsva + i) = VT(noffsma + na*(i-1)+i)
+            enddo
+            write(*,*) " ITERATION ", iter
+            call pvec(epsilon(noffsva+1), 10)
+
+            /* Compute new density matrix */
+            call gmprd(S(noffsma+1), Cbar, V, na, na, na)
+            call scfR(V, VT, na, nelec(nfa)/2)    /* Close-shell case assumed */
+
+            Rsum = zero                                     
+            do i = 1, nana
+               turm = VT(i) - R(noffsma+i)
+               term = dabs(turm)
+               R(noffsma+i) = VT(i)
+               S(noffsma+i) = V(i)
+               if (term.GT.crit) icon = icon + 1
+               Rsum = Rsum + term
+c               if (kount.LT.interp) R(i) = R(i) - damp*turm
+            enddo
+
+         end do
+c         write(*,*) " ITERATION= ", iter, " ENERGY=", E
+      end do
 @
 @< Program Declarations @>=
       double precision vlist(MAX_CENTRES,4)
@@ -201,9 +319,10 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       integer noclst(MAX_SHELLS,MAX_BASIS_FUNCTIONS)
       integer norbs(MAX_SHELLS)
       integer scf, grhf
-      double precision calnrp, vv
-      integer i, j, task, read_eri
+      double precision calnrp, vv, vJ, vK, turm, term, vij, Rsum
+      integer i, j, k, l, task, read_eri
       integer nsize, nfrag
+      double precision genvei, generi2
      /* convention to store/use GTO types */
       data nr /
      &     0,1,0,0,2,0,0,1,1,0,3,0,0,2,2,1,0,1,0,1,
@@ -1860,6 +1979,71 @@ integrals are computed as a sum of geometrical factors computed by
       genoei = totnai + kintot  /* "T + V"  */
       return
       end
+@
+
+@*1 genvei. Calculate the nuclear attraction integral.
+
+@a
+      double precision function genvei(i, j, eta, ngmx, nfirst,
+     &      nlast, ntype, nr, ntmx, vlist, noc, ncmx,
+     &      noffsn, noffsg, noffsb)
+      implicit double precision (a-h,o-z) 
+      integer i, j, ngmx, ncmx, noc, ntmx 
+      integer noffsn, noffsg, noffsb 
+      integer nfirst(*), nlast(*), ntype(*), nr(ntmx,3) 
+      double precision eta(MAX_PRIMITIVES,5), vlist(MAX_CENTRES,4) 
+
+      @< Genvei Local Declarations @>
+      @< Factorials @>
+      @< One-electron Integer Setup @>   
+
+      nbiss = noffsg + iss 
+      nbjss = noffsg + jss 
+      rAB = (eta(nbiss,1)-eta(nbjss,1))**2 + 
+     &      (eta(nbiss,2)-eta(nbjss,2))**2 + 
+     &      (eta(nbiss,3)-eta(nbjss,3))**2 
+
+      genvei = zero 
+
+      do irun = iss, il          /* start of "i" contraction */                                
+         do jrun = jss, jl       /* start of "j" contraction */
+
+            @< Compute PA @>
+
+            prefa = two*prefa                        
+            tnai = zero           /* nuclear attraction */
+
+            @< Form fj @>
+
+            do n = 1, noc         /* loop over nuclei */
+               pn = zero   
+               @< Nuclear data @>
+   
+               t = t1*pcsq
+
+               call auxg(m,t,g)   /* Generate all the $F_\nu$ required */
+
+               @< Form As @>      /* Generate the geometrical $A$-factors */
+
+               do ii = 1, imax                                                             
+                  do jj = 1, jmax
+                     do kk = 1, kmax
+                        nu = ii + jj + kk - 2
+                        pn = pn + Airu(ii)*Ajsv(jj)*Aktw(kk)*g(nu)
+                     end do
+                  end do
+               end do
+                                                                                           
+               tnai = tnai -pn*vlist(noffsn+n,4)
+                                                                                           
+            end do                /* end of loop over nuclei */
+            totnai = totnai + prefa*tnai
+         end do                   /* end of "j" contraction */
+      end do                      /* end of "i" contraction */
+
+      genvei = totnai   /* "V" */
+      return
+      end
 
 @ These are the declarations which are local to |genoei|,
 working space {\em etc.}
@@ -1868,10 +2052,17 @@ working space {\em etc.}
       double precision Airu(10), Ajsv(10), Aktw(10)                      
       double precision p(3), sf(10,3), tf(20)
       double precision fact(20), g(50)
-      double precision kin
+      double precision kin, tnai
       data zero,one,two,half,quart /0.0d00,1.0d00,2.0d00,0.5d00,0.25d00/
       data pi/3.141592653589d00/
-
+@
+@< Genvei Local Declarations @>= 
+      double precision Airu(10), Ajsv(10), Aktw(10)                      
+      double precision p(3), sf(10,3), tf(20)
+      double precision fact(20), g(50)
+      double precision totnai, tnai
+      data zero,one,two,half,quart /0.0d00,1.0d00,2.0d00,0.5d00,0.25d00/
+      data pi/3.141592653589d00/
 
 @ Get the various powers of $x$, $y$ and $z$ required from the data
 structures and obtain the contraction limits etc.
@@ -2071,10 +2262,8 @@ consulted for a detailed description of the calling sequence.
       integer nfirst(*), nlast(*), ntype(*), nr(ntmx,3)
       integer noffsn, noffsg, noffsb
 
-      @< Generi Local Declarations@>
-   
+      @< Generi Local Declarations @>
       @< Factorials @>
-   
       @< Two-electron Integer Setup @>
   
       nbis = noffsg + is   ; nbks = noffsg + ks
@@ -2093,7 +2282,6 @@ consulted for a detailed description of the calling sequence.
          do jrun = js,jl     /* start of "j" contraction*/
    
             @< Compute PA @>
-   
             @< Thetas for electron 1 @>
    
             do krun = ks, kl         /* start of "k" contraction*/
@@ -2135,19 +2323,108 @@ consulted for a detailed description of the calling sequence.
       if (xyorz .EQ. 0) generi = generi*two
       return
       end
+@
 
+@*1 generi2. Calculate ERI between two molecules. Can compute integral of type \verb+COULOMB+
+$(ij\vert kl)$ or \verb+EXCHANGE+ $(il\vert kj)$. In the above integral templates $i$ and $j$
+basis function belongs to |fragment 1| and $k$ and $l$ basis function to |fragment 2|.
+
+@a
+      double precision function generi2(i,j,k,l,xyorz,eta,nfirst, 
+     &                                         nlast,ntype,nr,ntmx,
+     &                                         noffsg1, noffsb1, noffsg2, noffsb2, itype)
+                                                                      
+      implicit double precision (a-h,o-z)
+      integer i, j, k, l, xyorz, ntmx
+      double precision eta(MAX_PRIMITIVES,5)
+      integer nfirst(*), nlast(*), ntype(*), nr(ntmx,3)
+      integer noffsg1, noffsb1, noffsg2, noffsb2, itype
+
+      @< Generi2 Local Declarations @>
+      @< Factorials @>
+      @< bhbhbhhb @>
+ 
+      if (itype.EQ.COULOMB) then 
+          nbis = noffsg1 + is   ; nbks = noffsg2 + ks
+          nbjs = noffsg1 + js   ; nbls = noffsg2 + ls
+      else
+          nbis = noffsg1 + is   ; nbks = noffsg2 + ks
+          nbjs = noffsg2 + js   ; nbls = noffsg1 + ls
+      end if
+       
+      rAB = (eta(nbis,1)-eta(nbjs,1))**2 + 
+     &      (eta(nbis,2)-eta(nbjs,2))**2 + 
+     &      (eta(nbis,3)-eta(nbjs,3))**2
+      rCD = (eta(nbks,1)-eta(nbls,1))**2 + 
+     &      (eta(nbks,2)-eta(nbls,2))**2 + 
+     &      (eta(nbks,3)-eta(nbls,3))**2
+   
+      generi = zero
+   
+      do irun = is, il       /* start of "i" contraction*/
+         do jrun = js,jl     /* start of "j" contraction*/
+   
+            @< pupiiiiiiiiiiii @>
+            @< Thetas for electron 1 @>
+   
+            do krun = ks, kl         /* start of "k" contraction*/
+               do lrun = ls, ll      /* start of "l" contraction*/
+                  eribit = zero      /* local accumulator */
+   
+                  @< bulaaaaaaaaaaaak @>
+   
+                  w = pi/(t1+t2)
+   
+                  @< fj for electron 2 @>
+   
+                  call auxg(m,t,g)   /* Obtain the $F_\nu$ by recursion */
+   
+                  @< Form Bs @>
+   
+                  jt1 = i1max + i2max - 1
+                  jt2 = j1max + j2max - 1
+                  jt3 = k1max + k2max - 1
+   
+                  do ii = 1, jt1
+                     do jj = 1, jt2
+                        do kk = 1, jt3
+                           nu = ii + jj + kk -2
+                           if (xyorz .NE. 0) nu = nu + 1
+                           eribit = eribit + g(nu)*
+     &                               bbx(ii)*bby(jj)*bbz(kk)
+                        end do
+                     end do
+                  end do
+   
+                  generi = generi + prefa*prefc*eribit*dsqrt(w)
+   
+               end do  /* end of "l" contraction loop */
+            end do     /* end of "k" contraction loop */
+         end do        /* end of "j" contraction loop */
+      end do           /* end of "i" contraction loop */
+   
+      if (xyorz .EQ. 0) generi = generi*two
+      return
+      end
 
 @ Here are the local declarations (workspoace {\em etc.})
 for the two-electron main function |generi|.
 
-@< Generi Local Declarations@> = 
+@< Generi Local Declarations @> = 
       double precision p(3), q(3), ppx(20), ppy(20), ppz(20) 
       double precision bbx(20), bby(20), bbz(20), sf(10,6)
       double precision xleft(5,10), yleft(5,10), zleft(5,10)
       double precision r(3), fact(20), g(50)
       data zero,one,two,half    /0.0D00,1.0D00,2.0D00,0.5D00/
       data pi/3.141592653589D00/
-
+@
+@< Generi2 Local Declarations @> = 
+      double precision p(3), q(3), ppx(20), ppy(20), ppz(20) 
+      double precision bbx(20), bby(20), bbz(20), sf(10,6)
+      double precision xleft(5,10), yleft(5,10), zleft(5,10)
+      double precision r(3), fact(20), g(50)
+      data zero,one,two,half    /0.0D00,1.0D00,2.0D00,0.5D00/
+      data pi/3.141592653589D00/
 
 @ These numbers are the first 20 factorials |fact(i)| contains $(i-1)!$.
  
@@ -2191,8 +2468,47 @@ in each case.
       kl   = nlast(nbk)
       ls   = nfirst(nbl)
       ll   = nlast(nbl)
+@ 
 
-@ Use the Gaussian Product Theorem to find the position vector
+@< bhbhbhhb @>=
+      if (itype.EQ.COULOMB) then
+          nbi = noffsb1 + i 
+          nbj = noffsb1 + j
+          nbk = noffsb2 + k
+          nbl = noffsb2 + l
+      else
+          nbi = noffsb1 + i 
+          nbj = noffsb2 + j
+          nbk = noffsb2 + k
+          nbl = noffsb1 + l
+      end if
+      ityp = ntype(nbi)    
+      jtyp = ntype(nbj)
+      ktyp = ntype(nbk)
+      ltyp = ntype(nbl)
+      l1   = nr(ityp, 1)
+      m1   = nr(ityp, 2)
+      n1   = nr(ityp, 3)
+      l2   = nr(jtyp, 1)
+      m2   = nr(jtyp, 2)
+      n2   = nr(jtyp, 3)
+      l3   = nr(ktyp, 1)
+      m3   = nr(ktyp, 2)
+      n3   = nr(ktyp, 3)
+      l4   = nr(ltyp, 1)
+      m4   = nr(ltyp, 2)
+      n4   = nr(ltyp, 3)
+      is   = nfirst(nbi)
+      il   = nlast(nbi)
+      js   = nfirst(nbj)
+      jl   = nlast(nbj)
+      ks   = nfirst(nbk)
+      kl   = nlast(nbk)
+      ls   = nfirst(nbl)
+      ll   = nlast(nbl)
+@
+
+Use the Gaussian Product Theorem to find the position vector
 $\vec{P}$, of the product of the two Gaussian exponential factors
 of the basis functions for electron 1.
 
@@ -2224,7 +2540,42 @@ of the basis functions for electron 1.
                                                         
       prefa = dexp(-aexp*bexp*rAB/t1)*pi*anorm*bnorm/t1
 
-@ Use the Gaussian Product Theorem to find the position vector
+@ 
+@< pupiiiiiiiiiiii @>=
+      if (itype.EQ.COULOMB) then
+          nbirun = noffsg1 + irun
+          nbjrun = noffsg1 + jrun     
+      else
+          nbirun = noffsg1 + irun
+          nbjrun = noffsg2 + jrun     
+      end if
+
+      aexp = eta(nbirun,4); anorm = eta(nbirun,5) 
+      bexp = eta(nbjrun,4); bnorm = eta(nbjrun,5)
+
+/* |aexp| and |bexp| are the primitive GTF exponents for
+   GTF |irun| and |jrun|, |anorm| and |bnorm| are the
+   corresponding contraction coefficients bundled up into
+   |prefa|  */
+
+      t1 = aexp + bexp; deleft = one/t1                  
+      
+      p(1) = (aexp*eta(nbirun,1)+bexp*eta(nbjrun,1))*deleft
+      p(2) = (aexp*eta(nbirun,2)+bexp*eta(nbjrun,2))*deleft
+      p(3) = (aexp*eta(nbirun,3)+bexp*eta(nbjrun,3))*deleft
+                                                        
+      pax = p(1) - eta(nbirun,1)
+      pay = p(2) - eta(nbirun,2)
+      paz = p(3) - eta(nbirun,3)
+                                                        
+      pbx = p(1) - eta(nbjrun,1)
+      pby = p(2) - eta(nbjrun,2)
+      pbz = p(3) - eta(nbjrun,3)
+                                                        
+      prefa = dexp(-aexp*bexp*rAB/t1)*pi*anorm*bnorm/t1
+@
+
+Use the Gaussian Product Theorem to find the position vector
 $\vec{Q}$, of the product of the two Gaussian exponential factors
 of the basis functions for electron 2.
 
@@ -2264,7 +2615,49 @@ of the basis functions for electron 2.
       prefc = exp(-cexpp*dexpp*rCD/t2)*pi*cnorm*dnorm/t2
 
 
-@ The series of terms arising from the expansion of the
+@ 
+@< bulaaaaaaaaaaaak @>=
+      if (itype.EQ.COULOMB) then
+          nbkrun = noffsg2 + krun 
+          nblrun = noffsg2 + lrun
+      else
+          nbkrun = noffsg2 + krun 
+          nblrun = noffsg1 + lrun
+      end if
+
+      cexpp = eta(nbkrun,4); cnorm = eta(nbkrun,5) 
+      dexpp = eta(nblrun,4); dnorm = eta(nblrun,5)
+
+/* |cexp| and |dexp| are the primitive GTF exponents for
+   GTF |krun| and |lrun|, |cnorm| and |dnorm| are the
+   corresponding contraction coefficients bundled up into
+   |prefc|  */
+
+      t2     = cexpp + dexpp                             
+      t2m1   = one/t2
+      fordel = t2m1 + deleft
+                                                         
+      q(1) = (cexpp*eta(nbkrun,1)+dexpp*eta(nblrun,1))*t2m1
+      q(2) = (cexpp*eta(nbkrun,2)+dexpp*eta(nblrun,2))*t2m1
+      q(3) = (cexpp*eta(nbkrun,3)+dexpp*eta(nblrun,3))*t2m1
+                                                         
+      qcx = q(1) - eta(nbkrun,1)
+      qcy = q(2) - eta(nbkrun,2)
+      qcz = q(3) - eta(nbkrun,3)
+                                                         
+      qdx = q(1) - eta(nblrun,1)
+      qdy = q(2) - eta(nblrun,2)
+      qdz = q(3) - eta(nblrun,3)
+                                                         
+      r(1) = p(1)-q(1)
+      r(2) = p(2)-q(2)
+      r(3) = p(3)-q(3)
+                                                         
+      t = (r(1)*r(1) + r(2)*r(2) + r(3)*r(3))/fordel
+      prefc = exp(-cexpp*dexpp*rCD/t2)*pi*cnorm*dnorm/t2
+@
+
+The series of terms arising from the expansion of the
 Cartesian monomials like $(x - PA)^{\ell_1}(x - PB)^{\ell_2}$ are
 computed by first forming the $f_j$ and hence the $\theta$s.
 
@@ -3263,6 +3656,35 @@ work OK */
       return
       end
 
+@
+
+@*1 gkprd. For the product ${\bf A} {\bf B}^T = {\bf R}$. It initializes the output matrix ${\bf R}$ 
+and does not change input matrices ${\bf A}$ and ${\bf B}$.
+
+@a
+      subroutine gkprd (A, B, R, n, m, l)
+      double precision A(ARB), B(ARB)
+      double precision R(ARB)
+      integer n, m, l
+
+      double precision zero
+      integer k, ik, j, ir, ji, ib
+      data zero/0.0D+00/
+      /* stride counters initialization */
+      do i = 1, n
+      do j = 1, l
+         ij = n*(j-1) + i
+         R(ij) = zero
+         do k = 1, m
+            ik = n*(k-1) + i
+            jk = l*(k-1) + j
+            R(ij) = R(ij) + A(ik) * B(jk)
+         end do
+      end do
+      end do
+
+      return
+      end
 @
 
 @*1 addprd. Matrix multiplier which {\bf adds} |A| $\times$ |B| into existing |R| 
