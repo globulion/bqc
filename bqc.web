@@ -258,7 +258,7 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
 
          @< DFI-Iter: Start accumulate energy for fragment |a| here @>
 
-         @< DFI-Iter: Compute G matrix from fragment ERIs and |a|'s density matrixes @>
+         @< DFI-Iter: Compute G matrix from interfragment ERIs and |a|'s density matrixes @>
 
          @< DFI-Iter: End with energy of fragment |a| @>
 
@@ -311,7 +311,7 @@ C        vij = vij + R(noffsmb+kl) * two*vJ
          E = E + R(noffsma+i) * HF(noffsma+i)
       end do
 @
-@< DFI-Iter: Compute G matrix from fragment ERIs and |a|'s density matrixes @>=
+@< DFI-Iter: Compute G matrix from interfragment ERIs and |a|'s density matrixes @>=
       call scfGR(R(noffsma+1), HF(noffsma+1), na, ERI_UNIT_AO+1+nfa, CLOSED_SHELL_CALCULATION)
 @
 @< DFI-Iter: End with energy of fragment |a| @>=
