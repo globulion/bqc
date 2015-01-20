@@ -140,155 +140,218 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       STOP
 @
 @< Perform DFI @>=
+
+      @< DFI: Calculate Nuclear Repulsion Energy for Whole Fragment Aggregate @>
+
       do nf = 1, nfrag
 
-         write(*,*) " --- CALCULATION FOR MOLECULE ", nf, " ---"
+         @< DFI: Local Integer Setup @>
 
-         @< Calculate Nuclear Repulsion Energy @>
+         @< DFI: Calculate integrals for the current fragment @>
 
-         noffsn_nf = noffsn(nf); noffsg_nf = noffsg(nf); noffsb_nf = noffsb(nf)
-         nbasis = nbfns(nf)
-         nn = nbasis * nbasis
-         n  = nbasis
-         noffsm = (nf-1) * nn           /* linear memory offset for matrix */
-         noffsv = (nf-1) * nbasis       /* linear memory offset for vector */
+         @< DFI: Orthogonalize the basis @>
 
-         /* Calculate integrals for the current fragment */
-         call genint(ngmx(nf),nbfns(nf),eta,ntype,ncntr,nfirst,nlast,
-     &               vlist,ncmx(nf),ncmx(nf),S(noffsm+1),H(noffsm+1),ERI_UNIT_AO+nf+1,read_eri,
-     &               noffsn_nf, noffsg_nf, noffsb_nf)
+         @< DFI: Solve Hartree-Fock equations in gas-phase @>
 
-         /* Orthogonalize the basis */
-         call shalf(S(noffsm+1),R(noffsm+1),Cbar,nbasis)
-         do i = 1, nn
-            V(noffsm+i) = S(noffsm+i)
-         end do
-
-         /* Solve Hartree-Fock equations in gas-phase */
-         if (scf(H(noffsm+1),S(noffsm+1),nbasis,nelec(nf),ERI_UNIT_AO+nf+1,irite,damp,interp,E,HF(noffsm+1),VT,R(noffsm+1), 
-     &               Rold,Cbar,epsilon(noffsv+1),crit).EQ.OK) then
-             write(*,*) " SCF DONE."
-             write(ERROR_OUTPUT_UNIT,200) E+Enuc
-         else
-             write(*,*) " SCF FAILED. "
-         end if
-
-         /* Transform Fock matrix to AO basis --- not necessary */
-c         call gmprd(S(noffsm+1), HF(noffsm+1), Rold, n, n, n) 
-c         call gkprd(Rold, S(noffsm+1), HF(noffsm+1), n, n, n)
       end do      
 
       /* Start DFI iterations */
       write(*,*) " STARTING DFI ITERATIONS"
       icon = 100
       iter = 0
+      Eprev = zero
+      Etot = 100.0D+00
 
-      do while(iter.LT.30)
-         iter = iter + 1
-         do nfa = 1, nfrag                                                                     
-            nbasisa = nbfns(nfa)
-            ngmxa   = ngmx(nfa)
+      do while(dabs(Etot-Eprev).GT.CRIT_DFI)
 
-            na = nbasisa; nana = na*na
-            noffsva = (nfa-1) * na
-            noffsma = (nfa-1) * nana
-            noffsna = noffsn(nfa)
-            noffsba = noffsb(nfa)
-            noffsga = noffsg(nfa)
+         @< DFI: Single DFI Iteration @>
 
-            /* Copy the gas-phase core Hamiltonian */
-            do i = 1, nana
-               VT(noffsma+i) = H(noffsma+i)
-            end do
-            /* Iterate over other fragments to complete DFI core Hamiltonian */
-            do nfb = 1, nfrag
-               if (nfb.NE.nfa) then
-                   nbasisb = nbfns(nfb)
-                   ngmxb = ngmx(nfb)
-                   ncmxb = ncmx(nfb) 
-                                    
-                   nb = nbasisb; nbnb = nb*nb
-                   noffsvb = (nfb-1) * nb
-                   noffsmb = (nfb-1) * nbnb
-                   noffsnb = noffsn(nfb)
-                   noffsbb = noffsb(nfb)
-                   noffsgb = noffsg(nfb)
-                   do i = 1, nbasisa
-                   do j = 1, i
-                      /* Contribution to fragment |a| from nuclei of fragment |b| */
-                      vij = genvei(i, j, eta, ngmxa, nfirst,
-     &                                   nlast, ntype, nr, ntmx, vlist, nocb, nocb,
-     &                                   noffsnb, noffsga, noffsba)
-                      ij = nbasisa*(j-1) + i
-                      VT(noffsma+ij) = VT(noffsma+ij) + vij
-                      if (i.NE.j) then
-                          ji = nbasisa*(i-1) + j
-                          VT(noffsma+ji) = VT(noffsma+ji) + vij
-                      end if
-                                                                                               
-                      /* Contribution to fragment |a| from electron density of fragment |b| */
-                      do k = 1, nbasisb
-                      do l = 1, nbasisb
-                         kl = nbasisb*(l-1) + k
-                         vJ = generi2(i,j,k,l,0,eta,nfirst, 
-     &                                      nlast,ntype,nr,20,
-     &                                      noffsga, noffsba, noffsgb, noffsbb, COULOMB)
-                         vK = generi2(i,l,k,j,0,eta,nfirst, 
-     &                                      nlast,ntype,nr,20,
-     &                                      noffsga, noffsba, noffsgb, noffsbb, EXCHANGE)
-                         vv = R(noffsmb+kl) * (two*vJ - vK)
-
-                         VT(noffsma+ij) = VT(noffsma+ij) + vv
-                         E = E + vv
-                      end do
-                      end do
-                   end do
-                   end do
-                                                                                               
-               end if
-            end do
-
-            /* Start accumulate energy for fragment |a| here */
-            E = zero
-            do i = 1, nana
-               E = E + R(noffsma+i) * VT(noffsma+i)
-            end do
-            /* Compute G matrix from fragment ERIs and current density matrixes */
-            call scfGR(R(noffsma+1), VT(noffsma+1), na, ERI_UNIT_AO+1+nfa, CLOSED_SHELL_CALCULATION)
-            /* End with total energy */
-            do i = 1, nana
-               E = E + R(noffsma+i) * VT(noffsma+i)
-            end do
-            write(*,*) " ENERGY OF FRAGMENT ", nfa, " IS ", E
-
-            /* Diagonalize Fock matrix */
-            call gtprd(S(noffsma+1), VT(noffsma+1), Rold, na, na, na) 
-            call gmprd(Rold, S(noffsma+1), VT(noffsma+1), na, na, na)
-            call eigen(VT(noffsma+1), Cbar, na)
-            do i = 1, na
-               epsilon(noffsva + i) = VT(noffsma + na*(i-1)+i)
-            enddo
-            write(*,*) " ITERATION ", iter
-            call pvec(epsilon(noffsva+1), 10)
-
-            /* Compute new density matrix */
-            call gmprd(S(noffsma+1), Cbar, V, na, na, na)
-            call scfR(V, VT, na, nelec(nfa)/2)    /* Close-shell case assumed */
-
-            Rsum = zero                                     
-            do i = 1, nana
-               turm = VT(i) - R(noffsma+i)
-               term = dabs(turm)
-               R(noffsma+i) = VT(i)
-               S(noffsma+i) = V(i)
-               if (term.GT.crit) icon = icon + 1
-               Rsum = Rsum + term
-c               if (kount.LT.interp) R(i) = R(i) - damp*turm
-            enddo
-
-         end do
-c         write(*,*) " ITERATION= ", iter, " ENERGY=", E
       end do
+
+      @< DFI: Final Messages @>
+@
+
+@< DFI: Calculate Nuclear Repulsion Energy for Whole Fragment Aggregate @>=
+      Enuc = CalNRP(vlist, ncmx_tot, 0)
+      write(ERROR_OUTPUT_UNIT,206) Enuc
+@
+@< DFI: Local Integer Setup @>=
+      write(*,*) " --- CALCULATION FOR MOLECULE ", nf, " ---"
+      noffsn_nf = noffsn(nf); noffsg_nf = noffsg(nf); noffsb_nf = noffsb(nf)
+      nbasis = nbfns(nf)
+      nn = nbasis * nbasis
+      n  = nbasis
+      noffsm = (nf-1) * nn           /* linear memory offset for matrix */
+      noffsv = (nf-1) * nbasis       /* linear memory offset for vector */
+@
+@< DFI: Calculate integrals for the current fragment @>=
+      call genint(ngmx(nf),nbfns(nf),eta,ntype,ncntr,nfirst,nlast,
+     &            vlist,ncmx(nf),ncmx(nf),S(noffsm+1),H(noffsm+1),ERI_UNIT_AO+nf+1,read_eri,
+     &            noffsn_nf, noffsg_nf, noffsb_nf)
+@
+@< DFI: Orthogonalize the basis @>=
+      call shalf(S(noffsm+1),R(noffsm+1),Cbar,nbasis)
+@
+@< DFI: Solve Hartree-Fock equations in gas-phase @>=
+      if (scf(H(noffsm+1),S(noffsm+1),nbasis,nelec(nf),ERI_UNIT_AO+nf+1,irite,damp,interp,E,HF(noffsm+1),VT,R(noffsm+1), 
+     &            Rold,Cbar,epsilon(noffsv+1),crit).EQ.OK) then
+          write(*,*) " SCF DONE."
+          write(ERROR_OUTPUT_UNIT,200) E + CalNRP(vlist, ncmx(nf), noffsn_nf)
+      else
+          write(*,*) " SCF FAILED. "
+      end if
+@
+@< DFI: Final Messages @>=
+      go to 1111
+
+ 9999 write(*,*) " MAXIMUM NUMBER OF ITERATIONS REACHED IN DFI. TERMINATION."
+      STOP
+
+ 1111 continue
+      write(*,*) " DFI SCF DONE. FINAL DFI ENERGY=", Etot
+      write(*,*) 
+@
+@< DFI: Single DFI Iteration @>=
+      Eprev = Etot
+      iter = iter + 1
+      if (iter.GT.MAX_DFI_ITER) go to 9999
+      do nfa = 1, nfrag                                                                     
+         nbasisa = nbfns(nfa)
+         ngmxa   = ngmx(nfa)
+
+         na = nbasisa; nana = na*na
+         noffsva = (nfa-1) * na
+         noffsma = (nfa-1) * nana
+         noffsna = noffsn(nfa)
+         noffsba = noffsb(nfa)
+         noffsga = noffsg(nfa)
+
+         @< DFI-Iter: Initialize the gas-phase core Hamiltonian @>
+
+         /* Iterate over other fragments to complete DFI core Hamiltonian */
+         do nfb = 1, nfrag
+            if (nfb.NE.nfa) then
+                nbasisb = nbfns(nfb)
+                ngmxb = ngmx(nfb)
+                ncmxb = ncmx(nfb) 
+                                 
+                nb = nbasisb; nbnb = nb*nb
+                noffsvb = (nfb-1) * nb
+                noffsmb = (nfb-1) * nbnb
+                noffsnb = noffsn(nfb)
+                noffsbb = noffsb(nfb)
+                noffsgb = noffsg(nfb)
+                do i = 1, nbasisa
+                do j = 1, i
+
+                   @< DFI-Iter: Contribution to fragment |a| from nuclei of fragment |b| @>
+                                                                                            
+                   @< DFI-Iter: Contribution to fragment |a| from electron density of fragment |b| @>
+
+                   @< DFI-Iter: Accumulate DFI core Hamiltonian matrix for current fragment @>
+
+                end do
+                end do
+                                                                                            
+            end if
+         end do
+
+         @< DFI-Iter: Start accumulate energy for fragment |a| here @>
+
+         @< DFI-Iter: Compute G matrix from fragment ERIs and current density matrixes @>
+
+         @< DFI-Iter: End with fragment energy @>
+
+         @< DFI-Iter: Diagonalize DFI-Fock matrix for current fragment @>
+
+         @< DFI-Iter: Compute new density matrix @>
+
+      end do
+
+      @< DFI-Iter: Compute the total energy of the system @>
+@
+
+@< DFI-Iter: Initialize the gas-phase core Hamiltonian @>=
+      do i = 1, nana
+         HF(noffsma+i) = H(noffsma+i)
+      end do
+@
+@< DFI-Iter: Contribution to fragment |a| from nuclei of fragment |b| @>=
+      vij = genvei(i, j, eta, ngmxa, nfirst,
+     &                   nlast, ntype, nr, ntmx, vlist, nocb, nocb,
+     &                   noffsnb, noffsga, noffsba)
+@
+@< DFI-Iter: Contribution to fragment |a| from electron density of fragment |b| @>=
+      do k = 1, nbasisb
+      do l = 1, nbasisb
+         kl = nbasisb*(l-1) + k
+         vJ = generi2(i,j,k,l,0,eta,nfirst, 
+     &                      nlast,ntype,nr,20,
+     &                      noffsga, noffsba, noffsgb, noffsbb, COULOMB)
+         vK = generi2(i,l,k,j,0,eta,nfirst, 
+     &                      nlast,ntype,nr,20,
+     &                      noffsga, noffsba, noffsgb, noffsbb, EXCHANGE)
+         vij = vij + R(noffsmb+kl) * (two*vJ - vK)
+C         vij = vij + R(noffsmb+kl) * two*vJ
+      end do
+      end do
+@
+@< DFI-Iter: Accumulate DFI core Hamiltonian matrix for current fragment @>=
+      ij = nbasisa*(j-1) + i
+      HF(noffsma+ij) = HF(noffsma+ij) + vij
+
+      if (i.NE.j) then
+          ji = nbasisa*(i-1) + j
+          HF(noffsma+ji) = HF(noffsma+ji) + vij
+      end if
+@
+@< DFI-Iter: Start accumulate energy for fragment |a| here @>=
+      E = zero
+      do i = 1, nana
+         E = E + R(noffsma+i) * HF(noffsma+i)
+      end do
+@
+@< DFI-Iter: Compute G matrix from fragment ERIs and current density matrixes @>=
+      call scfGR(R(noffsma+1), HF(noffsma+1), na, ERI_UNIT_AO+1+nfa, CLOSED_SHELL_CALCULATION)
+@
+@< DFI-Iter: End with fragment energy @>=
+      do i = 1, nana
+         E = E + R(noffsma+i) * HF(noffsma+i)
+      end do
+      small(nfa) = E   /* store the current fragment energy */
+@
+@< DFI-Iter: Diagonalize DFI-Fock matrix for current fragment @>=
+      call gtprd(S(noffsma+1), HF(noffsma+1), Rold, na, na, na) 
+      call gmprd(Rold, S(noffsma+1), HF(noffsma+1), na, na, na)
+      call eigen(HF(noffsma+1), Cbar, na)
+      do i = 1, na
+         epsilon(noffsva + i) = HF(noffsma + na*(i-1)+i)
+      enddo
+c      write(*,*) " ITERATION ", iter
+c      call pvec(epsilon(noffsva+1), 10)
+@
+@< DFI-Iter: Compute new density matrix @>=
+      call gmprd(S(noffsma+1), Cbar, C, na, na, na)
+      call scfR(C, VT, na, nelec(nfa)/2)    /* Close-shell case assumed */
+
+c      Rsum = zero                                     
+      do i = 1, nana
+c         turm = VT(i) - R(noffsma+i)
+c         term = dabs(turm)
+         R(noffsma+i) = VT(i)
+         S(noffsma+i) = C(i)
+c         if (term.GT.crit) icon = icon + 1
+c         Rsum = Rsum + term
+c         if (kount.LT.interp) R(norrsma+i) = R(noffsma+i) - damp*turm
+      enddo
+@
+@< DFI-Iter: Compute the total energy of the system @>=
+      Etot = Enuc
+      do i = 1, nfrag
+         Etot = Etot + small(i)
+      end do
+      
+      write(*,*) " DFI ITERATION= ", iter, " TOTAL ENERGY=", Etot, small(1), small(2)
 @
 @< Program Declarations @>=
       double precision vlist(MAX_CENTRES,4)
@@ -319,10 +382,11 @@ c         write(*,*) " ITERATION= ", iter, " ENERGY=", E
       integer noclst(MAX_SHELLS,MAX_BASIS_FUNCTIONS)
       integer norbs(MAX_SHELLS)
       integer scf, grhf
-      double precision calnrp, vv, vJ, vK, turm, term, vij, Rsum
+      double precision calnrp, vv, vJ, vK, turm, term, vij, Rsum, Etot, Eprev
       integer i, j, k, l, task, read_eri
       integer nsize, nfrag
       double precision genvei, generi2
+      double precision small(10)
      /* convention to store/use GTO types */
       data nr /
      &     0,1,0,0,2,0,0,1,1,0,3,0,0,2,2,1,0,1,0,1,
@@ -3668,7 +3732,7 @@ and does not change input matrices ${\bf A}$ and ${\bf B}$.
       integer n, m, l
 
       double precision zero
-      integer k, ik, j, ir, ji, ib
+      integer i, j, k, ik, jk, ij
       data zero/0.0D+00/
       /* stride counters initialization */
       do i = 1, n

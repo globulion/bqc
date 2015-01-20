@@ -26,11 +26,13 @@
 @m MAX_PRIMITIVES           1000
 @m MAX_CENTRES              50
 @m MAX_SHELLS               10
+@m MAX_DFI_ITER             100
 
 @m MAX_ITERATIONS             400
 @m CRIT_ERI                 1.00D-10
 @m CRIT_FMCH                1.00D-09
 @m CRIT_SCF                 1.00D-06
+@m CRIT_DFI                 1.00D-04
 
 @m UHF_CALCULATION            11
 @m CLOSED_SHELL_CALCULATION   21
