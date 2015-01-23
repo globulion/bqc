@@ -233,9 +233,9 @@ C        vij = vij + R(noffsmb+kl) * two*vJ
 
       @< DFI: Calculate Nuclear Repulsion Energy for Whole Fragment Aggregate @>
       
-      if (.false.) then   /* Temporary until development finished */
+c      if (.false.) then   /* Temporary until development finished */
       @< DFI: Calculate Interfragment ERIs @>
-      end if
+c      end if
 
       do nf = 1, nfrag
 
@@ -271,29 +271,39 @@ C        vij = vij + R(noffsmb+kl) * two*vJ
 @
 
 This WEB module evaluates the ERIs between two fragments and stores them
-in a binary file |ERI\_UNIT\_AO\_INTER|. As for now it can be used only in
+in a binary file |ERI_UNIT_AO_INTER|. As for now it can be used only in
 the case when the number of fragments is equal to two. In the future it will
 be extended in such a way that the module will save ${N}\choose{2}$ interfragment ERI files
 corresponding to $N$ DFI fragments. 
 
-To make the implementation of unique interfragment ERI calculation and their storage
-let us analyze the two types of integrals: coulomb and exchange integrals. 
-We denote here $i$-th basis function as belonging to fragment $1$ and $\bar{i}$
+To make the implementation of unique interfragment ERI calculation and their storage clear
+let us analyze the two possible types of integrals: coulomb and exchange integrals. 
+We denote here $i$-th basis function as belonging to fragment $1$, and $\bar{i}$
 with a bar as basis function belonging to fragment $2$.
 There are 8 possible permutation of indices in the coulomb integral but only one of them
 is unique. The other seven integrals has identical values so it is necessary to store only
-$(ij,\bar{k}\bar{l})$ integral with the convention that $i\le j$ and $k \le l$.
+$(ij,\bar{k}\bar{l})$ integral with the convention that $i\ge j$ and $k \ge l$.
 
 For exchange type of intergragment ERI the matters get a bit more complicated. We have
 the following integrals:
 %
 \begin{equation}
-(i\bar{l},\bar{k}j) = (j\bar{k},\bar{l}i) \ne (i\bar{k},\bar{l}j) = (i\bar{l},\bar{k}j)
+\underline{ (i\bar{l},\bar{k}j) } = (j\bar{k},\bar{l}i) \ne\underline{ (i\bar{k},\bar{l}j) } = (j\bar{l},\bar{k}i)
 \end{equation}
 %
+Hence there are maximally two unique integrals to compute. Moreover, note if $i=j$ 
+then we do not need to compute $(i\bar{k},\bar{l}j)$ since it is equal to $(i\bar{l},\bar{k}j)$ integral.
+The same refers to the case when $k=l$. In both cases then we need to evaluate only one integral, 
+$(i\bar{l},\bar{k}j)$.
+
+The last aspect is to design the logic for determining which integral is actually the last 
+appearing in the file. In this implementation both coulomb and exchange integrals are written
+to the same file. However, integrals which are smaller than |CRIT_ERI| are neglected and not saved.
+Therefore, it has to be determined whether the last integral is coulomb or exchange integral.
 
 @< DFI: Calculate Interfragment ERIs @>=
       if (nfrag.EQ.2) then
+          write(*,*) " INTERFRAGMENT ERI EVALUATION..."
           ndfi = DISK_DFI
 
           noffsga = noffsg(1); noffsgb = noffsg(2)
@@ -306,13 +316,11 @@ the following integrals:
           last = NO
           i = 1; j = 1; k = 1; l = 0
                                                                     
-          do while (next_label_inter2(i,j,k,l,na,nb,noffsba,noggsb,noffsga,noffsgb).EQ.YES)
-             if (l.EQ.nb) last = YES
+          do while (next_label_inter2(i,j,k,l,na,nb).EQ.YES)
              /* Coulomb (ij,kl) integral */
              vJ = generi2(i,j,k,l,0,eta,nfirst,                               
      &                            nlast,ntype,nr,20,
      &                            noffsga, noffsba, noffsgb, noffsbb, COULOMB)
-
 
              /* Exchange (il,kj) integral */
              vK1= generi2(i,l,k,j,0,eta,nfirst, 
@@ -325,13 +333,31 @@ the following integrals:
                  vK2= generi2(i,k,l,j,0,eta,nfirst, 
      &                                nlast,ntype,nr,20,
      &                                noffsga, noffsba, noffsgb, noffsbb, EXCHANGE)
+             else
+                 vK2 = zero
              end if
 
              /* Store */
-             if (dabs(vJ).GT.CRIT_ERI) call putint(nfile,i,j,k,l,COULOMB,vJ,pointer,last)
-             if (dabs(vK1).GT.CRIT_ERI) call putint(nfile,i,l,k,j,EXCHANGE,vK1,pointer,last)
-             if (dabs(vK2).LT.CRIT_ERI) cycle
-             call putint(nfile,i,l,k,j,EXCHANGE,vK2,pointer,last)
+             dvJ = dabs(vJ); dvK1 = dabs(vK1); dvk2 = dabs(vK2)
+             last_vJ = NO; last_vK1 = NO; last_vK2 = NO
+             if ((l.EQ.nb).AND.(j.EQ.na).AND.(dvJ.GT.CRIT_ERI)) then
+                 if (dvK1.LT.CRIT_ERI) then
+                     last_vJ = YES
+                 else
+                     last_vJ = NO
+                     if (dvK2.LT.CRIT_ERI) then
+                         last_vK1 = YES
+                     else
+                         last_vK1 = NO
+                         last_vK2 = YES
+                     end if
+                 end if
+             end if
+
+             if (dvJ .GT.CRIT_ERI) call putint(nfile,i,j,k,l,COULOMB,vJ,pointer,last_vJ)
+             if (dvK1.GT.CRIT_ERI) call putint(nfile,i,l,k,j,EXCHANGE,vK1,pointer,last_vK1)
+             if (dvK2.LT.CRIT_ERI) cycle
+             call putint(nfile,i,k,l,j,EXCHANGE,vK2,pointer,last_vK2)
           end do
       else
           write(*,*) " INTERFRAGMENT ERI STORAGE SKIPPED BECAUSE -NFRAG- LARGER THAN 2"
@@ -545,12 +571,12 @@ c         if (kount.LT.interp) R(norrsma+i) = R(noffsma+i) - damp*turm
       integer noclst(MAX_SHELLS,MAX_BASIS_FUNCTIONS)
       integer norbs(MAX_SHELLS)
       integer scf, grhf
-      double precision calnrp, vv, vJ, vK, turm, term, vij, Rsum, Etot, Eprev, vK1, vK2
+      double precision calnrp, vv, vJ, vK, turm, term, vij, Rsum, Etot, Eprev, vK1, vK2, dvJ, dvK1, dvK2
       integer i, j, k, l, task, read_eri, pointer, nfile, last
       integer nsize, nfrag
       integer next_label_inter2
       double precision genvei, generi2
-      double precision small(10)
+      double precision small(10), two, one, zero, half
      /* convention to store/use GTO types */
       data nr /
      &     0,1,0,0,2,0,0,1,1,0,3,0,0,2,2,1,0,1,0,1,
@@ -2286,7 +2312,7 @@ working space {\em etc.}
 @
 @< Genvei Local Declarations @>= 
       double precision Airu(10), Ajsv(10), Aktw(10)                      
-      double precision p(3), sf(10,3), tf(20)
+      double precision p(3), sf(10,3)
       double precision fact(20), g(50)
       double precision totnai, tnai
       data zero,one,two,half,quart /0.0d00,1.0d00,2.0d00,0.5d00,0.25d00/
@@ -2587,7 +2613,7 @@ basis function belongs to |fragment 1| and $k$ and $l$ basis function to |fragme
      &      (eta(nbks,2)-eta(nbls,2))**2 + 
      &      (eta(nbks,3)-eta(nbls,3))**2
    
-      generi = zero
+      generi2 = zero
    
       do irun = is, il       /* start of "i" contraction*/
          do jrun = js,jl     /* start of "j" contraction*/
@@ -2624,14 +2650,14 @@ basis function belongs to |fragment 1| and $k$ and $l$ basis function to |fragme
                      end do
                   end do
    
-                  generi = generi + prefa*prefc*eribit*dsqrt(w)
+                  generi2 = generi2 + prefa*prefc*eribit*dsqrt(w)
    
                end do  /* end of "l" contraction loop */
             end do     /* end of "k" contraction loop */
          end do        /* end of "j" contraction loop */
       end do           /* end of "i" contraction loop */
    
-      if (xyorz .EQ. 0) generi = generi*two
+      if (xyorz .EQ. 0) generi2 = generi2*two
       return
       end
 
@@ -4240,10 +4266,32 @@ Generate the next label of electron repulsion integral
 between two fragments.
 
 @a
-      integer function next_label_inter2(i,j,k,l,na,nb)
-      integer i, j, k, l, na, nb
+      integer function next_label_inter2(i,j,k,l,n1,n2)
+      integer i, j, k, l, n1, n2
 
       next_label_inter2 = YES
+
+      if (l.LT.k) then
+          l = l + 1
+      else
+          l = 1
+          if (k.LT.n2) then
+              k = k + 1
+          else
+              k = 1
+              if (j.LT.i) then
+                  j = j + 1
+              else
+                  j = 1
+                  if (i.LT.n1) then
+                     i = i + 1 
+                  else
+                     next_label_inter2 = NO
+                  end if
+              end if
+          end if
+      end if
+
       return
       end
 @
