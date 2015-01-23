@@ -90,6 +90,7 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       irite = 12
 
       @< Read Structure Input @>
+      @< Normalize the primitives @>
 
       if (task.LT.DFI) then
           do nf = 1, nfrag                             
@@ -572,11 +573,20 @@ c         if (kount.LT.interp) R(norrsma+i) = R(noffsma+i) - damp*turm
       integer norbs(MAX_SHELLS)
       integer scf, grhf
       double precision calnrp, vv, vJ, vK, turm, term, vij, Rsum, Etot, Eprev, vK1, vK2, dvJ, dvK1, dvK2
-      integer i, j, k, l, task, read_eri, pointer, nfile, last
+      integer i, j, k, l, task, read_eri, pointer, nfile, last, m, n
       integer nsize, nfrag
       integer next_label_inter2
       double precision genvei, generi2
-      double precision small(10), two, one, zero, half
+      double precision small(10), two, one, zero, half, onep5, pitern, sum
+      double precision gtoC(MAX_PRIMITIVES)
+      double precision dfact(9)
+      double precision SOO, t, t1, t2, t3, alp
+      data half,onep5,one,zero/0.5D+00,1.5D+00,
+     &                         1.0D+00,0.0D+00/
+      data pitern/5.568327997d00/   /* pi**1.5 */
+      data dfact/1.0D00,1.0D00,3.0D00,15.0D00,105.0D00,945.0D00,
+     &           10395.0D00,135135.0D00,2027025.0D00/
+      data gtoC/MAX_PRIMITIVES*0.0D+00/
      /* convention to store/use GTO types */
       data nr /
      &     0,1,0,0,2,0,0,1,1,0,3,0,0,2,2,1,0,1,0,1,
@@ -624,6 +634,60 @@ c         if (kount.LT.interp) R(norrsma+i) = R(noffsma+i) - damp*turm
          ncmx_tot = ncmx_tot + ncmx(i)
          nbfns_tot = nbfns_tot + nbfns(i)
          n_unpaired(i) = multiplicity(i) - 1
+      end do
+@
+@< Normalize the primitives @>=
+      /* Copy GTO contraction coeffs to gtoC */
+      do i=1,ngmx_tot
+         gtoC(i) = eta(i,5)
+      end do
+
+      do nf = 1, nfrag
+         /* First, normalize the primitives */                
+         do j = 1, nbfns(nf)
+            nbj = noffsb(nf) + j
+            jtyp = ntype(nbj); js = nfirst(nbj); jf = nlast(nbj)
+            l = nr(jtyp,1); m = nr(jtyp,2); n = nr(jtyp,3)
+            do i = js, jf
+               nbi = noffsg(nf) + i
+               alp = eta(nbi,4); SOO = pitern*(half/alp)**onep5
+               t1 = dfact(l+1)/alp**l
+               t2 = dfact(m+1)/alp**m
+               t3 = dfact(n+1)/alp**n
+               eta(nbi,5) = one/dsqrt(SOO*t1*t2*t3)
+            end do
+         end do
+         /* Now normalize the basis functions */
+         do j = 1, nbfns(nf)
+            nbj = noffsb(nf) + j
+            jtyp = ntype(nbj); js = nfirst(nbj); jf = nlast(nbj)
+            l = nr(jtyp,1); m = nr(jtyp,2); n = nr(jtyp,3)
+                                                              
+            sum = zero
+            do ii = js, jf
+               nbii = noffsg(nf) + ii
+               do jj = js, jf
+                  nbjj = noffsg(nf) + jj
+                  t = one/(eta(nbii,4)+eta(nbjj,4))
+                  SOO = pitern*(t**onep5)*eta(nbii,5)*eta(nbjj,5)
+                  t = half*t
+                  t1 = dfact(l+1)*t**l
+                  t2 = dfact(m+1)*t**m
+                  t3 = dfact(n+1)*t**n
+                  sum = sum + gtoC(nbii)*gtoC(nbjj)*SOO*t1*t2*t3
+               end do
+            end do
+            sum = one / dsqrt(sum)
+            do ii = js, jf
+               nbii = noffsg(nf) + ii
+               gtoC(nbii) = gtoC(nbii) * sum
+            end do
+         end do
+                                                              
+         do ii = 1, ngmx(nf)
+            nbii = noffsg(nf) + ii
+            eta(nbii,5) = eta(nbii,5) * gtoC(nbii)
+         end do
       end do
 @
 @< Calculate Nuclear Repulsion Energy @>=
@@ -3468,32 +3532,18 @@ from the |file|.
       double precision S(ARB), H(ARB)
       integer ntype(ARB), nfirst(ARB), nlast(ARB), ncntr(ARB), nfile
 C
-      integer i, j, k, l, ltop, ij, ji, mu, m, n, jtyp, js, jf, ii, jj
+      integer i, j, k, l, ij, ji, mu
       double precision generi, genoei
       integer pointer, last
       double precision ovltot, kintot
-      double precision val, alpha, t, t1, t2, t3, sum, pitern
-      double precision SOO
-      double precision gtoC(MAX_PRIMITIVES)
-      double precision dfact(9)
+      double precision val
       integer nr(NO_OF_TYPES, 3)
       data nr /
      &     0,1,0,0,2,0,0,1,1,0,3,0,0,2,2,1,0,1,0,1,
      &     0,0,1,0,0,2,0,1,0,1,0,3,0,1,0,2,2,0,1,1,
      &     0,0,0,1,0,0,2,0,1,1,0,0,3,0,1,0,1,2,2,1/
-      data half,onep5,one,zero/0.5D+00,1.5D+00,
-     &                         1.0D+00,0.0D+00/
-      data pitern/5.568327997d00/   /* pi**1.5 */
-      data dfact/1.0D00,1.0D00,3.0D00,15.0D00,105.0D00,945.0D00,
-     &           10395.0D00,135135.0D00,2027025.0D00/
-      data gtoC/MAX_PRIMITIVES*0.0D+00/
 
       mu = 0
-
-      @< Copy GTO contraction coeffs to gtoC @>
-
-      @< Normalize the primitives @>
- 
       /* one electron integrals */
  
       do i=1, nbfns
@@ -3529,57 +3579,6 @@ C
       end
 @
 
-@< Copy GTO contraction coeffs to gtoC @>=
-      do i=1,ngmx
-         gtoC(noffsg+i) = eta(noffsg+i,5)
-      end do
-@
-@< Normalize the primitives @>=
-      /* First, normalize the primitives */
-      do j = 1, nbfns
-         nbjj = noffsb+j
-         jtyp = ntype(nbjj); js = nfirst(nbjj); jf = nlast(nbjj)
-         l = nr(jtyp,1); m = nr(jtyp,2); n = nr(jtyp,3)
-         do i = js, jf
-            alpha = eta(noffsg+i,4); SOO = pitern*(half/alpha)**onep5
-            t1 = dfact(l+1)/alpha**l
-            t2 = dfact(m+1)/alpha**m
-            t3 = dfact(n+1)/alpha**n
-            eta(noffsg+i,5) = one/dsqrt(SOO*t1*t2*t3)
-         end do
-      end do
-      /* Now normalize the basis functions */
-      do j = 1, nbfns
-         nbjj = noffsb + j
-         jtyp = ntype(nbjj); js = nfirst(nbjj); jf = nlast(nbjj)
-         l = nr(jtyp,1); m = nr(jtyp,2); n = nr(jtyp,3)
-
-         sum = zero
-         do ii = js, jf
-            nbii = noffsg + ii
-            do jj = js, jf
-               nbjj = noffsg + jj
-               t = one/(eta(nbii,4)+eta(nbjj,4))
-               SOO = pitern*(t**onep5)*eta(nbii,5)*eta(nbjj,5)
-               t = half*t
-               t1 = dfact(l+1)*t**l
-               t2 = dfact(m+1)*t**m
-               t3 = dfact(n+1)*t**n
-               sum = sum + gtoC(nbii)*gtoC(nbjj)*SOO*t1*t2*t3
-            end do
-         end do
-         sum = one / dsqrt(sum)
-         do ii = js, jf
-            nbii = noffsg + ii
-            gtoC(nbii) = gtoC(nbii) * sum
-         end do
-      end do
- 
-      do ii = 1, ngmx
-         nbii = noffsg + ii
-         eta(nbii,5) = eta(nbii,5) * gtoC(nbii)
-      end do
-@
 @*1 Integral transfotmations.
 
 @*2 tran2e.
