@@ -136,100 +136,293 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       STOP
       END
 @
-@< Perform TDFI-CIS @>=
+@< Program Declarations @>=
+      double precision vlist(MAX_CENTRES,4)
+      double precision eta(MAX_PRIMITIVES,5)
+      integer nfirst(MAX_BASIS_FUNCTIONS)
+      integer nlast(MAX_BASIS_FUNCTIONS)
+      integer ntype(MAX_BASIS_FUNCTIONS)
+      integer ncntr(MAX_BASIS_FUNCTIONS)
+      integer nr(NO_OF_TYPES,3)
+      integer nbfns(MAX_FRAGS), ngmx(MAX_FRAGS), ncmx(MAX_FRAGS), nelec(MAX_FRAGS)
+      integer charge(MAX_FRAGS), multiplicity(MAX_FRAGS)
+      integer nstate1(MAX_FRAGS), nstate2(MAX_FRAGS)
+      integer noffsn(MAX_FRAGS), noffsg(MAX_FRAGS), noffsb(MAX_FRAGS)
+      integer n_unpaired(MAX_FRAGS)
+      integer interp, irite
+      double precision S(MATRIX_SIZE),H(MATRIX_SIZE),HF(MATRIX_SIZE)
+      double precision R(MATRIX_SIZE),Rold(MATRIX_SIZE)
+      double precision C(MATRIX_SIZE),Cbar(MATRIX_SIZE),V(MATRIX_SIZE)
+      double precision crit, damp, E, Enuc
+      double precision epsilon(MAX_BASIS_FUNCTIONS)
+      double precision VT(MATRIX_SIZE_BIG), vector(MATRIX_SIZE)
+      integer RS(MATRIX_SIZE)
+      double precision xc(MAX_SHELLS,MAX_SHELLS)
+      double precision yc(MAX_SHELLS,MAX_SHELLS)
+      double precision alpha(MAX_SHELLS)
+      double precision b(MAX_SHELLS,MAX_SHELLS)
+      double precision nu(MAX_SHELLS)
+      integer noclst(MAX_SHELLS,MAX_BASIS_FUNCTIONS)
+      integer norbs(MAX_SHELLS)
+      integer scf, grhf
+      double precision calnrp, vv, vJ, vK, turm, term, vij, Rsum, Etot, Eprev, vK1, vK2, dvJ, dvK1, dvK2
+      integer i, j, k, l, task, read_eri, pointer, nfile, last, m, n
+      integer nsize, nfrag
+      integer next_label_inter2
+      double precision genvei, generi2
+      double precision small(10), two, one, zero, half, onep5, pitern, sum
+      double precision gtoC(MAX_PRIMITIVES)
+      double precision dfact(9)
+      double precision SOO, t, t1, t2, t3, alp
+      data half,onep5,one,zero/0.5D+00,1.5D+00,
+     &                         1.0D+00,0.0D+00/
+      data pitern/5.568327997d00/   /* pi**1.5 */
+      data dfact/1.0D00,1.0D00,3.0D00,15.0D00,105.0D00,945.0D00,
+     &           10395.0D00,135135.0D00,2027025.0D00/
+      data gtoC/MAX_PRIMITIVES*0.0D+00/
+     /* convention to store/use GTO types */
+      data nr /
+     &     0,1,0,0,2,0,0,1,1,0,3,0,0,2,2,1,0,1,0,1,
+     &     0,0,1,0,0,2,0,1,0,1,0,3,0,1,0,2,2,0,1,1,
+     &     0,0,0,1,0,0,2,0,1,1,0,0,3,0,1,0,1,2,2,1/
+@
+@< Program Parameters @>=
+      data zero,one,two,half/0.00D+00,1.00D+00,2.00D+00,0.50D+00/
+@
+@< Read Structure Input @>=
+      read(INPUT_UNIT,*) task                                        /* The task integer identifier */
+      read(INPUT_UNIT,*) crit, damp, interp                          /* SCF parmeters */
+      read(INPUT_UNIT,*) read_eri                                    /* Flag of reading eri */
+      read(INPUT_UNIT,*) nfrag                                       /* Number of QM fragments */
+      read(INPUT_UNIT,*) (charge(i), i=1, nfrag)
+      read(INPUT_UNIT,*) (multiplicity(i), i=1, nfrag)
+      read(INPUT_UNIT,*) (nstate1(i), i=1, nfrag)
+      read(INPUT_UNIT,*) (nstate2(i), i=1, nfrag)                    /* Transition states */
+      read(INPUT_UNIT,*) (nelec(i), i=1, nfrag)                      /* number of electrons */
+      read(INPUT_UNIT,*) (ncmx(i), i=1, nfrag)
+      read(INPUT_UNIT,*) (nbfns(i), i=1, nfrag)
+      read(INPUT_UNIT,*) (ngmx(i), i=1, nfrag)                       /* number of atoms, bfns and GTFs */
+      read(INPUT_UNIT,*) (noffsn(i), i=1, nfrag)                     /* Offset for nuclei */
+      read(INPUT_UNIT,*) (noffsb(i), i=1, nfrag)                     /* Offset for basis functions */
+      read(INPUT_UNIT,*) (noffsg(i), i=1, nfrag)                     /* Offset for GTFs */
+   
+      @< Get total size of input data @>
+
+      read(INPUT_UNIT,*) (vlist(i,1), vlist(i,2), vlist(i,3),        /* atomic coordinates and charges */
+     &                    vlist(i,4), i=1,ncmx_tot)
+      read(INPUT_UNIT,*) (eta(i,1), eta(i,2), eta(i,3), eta(i,4),    /* GTF's specifications */ 
+     &                    eta(i,5), i=1, ngmx_tot)
+      read(INPUT_UNIT,*) (ntype (i), i=1, nbfns_tot)                 /* */
+      read(INPUT_UNIT,*) (ncntr (i), i=1, nbfns_tot)
+      read(INPUT_UNIT,*) (nfirst(i), i=1, nbfns_tot)
+      read(INPUT_UNIT,*) (nlast (i), i=1, nbfns_tot)
+
+@       
+@< Get total size of input data @>=
+      ngmx_tot = 0
+      ncmx_tot = 0
+      nbfns_tot= 0
+      do i = 1, nfrag
+         ngmx_tot = ngmx_tot + ngmx(i)
+         ncmx_tot = ncmx_tot + ncmx(i)
+         nbfns_tot = nbfns_tot + nbfns(i)
+         n_unpaired(i) = multiplicity(i) - 1
+      end do
+@
+@< Normalize the primitives @>=
+      /* Copy GTO contraction coeffs to gtoC */
+      do i=1,ngmx_tot
+         gtoC(i) = eta(i,5)
+      end do
+
       do nf = 1, nfrag
-         n = nbfns(nf) ; nn = n*n
-         nocc    = nelec(nf)/2
-         nvirt   = n - nocc
-         nci     = nvirt * nocc
-
-         noffsv = (nf-1) * n
-         noffsm = (nf-1) * nn
-
-         noffsvb = (nf-1) * nci
-         noffsmb = (nf-1) * nci * nci
-
-         ns1 = nstate1(nf); ns2 = nstate2(nf)
-
-         call tran2e(ERI_UNIT_AO+1+nf,ERI_UNIT_MO+5+nf,n,S(noffsm+1),C,RS,VT)
-         call H_CIS(H(noffsmb+1), n, nocc, epsilon(noffsv+1), ERI_UNIT_MO+5+nf, two, nsize)
-         call eigen(H(noffsmb+1), Cbar(noffsmb+1), nci)
-         call cisR(S(noffsm+1), Cbar(noffsmb+1), ns1, ns2, n, nocc, vector(noffsvb+1), R(noffsm+1))
-         write(irite,*) " CIS DENSITY MATRIX BETWEEN STATES ", ns1, ns2
-         call pmat(R(noffsm+1), n, n, irite)
-         /* initialize interaction matrixes */
-         do i = 1, nn
-            V(noffsm+i) = zero
+         /* First, normalize the primitives */                
+         do j = 1, nbfns(nf)
+            nbj = noffsb(nf) + j
+            jtyp = ntype(nbj); js = nfirst(nbj); jf = nlast(nbj)
+            l = nr(jtyp,1); m = nr(jtyp,2); n = nr(jtyp,3)
+            do i = js, jf
+               nbi = noffsg(nf) + i
+               alp = eta(nbi,4); SOO = pitern*(half/alp)**onep5
+               t1 = dfact(l+1)/alp**l
+               t2 = dfact(m+1)/alp**m
+               t3 = dfact(n+1)/alp**n
+               eta(nbi,5) = one/dsqrt(SOO*t1*t2*t3)
+            end do
+         end do
+         /* Now normalize the basis functions */
+         do j = 1, nbfns(nf)
+            nbj = noffsb(nf) + j
+            jtyp = ntype(nbj); js = nfirst(nbj); jf = nlast(nbj)
+            l = nr(jtyp,1); m = nr(jtyp,2); n = nr(jtyp,3)
+                                                              
+            sum = zero
+            do ii = js, jf
+               nbii = noffsg(nf) + ii
+               do jj = js, jf
+                  nbjj = noffsg(nf) + jj
+                  t = one/(eta(nbii,4)+eta(nbjj,4))
+                  SOO = pitern*(t**onep5)*eta(nbii,5)*eta(nbjj,5)
+                  t = half*t
+                  t1 = dfact(l+1)*t**l
+                  t2 = dfact(m+1)*t**m
+                  t3 = dfact(n+1)*t**n
+                  sum = sum + gtoC(nbii)*gtoC(nbjj)*SOO*t1*t2*t3
+               end do
+            end do
+            sum = one / dsqrt(sum)
+            do ii = js, jf
+               nbii = noffsg(nf) + ii
+               gtoC(nbii) = gtoC(nbii) * sum
+            end do
+         end do
+                                                              
+         do ii = 1, ngmx(nf)
+            nbii = noffsg(nf) + ii
+            eta(nbii,5) = eta(nbii,5) * gtoC(nbii)
          end do
       end do
+@
+@< Calculate Nuclear Repulsion Energy @>=
+      Enuc = CalNRP(vlist, ncmx(nf), noffsn(nf))
+      write(ERROR_OUTPUT_UNIT,206) Enuc
+@
+@< Generate Molecular Integrals @>=
+      write(*,*) " CALCULATION OF MOLECULAR INTEGRALS"
+      noffsn_nf = noffsn(nf); noffsg_nf = noffsg(nf); noffsb_nf = noffsb(nf)
+      call genint(ngmx(nf),nbfns(nf),eta,ntype,ncntr,nfirst,nlast,
+     &            vlist,ncmx(nf),ncmx(nf),S,H,ERI_UNIT_AO,read_eri,
+     &            noffsn_nf, noffsg_nf, noffsb_nf)
+@
+@< Orthogonalize The Basis @>=
+      nbasis = nbfns(nf)
+      if (irite.GT.0) then
+         write(irite,*) " OVERLAP MATRIX"
+         call pmat(S,nbasis,nbasis,irite)
+      end if
+      call shalf(S,R,Cbar,nbasis)
+      if (irite.GT.0) then
+         write(irite,*) " ORTOGONALIZING MATRIX"
+         call pmat(S,nbasis,nbasis,irite)
+      end if
+      /* save the orthogonalizer */
+      do i=1,nbasis*nbasis
+         V(i) = S(i)
+      end do
+@
+@< Transform Molecular Integrals @>=
+      write(ERROR_OUTPUT_UNIT,*) " TRANSFORMATION OF INTEGRALS TO MO BASIS"
+      call tran2e(ERI_UNIT_AO,ERI_UNIT_MO,nbfns(nf),S,C,RS,VT)
+@
+@< Perform SCF @>=
+      if (irite.GT.0) then
+          write(irite,*) " CORE HAMILTONIAN - NON-ORTHOGONAL BASIS"
+          call pmat(H,nbasis,nbasis,irite)
+      end if
+      if (scf(H,S,nbasis,nelec(nf),ERI_UNIT_AO,irite,damp,interp,E,HF,VT,R,
+     &            Rold,Cbar,epsilon,crit).EQ.OK) then
+          write(*,*) " SCF DONE."
+          write(ERROR_OUTPUT_UNIT,200) E+Enuc
+          if (irite.GT.0) then
+             write(irite,*) " DENSITY MATRIX (ORTHOGONAL BASIS)"
+             call pmat(R,nbasis,nbasis,irite)
+             write(irite,*) " MO COEFFICIENTS (NON-ORTHOGONAL BASIS)"
+             call pmat(S,nbasis,nbasis,irite)
+          end if
+      else
+          write(*,*) " SCF FAILED. "
+      end if
+@
+@< Perform ROHF @>=
+      /* setup the memorials for ROHF */
+      number_of_shells = 2
+      nu(1) = two; nu(2) = one
+      norbs(1) =(nelec(nf) - n_unpaired(nf))/2
+      norbs(2) = n_unpaired(nf)
+      alpha(1) = zero; alpha(2) = zero
+      xc(1,1) = one ; xc(1,2) = one ; xc(2,1) = one ; xc(2,2) = one
+      yc(1,1) = half; yc(1,2) = half; yc(2,1) = half; yc(2,2) = one
+      b(1,1) = one; b(1,2) = one; b(2,1) = -one; b(2,2) = one
 
-      /* Compute the interaction matrixes */
-      do nfa = 1, nfrag                                                                     
-         nbasisa = nbfns(nfa)
-         ngmxa   = ngmx(nfa)
-
-         na = nbasisa; nana = na*na
-         noffsva = (nfa-1) * na
-         noffsma = (nfa-1) * nana
-         noffsna = noffsn(nfa)
-         noffsba = noffsb(nfa)
-         noffsga = noffsg(nfa)
-
-
-         /* Iterate over other fragments to complete DFI core Hamiltonian */
-         do nfb = 1, nfrag
-            if (nfb.NE.nfa) then
-                nbasisb = nbfns(nfb)
-                ngmxb = ngmx(nfb)
-                ncmxb = ncmx(nfb) 
-                                 
-                nb = nbasisb; nbnb = nb*nb
-                noffsvb = (nfb-1) * nb
-                noffsmb = (nfb-1) * nbnb
-                noffsnb = noffsn(nfb)
-                noffsbb = noffsb(nfb)
-                noffsgb = noffsg(nfb)
-                do i = 1, nbasisa
-                do j = 1, nbasisa
-                   vij = zero
-
-                   @< TDFI-Iter: Contribution to fragment |a| from electron density of fragment |b| @>
-
-                   @< TDFI-Iter: Accumulate TDFI interaction matrix for fragment |a| @>
-
-                end do
-                end do
-                                                                                            
-            end if
+      j_prev = 0
+      do i = 1, number_of_shells
+         do j = 1, norbs(i)
+            noclst(i,j) = j_prev + j
          end do
-         /* compute coupling */
-         vv = zero
-         do i = 1, nana
-            vv = vv + R(noffsma+i) * V(noffsma+i)
-         end do
-         small(nfa) = vv
-         write(*,*) vv
+         j_prev = norbs(i)
       end do
+      /* perform ROHF calculation */     
+      initial_scf = YES
+      if (grhf(H,S,nbasis,2,norbs,noclst,ERI_UNIT_AO,nu,xc,yc,alpha,b,E,
+     &        HF,R,epsilon,Cbar,V,C,initial_scf,irite).EQ.OK) then
+          write(*,*) " SCF DONE."
+          call porbe(epsilon, nbasis, norbs(1)+norbs(2))
+          write(ERROR_OUTPUT_UNIT,200) E+Enuc
+      else
+          write(*,*) " SCF FAILED. "
+      end if
 @
-@< TDFI-Iter: Contribution to fragment |a| from electron density of fragment |b| @>=
-      do k = 1, nbasisb
-      do l = 1, nbasisb
-         kl = nbasisb*(l-1) + k
-         vJ = generi2(i,j,k,l,0,eta,nfirst, 
-     &                      nlast,ntype,nr,20,
-     &                      noffsga, noffsba, noffsgb, noffsbb, COULOMB)
-         vK = generi2(i,l,k,j,0,eta,nfirst, 
-     &                      nlast,ntype,nr,20,
-     &                      noffsga, noffsba, noffsgb, noffsbb, EXCHANGE)
-         vij = vij + R(noffsmb+kl) * (two*vJ - vK)
-C        vij = vij + R(noffsmb+kl) * two*vJ
-      end do
-      end do
-@
-@< TDFI-Iter: Accumulate TDFI interaction matrix for fragment |a| @>=
-      ij = nbasisa*(j-1) + i
-      V(noffsma+ij) = V(noffsma+ij) + vij
-@
+
+DFI is temporarily described here (soon the separate chapter will be created
+along with the separate function |dfi| solving multiple SCF Hartree-Fock 
+problems.
+
+In the general Hartree-Fock theory one can describe the total energy of the system
+as
+%
+\begin{equation}
+E = {\rm Tr} \left[ {\bf R} {\bf H}^{\rm core} \right] + {\rm Tr} \left[ {\bf R} {\bf G} \right]
+\end{equation}
+%
+where ${\bf H}^{\rm core}$ is the matrix representation of one-electron operator in HF theory,
+${\bf R}$ is the one-particle density matrix and {\bf G} has the form
+%
+\begin{equation}
+G_{ij} = \sum_{kl} R_{lk} \left\{ (ij \vert kl ) - \frac{1}{2} (il \vert kj ) \right\}
+\end{equation}
+%
+If we will assume that the total system consists of the \emph{separate} fragments which are coupled
+with each other by their electrostatic and Pauli-repulsion interactions, we can partition the 
+total energy expression into the contributions coming from those fragments. However, this assumption
+forces us to constain the electrons in some way since the partitioning of the system is equivalent
+to constraining the total density matrix ${\bf R}$ to adopt the \emph{block form}, with each block corresponding
+to the particular fragment of interest. In other words, in the AO space, the matrix element $R_{ij}$ is
+constrained to be necessarily zero if $i$-th and $j$-th basis function 'belongs' to different fragments.
+Here we see that the convention about division of the system into fragments is highly not unique, especially
+when the electrons are truly shared between them. However, in the cases when one can neglect bonding interaction
+and assume that electrons occupy mostly some localized subspace, the fragment-division approximation seems to
+be a reasonable one and will higlhy decrease the computational demands.
+
+Assuming that bond order values in the total density matrixes vanish for the interfragment matrix elements
+one can write the approximation to the total energy of such a system:
+%
+\begin{equation}
+E \cong \sum_n^{N_{\rm frag}} \left\{ 
+     {\rm Tr} \left[ {\bf R}^{(n)} {\bf H}^{(n),{\rm core}} \right] + {\rm Tr} \left[ {\bf R}^{(n)} {\bf G}^{(n)} \right]
+  \right\}
+\end{equation}
+%
+Note that, due to the block form of density matrix, we do not need to consider off-diagonal blocks
+in core Hamiltonian matrix. Also, it becomes clear that $\bf G$ matrix has also a block form since
+it depends linearly on the density matrix. The $n$-th block of this matrix referring to the $n$-th
+fragment consists of intra- and interfragment contributions, namely:
+%
+\begin{equation}
+{\bf G}_n = \sum_{kl\in n} R_{lk}^n \left\{ (ij \vert kl ) - \frac{1}{2} (il \vert kj ) \right\}
+ + \sum_{m\neq n} \sum_{kl \in m} R_{lk}^m \left\{ (ij \vert kl ) - \frac{1}{2} (il \vert kj ) \right\}
+\end{equation}
+%
+This division is important for the design of the self-consistent approach to obtain the fragment density matrixes
+${\bf R^{(n)}}$. Here we start with the Density Fragment Interaction method (DFI). The key point is to
+set up the appropriate SCF problems for each fragments and propagate iteratively till density matrixes
+will converge. Therefore we must choose appropriate core Hamiltonian matrices. The easienst and intuitive way
+is to use the \emph{gas phase} fragment Fock matrix. We need to consider also the interaction of a given
+fragments with all theother fragments (and it should be taken into account in core Hamiltonian).
+Since we are looking for $N_{\rm frag}$ density matrices it is convenient to incorporate
+the interfragment part of ${\bf G}$ matrix into the fragment core Hamiltonian for that purpose. The last
+contribution to the core Hamiltonian would be the contribution due to the nuclei of other fragments interacting 
+with the electron distribution of the fragment in question.
+
 @< Perform DFI @>=
 
       @< DFI: Calculate Nuclear Repulsion Energy for Whole Fragment Aggregate @>
@@ -543,231 +736,99 @@ c         if (kount.LT.interp) R(norrsma+i) = R(noffsma+i) - damp*turm
       
       write(*,*) " DFI ITERATION= ", iter, " TOTAL ENERGY=", Etot, small(1), small(2)
 @
-@< Program Declarations @>=
-      double precision vlist(MAX_CENTRES,4)
-      double precision eta(MAX_PRIMITIVES,5)
-      integer nfirst(MAX_BASIS_FUNCTIONS)
-      integer nlast(MAX_BASIS_FUNCTIONS)
-      integer ntype(MAX_BASIS_FUNCTIONS)
-      integer ncntr(MAX_BASIS_FUNCTIONS)
-      integer nr(NO_OF_TYPES,3)
-      integer nbfns(MAX_FRAGS), ngmx(MAX_FRAGS), ncmx(MAX_FRAGS), nelec(MAX_FRAGS)
-      integer charge(MAX_FRAGS), multiplicity(MAX_FRAGS)
-      integer nstate1(MAX_FRAGS), nstate2(MAX_FRAGS)
-      integer noffsn(MAX_FRAGS), noffsg(MAX_FRAGS), noffsb(MAX_FRAGS)
-      integer n_unpaired(MAX_FRAGS)
-      integer interp, irite
-      double precision S(MATRIX_SIZE),H(MATRIX_SIZE),HF(MATRIX_SIZE)
-      double precision R(MATRIX_SIZE),Rold(MATRIX_SIZE)
-      double precision C(MATRIX_SIZE),Cbar(MATRIX_SIZE),V(MATRIX_SIZE)
-      double precision crit, damp, E, Enuc
-      double precision epsilon(MAX_BASIS_FUNCTIONS)
-      double precision VT(MATRIX_SIZE_BIG), vector(MATRIX_SIZE)
-      integer RS(MATRIX_SIZE)
-      double precision xc(MAX_SHELLS,MAX_SHELLS)
-      double precision yc(MAX_SHELLS,MAX_SHELLS)
-      double precision alpha(MAX_SHELLS)
-      double precision b(MAX_SHELLS,MAX_SHELLS)
-      double precision nu(MAX_SHELLS)
-      integer noclst(MAX_SHELLS,MAX_BASIS_FUNCTIONS)
-      integer norbs(MAX_SHELLS)
-      integer scf, grhf
-      double precision calnrp, vv, vJ, vK, turm, term, vij, Rsum, Etot, Eprev, vK1, vK2, dvJ, dvK1, dvK2
-      integer i, j, k, l, task, read_eri, pointer, nfile, last, m, n
-      integer nsize, nfrag
-      integer next_label_inter2
-      double precision genvei, generi2
-      double precision small(10), two, one, zero, half, onep5, pitern, sum
-      double precision gtoC(MAX_PRIMITIVES)
-      double precision dfact(9)
-      double precision SOO, t, t1, t2, t3, alp
-      data half,onep5,one,zero/0.5D+00,1.5D+00,
-     &                         1.0D+00,0.0D+00/
-      data pitern/5.568327997d00/   /* pi**1.5 */
-      data dfact/1.0D00,1.0D00,3.0D00,15.0D00,105.0D00,945.0D00,
-     &           10395.0D00,135135.0D00,2027025.0D00/
-      data gtoC/MAX_PRIMITIVES*0.0D+00/
-     /* convention to store/use GTO types */
-      data nr /
-     &     0,1,0,0,2,0,0,1,1,0,3,0,0,2,2,1,0,1,0,1,
-     &     0,0,1,0,0,2,0,1,0,1,0,3,0,1,0,2,2,0,1,1,
-     &     0,0,0,1,0,0,2,0,1,1,0,0,3,0,1,0,1,2,2,1/
-@
-@< Program Parameters @>=
-      data zero,one,two,half/0.00D+00,1.00D+00,2.00D+00,0.50D+00/
-@
-@< Read Structure Input @>=
-      read(INPUT_UNIT,*) task                                        /* The task integer identifier */
-      read(INPUT_UNIT,*) crit, damp, interp                          /* SCF parmeters */
-      read(INPUT_UNIT,*) read_eri                                    /* Flag of reading eri */
-      read(INPUT_UNIT,*) nfrag                                       /* Number of QM fragments */
-      read(INPUT_UNIT,*) (charge(i), i=1, nfrag)
-      read(INPUT_UNIT,*) (multiplicity(i), i=1, nfrag)
-      read(INPUT_UNIT,*) (nstate1(i), i=1, nfrag)
-      read(INPUT_UNIT,*) (nstate2(i), i=1, nfrag)                    /* Transition states */
-      read(INPUT_UNIT,*) (nelec(i), i=1, nfrag)                      /* number of electrons */
-      read(INPUT_UNIT,*) (ncmx(i), i=1, nfrag)
-      read(INPUT_UNIT,*) (nbfns(i), i=1, nfrag)
-      read(INPUT_UNIT,*) (ngmx(i), i=1, nfrag)                       /* number of atoms, bfns and GTFs */
-      read(INPUT_UNIT,*) (noffsn(i), i=1, nfrag)                     /* Offset for nuclei */
-      read(INPUT_UNIT,*) (noffsb(i), i=1, nfrag)                     /* Offset for basis functions */
-      read(INPUT_UNIT,*) (noffsg(i), i=1, nfrag)                     /* Offset for GTFs */
-   
-      @< Get total size of input data @>
-
-      read(INPUT_UNIT,*) (vlist(i,1), vlist(i,2), vlist(i,3),        /* atomic coordinates and charges */
-     &                    vlist(i,4), i=1,ncmx_tot)
-      read(INPUT_UNIT,*) (eta(i,1), eta(i,2), eta(i,3), eta(i,4),    /* GTF's specifications */ 
-     &                    eta(i,5), i=1, ngmx_tot)
-      read(INPUT_UNIT,*) (ntype (i), i=1, nbfns_tot)                 /* */
-      read(INPUT_UNIT,*) (ncntr (i), i=1, nbfns_tot)
-      read(INPUT_UNIT,*) (nfirst(i), i=1, nbfns_tot)
-      read(INPUT_UNIT,*) (nlast (i), i=1, nbfns_tot)
-
-@       
-@< Get total size of input data @>=
-      ngmx_tot = 0
-      ncmx_tot = 0
-      nbfns_tot= 0
-      do i = 1, nfrag
-         ngmx_tot = ngmx_tot + ngmx(i)
-         ncmx_tot = ncmx_tot + ncmx(i)
-         nbfns_tot = nbfns_tot + nbfns(i)
-         n_unpaired(i) = multiplicity(i) - 1
-      end do
-@
-@< Normalize the primitives @>=
-      /* Copy GTO contraction coeffs to gtoC */
-      do i=1,ngmx_tot
-         gtoC(i) = eta(i,5)
-      end do
-
+@< Perform TDFI-CIS @>=
       do nf = 1, nfrag
-         /* First, normalize the primitives */                
-         do j = 1, nbfns(nf)
-            nbj = noffsb(nf) + j
-            jtyp = ntype(nbj); js = nfirst(nbj); jf = nlast(nbj)
-            l = nr(jtyp,1); m = nr(jtyp,2); n = nr(jtyp,3)
-            do i = js, jf
-               nbi = noffsg(nf) + i
-               alp = eta(nbi,4); SOO = pitern*(half/alp)**onep5
-               t1 = dfact(l+1)/alp**l
-               t2 = dfact(m+1)/alp**m
-               t3 = dfact(n+1)/alp**n
-               eta(nbi,5) = one/dsqrt(SOO*t1*t2*t3)
-            end do
-         end do
-         /* Now normalize the basis functions */
-         do j = 1, nbfns(nf)
-            nbj = noffsb(nf) + j
-            jtyp = ntype(nbj); js = nfirst(nbj); jf = nlast(nbj)
-            l = nr(jtyp,1); m = nr(jtyp,2); n = nr(jtyp,3)
-                                                              
-            sum = zero
-            do ii = js, jf
-               nbii = noffsg(nf) + ii
-               do jj = js, jf
-                  nbjj = noffsg(nf) + jj
-                  t = one/(eta(nbii,4)+eta(nbjj,4))
-                  SOO = pitern*(t**onep5)*eta(nbii,5)*eta(nbjj,5)
-                  t = half*t
-                  t1 = dfact(l+1)*t**l
-                  t2 = dfact(m+1)*t**m
-                  t3 = dfact(n+1)*t**n
-                  sum = sum + gtoC(nbii)*gtoC(nbjj)*SOO*t1*t2*t3
-               end do
-            end do
-            sum = one / dsqrt(sum)
-            do ii = js, jf
-               nbii = noffsg(nf) + ii
-               gtoC(nbii) = gtoC(nbii) * sum
-            end do
-         end do
-                                                              
-         do ii = 1, ngmx(nf)
-            nbii = noffsg(nf) + ii
-            eta(nbii,5) = eta(nbii,5) * gtoC(nbii)
-         end do
-      end do
-@
-@< Calculate Nuclear Repulsion Energy @>=
-      Enuc = CalNRP(vlist, ncmx(nf), noffsn(nf))
-      write(ERROR_OUTPUT_UNIT,206) Enuc
-@
-@< Generate Molecular Integrals @>=
-      write(*,*) " CALCULATION OF MOLECULAR INTEGRALS"
-      noffsn_nf = noffsn(nf); noffsg_nf = noffsg(nf); noffsb_nf = noffsb(nf)
-      call genint(ngmx(nf),nbfns(nf),eta,ntype,ncntr,nfirst,nlast,
-     &            vlist,ncmx(nf),ncmx(nf),S,H,ERI_UNIT_AO,read_eri,
-     &            noffsn_nf, noffsg_nf, noffsb_nf)
-@
-@< Orthogonalize The Basis @>=
-      nbasis = nbfns(nf)
-      if (irite.GT.0) then
-         write(irite,*) " OVERLAP MATRIX"
-         call pmat(S,nbasis,nbasis,irite)
-      end if
-      call shalf(S,R,Cbar,nbasis)
-      if (irite.GT.0) then
-         write(irite,*) " ORTOGONALIZING MATRIX"
-         call pmat(S,nbasis,nbasis,irite)
-      end if
-      /* save the orthogonalizer */
-      do i=1,nbasis*nbasis
-         V(i) = S(i)
-      end do
-@
-@< Transform Molecular Integrals @>=
-      write(ERROR_OUTPUT_UNIT,*) " TRANSFORMATION OF INTEGRALS TO MO BASIS"
-      call tran2e(ERI_UNIT_AO,ERI_UNIT_MO,nbfns(nf),S,C,RS,VT)
-@
-@< Perform SCF @>=
-      if (irite.GT.0) then
-          write(irite,*) " CORE HAMILTONIAN - NON-ORTHOGONAL BASIS"
-          call pmat(H,nbasis,nbasis,irite)
-      end if
-      if (scf(H,S,nbasis,nelec(nf),ERI_UNIT_AO,irite,damp,interp,E,HF,VT,R,
-     &            Rold,Cbar,epsilon,crit).EQ.OK) then
-          write(*,*) " SCF DONE."
-          write(ERROR_OUTPUT_UNIT,200) E+Enuc
-          if (irite.GT.0) then
-             write(irite,*) " DENSITY MATRIX (ORTHOGONAL BASIS)"
-             call pmat(R,nbasis,nbasis,irite)
-             write(irite,*) " MO COEFFICIENTS (NON-ORTHOGONAL BASIS)"
-             call pmat(S,nbasis,nbasis,irite)
-          end if
-      else
-          write(*,*) " SCF FAILED. "
-      end if
-@
-@< Perform ROHF @>=
-      /* setup the memorials for ROHF */
-      number_of_shells = 2
-      nu(1) = two; nu(2) = one
-      norbs(1) =(nelec(nf) - n_unpaired(nf))/2
-      norbs(2) = n_unpaired(nf)
-      alpha(1) = zero; alpha(2) = zero
-      xc(1,1) = one ; xc(1,2) = one ; xc(2,1) = one ; xc(2,2) = one
-      yc(1,1) = half; yc(1,2) = half; yc(2,1) = half; yc(2,2) = one
-      b(1,1) = one; b(1,2) = one; b(2,1) = -one; b(2,2) = one
+         n = nbfns(nf) ; nn = n*n
+         nocc    = nelec(nf)/2
+         nvirt   = n - nocc
+         nci     = nvirt * nocc
 
-      j_prev = 0
-      do i = 1, number_of_shells
-         do j = 1, norbs(i)
-            noclst(i,j) = j_prev + j
+         noffsv = (nf-1) * n
+         noffsm = (nf-1) * nn
+
+         noffsvb = (nf-1) * nci
+         noffsmb = (nf-1) * nci * nci
+
+         ns1 = nstate1(nf); ns2 = nstate2(nf)
+
+         call tran2e(ERI_UNIT_AO+1+nf,ERI_UNIT_MO+5+nf,n,S(noffsm+1),C,RS,VT)
+         call H_CIS(H(noffsmb+1), n, nocc, epsilon(noffsv+1), ERI_UNIT_MO+5+nf, two, nsize)
+         call eigen(H(noffsmb+1), Cbar(noffsmb+1), nci)
+         call cisR(S(noffsm+1), Cbar(noffsmb+1), ns1, ns2, n, nocc, vector(noffsvb+1), R(noffsm+1))
+         write(irite,*) " CIS DENSITY MATRIX BETWEEN STATES ", ns1, ns2
+         call pmat(R(noffsm+1), n, n, irite)
+         /* initialize interaction matrixes */
+         do i = 1, nn
+            V(noffsm+i) = zero
          end do
-         j_prev = norbs(i)
       end do
-      /* perform ROHF calculation */     
-      initial_scf = YES
-      if (grhf(H,S,nbasis,2,norbs,noclst,ERI_UNIT_AO,nu,xc,yc,alpha,b,E,
-     &        HF,R,epsilon,Cbar,V,C,initial_scf,irite).EQ.OK) then
-          write(*,*) " SCF DONE."
-          call porbe(epsilon, nbasis, norbs(1)+norbs(2))
-          write(ERROR_OUTPUT_UNIT,200) E+Enuc
-      else
-          write(*,*) " SCF FAILED. "
-      end if
+
+      /* Compute the interaction matrixes */
+      do nfa = 1, nfrag                                                                     
+         nbasisa = nbfns(nfa)
+         ngmxa   = ngmx(nfa)
+
+         na = nbasisa; nana = na*na
+         noffsva = (nfa-1) * na
+         noffsma = (nfa-1) * nana
+         noffsna = noffsn(nfa)
+         noffsba = noffsb(nfa)
+         noffsga = noffsg(nfa)
+
+
+         /* Iterate over other fragments to complete DFI core Hamiltonian */
+         do nfb = 1, nfrag
+            if (nfb.NE.nfa) then
+                nbasisb = nbfns(nfb)
+                ngmxb = ngmx(nfb)
+                ncmxb = ncmx(nfb) 
+                                 
+                nb = nbasisb; nbnb = nb*nb
+                noffsvb = (nfb-1) * nb
+                noffsmb = (nfb-1) * nbnb
+                noffsnb = noffsn(nfb)
+                noffsbb = noffsb(nfb)
+                noffsgb = noffsg(nfb)
+                do i = 1, nbasisa
+                do j = 1, nbasisa
+                   vij = zero
+
+                   @< TDFI-Iter: Contribution to fragment |a| from electron density of fragment |b| @>
+
+                   @< TDFI-Iter: Accumulate TDFI interaction matrix for fragment |a| @>
+
+                end do
+                end do
+                                                                                            
+            end if
+         end do
+         /* compute coupling */
+         vv = zero
+         do i = 1, nana
+            vv = vv + R(noffsma+i) * V(noffsma+i)
+         end do
+         small(nfa) = vv
+         write(*,*) vv
+      end do
+@
+@< TDFI-Iter: Contribution to fragment |a| from electron density of fragment |b| @>=
+      do k = 1, nbasisb
+      do l = 1, nbasisb
+         kl = nbasisb*(l-1) + k
+         vJ = generi2(i,j,k,l,0,eta,nfirst, 
+     &                      nlast,ntype,nr,20,
+     &                      noffsga, noffsba, noffsgb, noffsbb, COULOMB)
+         vK = generi2(i,l,k,j,0,eta,nfirst, 
+     &                      nlast,ntype,nr,20,
+     &                      noffsga, noffsba, noffsgb, noffsbb, EXCHANGE)
+         vij = vij + R(noffsmb+kl) * (two*vJ - vK)
+C        vij = vij + R(noffsmb+kl) * two*vJ
+      end do
+      end do
+@
+@< TDFI-Iter: Accumulate TDFI interaction matrix for fragment |a| @>=
+      ij = nbasisa*(j-1) + i
+      V(noffsma+ij) = V(noffsma+ij) + vij
 @
 @< Perform CIS @>=
       if (nelec(nf).GT.zero) then /* closed shell case */ 
