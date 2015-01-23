@@ -136,12 +136,106 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
       END
 @
 @< Perform TDFI-CIS @>=
-      write(*,*) " TDFI-CIS ISN'T IMPLEMENTED YET. TERMINATION..."
-      STOP
+      do nf = 1, nfrag
+         n = nbfns(nf) ; nn = n*n
+         nocc    = nelec(nf)/2
+         nvirt   = n - nocc
+         nci     = nvirt * nocc
+
+         noffsv = (nf-1) * n
+         noffsm = (nf-1) * nn
+
+         noffsvb = (nf-1) * nci
+         noffsmb = (nf-1) * nci * nci
+
+         ns1 = nstate1(nf); ns2 = nstate2(nf)
+
+         call tran2e(ERI_UNIT_AO+1+nf,ERI_UNIT_MO+5+nf,n,S(noffsm+1),C,RS,VT)
+         call H_CIS(H(noffsmb+1), n, nocc, epsilon(noffsv+1), ERI_UNIT_MO+5+nf, two, nsize)
+         call eigen(H(noffsmb+1), Cbar(noffsmb+1), nci)
+         call cisR(S(noffsm+1), Cbar(noffsmb+1), ns1, ns2, n, nocc, vector(noffsvb+1), R(noffsm+1))
+         write(irite,*) " CIS DENSITY MATRIX BETWEEN STATES ", ns1, ns2
+         call pmat(R(noffsm+1), n, n, irite)
+         /* initialize interaction matrixes */
+         do i = 1, nn
+            V(noffsm+i) = zero
+         end do
+      end do
+
+      /* Compute the interaction matrixes */
+      do nfa = 1, nfrag                                                                     
+         nbasisa = nbfns(nfa)
+         ngmxa   = ngmx(nfa)
+
+         na = nbasisa; nana = na*na
+         noffsva = (nfa-1) * na
+         noffsma = (nfa-1) * nana
+         noffsna = noffsn(nfa)
+         noffsba = noffsb(nfa)
+         noffsga = noffsg(nfa)
+
+
+         /* Iterate over other fragments to complete DFI core Hamiltonian */
+         do nfb = 1, nfrag
+            if (nfb.NE.nfa) then
+                nbasisb = nbfns(nfb)
+                ngmxb = ngmx(nfb)
+                ncmxb = ncmx(nfb) 
+                                 
+                nb = nbasisb; nbnb = nb*nb
+                noffsvb = (nfb-1) * nb
+                noffsmb = (nfb-1) * nbnb
+                noffsnb = noffsn(nfb)
+                noffsbb = noffsb(nfb)
+                noffsgb = noffsg(nfb)
+                do i = 1, nbasisa
+                do j = 1, nbasisa
+                   vij = zero
+
+                   @< TDFI-Iter: Contribution to fragment |a| from electron density of fragment |b| @>
+
+                   @< TDFI-Iter: Accumulate TDFI interaction matrix for fragment |a| @>
+
+                end do
+                end do
+                                                                                            
+            end if
+         end do
+         /* compute coupling */
+         vv = zero
+         do i = 1, nana
+            vv = vv + R(noffsma+i) * V(noffsma+i)
+         end do
+         small(nfa) = vv
+         write(*,*) vv
+      end do
+@
+@< TDFI-Iter: Contribution to fragment |a| from electron density of fragment |b| @>=
+      do k = 1, nbasisb
+      do l = 1, nbasisb
+         kl = nbasisb*(l-1) + k
+         vJ = generi2(i,j,k,l,0,eta,nfirst, 
+     &                      nlast,ntype,nr,20,
+     &                      noffsga, noffsba, noffsgb, noffsbb, COULOMB)
+         vK = generi2(i,l,k,j,0,eta,nfirst, 
+     &                      nlast,ntype,nr,20,
+     &                      noffsga, noffsba, noffsgb, noffsbb, EXCHANGE)
+         vij = vij + R(noffsmb+kl) * (two*vJ - vK)
+C        vij = vij + R(noffsmb+kl) * two*vJ
+      end do
+      end do
+@
+@< TDFI-Iter: Accumulate TDFI interaction matrix for fragment |a| @>=
+      ij = nbasisa*(j-1) + i
+      V(noffsma+ij) = V(noffsma+ij) + vij
 @
 @< Perform DFI @>=
 
       @< DFI: Calculate Nuclear Repulsion Energy for Whole Fragment Aggregate @>
+      
+      if (.false.) then   /* Temporary until development finished */
+      @< DFI: Calculate Interfragment ERIs @>
+      end if
 
       do nf = 1, nfrag
 
@@ -174,6 +268,75 @@ number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI 
 @< DFI: Calculate Nuclear Repulsion Energy for Whole Fragment Aggregate @>=
       Enuc = CalNRP(vlist, ncmx_tot, 0)
       write(ERROR_OUTPUT_UNIT,206) Enuc
+@
+
+This WEB module evaluates the ERIs between two fragments and stores them
+in a binary file |ERI\_UNIT\_AO\_INTER|. As for now it can be used only in
+the case when the number of fragments is equal to two. In the future it will
+be extended in such a way that the module will save ${N}\choose{2}$ interfragment ERI files
+corresponding to $N$ DFI fragments. 
+
+To make the implementation of unique interfragment ERI calculation and their storage
+let us analyze the two types of integrals: coulomb and exchange integrals. 
+We denote here $i$-th basis function as belonging to fragment $1$ and $\bar{i}$
+with a bar as basis function belonging to fragment $2$.
+There are 8 possible permutation of indices in the coulomb integral but only one of them
+is unique. The other seven integrals has identical values so it is necessary to store only
+$(ij,\bar{k}\bar{l})$ integral with the convention that $i\le j$ and $k \le l$.
+
+For exchange type of intergragment ERI the matters get a bit more complicated. We have
+the following integrals:
+%
+\begin{equation}
+(i\bar{l},\bar{k}j) = (j\bar{k},\bar{l}i) \ne (i\bar{k},\bar{l}j) = (i\bar{l},\bar{k}j)
+\end{equation}
+%
+
+@< DFI: Calculate Interfragment ERIs @>=
+      if (nfrag.EQ.2) then
+          ndfi = DISK_DFI
+
+          noffsga = noffsg(1); noffsgb = noffsg(2)
+          noffsba = noffsb(1); noffsbb = noffsb(2)
+
+          na = nbfns(1); nb = nbfns(2)
+
+          nfile = ERI_UNIT_AO_INTER
+          rewind nfile; pointer = 0                                 
+          last = NO
+          i = 1; j = 1; k = 1; l = 0
+                                                                    
+          do while (next_label_inter2(i,j,k,l,na,nb,noffsba,noggsb,noffsga,noffsgb).EQ.YES)
+             if (l.EQ.nb) last = YES
+             /* Coulomb (ij,kl) integral */
+             vJ = generi2(i,j,k,l,0,eta,nfirst,                               
+     &                            nlast,ntype,nr,20,
+     &                            noffsga, noffsba, noffsgb, noffsbb, COULOMB)
+
+
+             /* Exchange (il,kj) integral */
+             vK1= generi2(i,l,k,j,0,eta,nfirst, 
+     &                            nlast,ntype,nr,20,
+     &                            noffsga, noffsba, noffsgb, noffsbb, EXCHANGE)
+
+
+             /* Exchange (ik,lj) integral */
+             if ((i.NE.j).AND.(k.NE.l)) then
+                 vK2= generi2(i,k,l,j,0,eta,nfirst, 
+     &                                nlast,ntype,nr,20,
+     &                                noffsga, noffsba, noffsgb, noffsbb, EXCHANGE)
+             end if
+
+             /* Store */
+             if (dabs(vJ).GT.CRIT_ERI) call putint(nfile,i,j,k,l,COULOMB,vJ,pointer,last)
+             if (dabs(vK1).GT.CRIT_ERI) call putint(nfile,i,l,k,j,EXCHANGE,vK1,pointer,last)
+             if (dabs(vK2).LT.CRIT_ERI) cycle
+             call putint(nfile,i,l,k,j,EXCHANGE,vK2,pointer,last)
+          end do
+      else
+          write(*,*) " INTERFRAGMENT ERI STORAGE SKIPPED BECAUSE -NFRAG- LARGER THAN 2"
+          ndfi = DIRECT_DFI
+      end if
 @
 @< DFI: Local Integer Setup @>=
       write(*,*) " --- CALCULATION FOR MOLECULE ", nf, " ---"
@@ -372,7 +535,7 @@ c         if (kount.LT.interp) R(norrsma+i) = R(noffsma+i) - damp*turm
       double precision C(MATRIX_SIZE),Cbar(MATRIX_SIZE),V(MATRIX_SIZE)
       double precision crit, damp, E, Enuc
       double precision epsilon(MAX_BASIS_FUNCTIONS)
-      double precision VT(MATRIX_SIZE_BIG)
+      double precision VT(MATRIX_SIZE_BIG), vector(MATRIX_SIZE)
       integer RS(MATRIX_SIZE)
       double precision xc(MAX_SHELLS,MAX_SHELLS)
       double precision yc(MAX_SHELLS,MAX_SHELLS)
@@ -382,9 +545,10 @@ c         if (kount.LT.interp) R(norrsma+i) = R(noffsma+i) - damp*turm
       integer noclst(MAX_SHELLS,MAX_BASIS_FUNCTIONS)
       integer norbs(MAX_SHELLS)
       integer scf, grhf
-      double precision calnrp, vv, vJ, vK, turm, term, vij, Rsum, Etot, Eprev
-      integer i, j, k, l, task, read_eri
+      double precision calnrp, vv, vJ, vK, turm, term, vij, Rsum, Etot, Eprev, vK1, vK2
+      integer i, j, k, l, task, read_eri, pointer, nfile, last
       integer nsize, nfrag
+      integer next_label_inter2
       double precision genvei, generi2
       double precision small(10)
      /* convention to store/use GTO types */
@@ -4068,6 +4232,20 @@ C
       return 
       end
 
+@
+
+@*1 next\_label\_inter2. 
+
+Generate the next label of electron repulsion integral
+between two fragments.
+
+@a
+      integer function next_label_inter2(i,j,k,l,na,nb)
+      integer i, j, k, l, na, nb
+
+      next_label_inter2 = YES
+      return
+      end
 @
 
 @*1 shalf. This subroutine calculates ${\bf S}^{-\frac{1}{2}}$ matrix 

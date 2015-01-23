@@ -32,7 +32,7 @@
 @m CRIT_ERI                 1.00D-10
 @m CRIT_FMCH                1.00D-09
 @m CRIT_SCF                 1.00D-06
-@m CRIT_DFI                 1.00D-04
+@m CRIT_DFI                 1.00D-06
 
 @m UHF_CALCULATION            11
 @m CLOSED_SHELL_CALCULATION   21
@@ -49,10 +49,16 @@
 @m ERROR_OUTPUT_UNIT          6
 @m ERI_UNIT_AO                17
 @m ERI_UNIT_MO                18
+@m ERI_UNIT_AO_INTER          90
 @m INPUT_UNIT                 5
 
 @m FOCK_GENERAL               1234
 @m FOCK_HALF_CLOSED           2345
 
-@m COULOMB                    1342
-@m EXCHANGE                   4530
+@m COULOMB                    1
+@m EXCHANGE                  -1
+
+@m DIRECT_DFI                 32690
+@m DISK_DFI                  -1934
+@m DIRECT_SCF                 9184
+@m DISK_SCF                  -924
