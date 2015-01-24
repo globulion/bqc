@@ -1220,6 +1220,40 @@ C
       if ((spin.GT.1).AND.(ntype.EQ.CLOSED_SHELL_CALCULATION)) exit
 @
 
+@*1 dfiGR. Make the interfragment contribution to DFI G-matrix from repulsion integrals - RHF case only.
+
+@m  locGR(i,j) (m*(j-1) + i)
+@a
+      subroutine dfiGR(R, G, n1, n2, nfile)
+      double precision R(*), G(*)
+      integer n1, n2, nfile
+
+      double precision val
+      integer i, j, k, l, mu, pointer
+      integer getint
+      double precision zero, one, two
+      data zero,one,two/0.0D+00,1.0D+00,2.0D+00/
+
+      rewind nfile
+      pointer = 0
+
+      do while (getint(nfile, i, j, k, l, mu, val, pointer).NE.END_OF_FILE)
+
+         /* Coulomb integral */
+         if (mu.EQ.COULOMB) then
+         else
+         /* Exchange integral */
+            write(*,*) "EXCH"
+         end if
+
+      enddo
+
+      /* Symmetrize G matrix */
+
+      return
+      end
+@
+
 @< Symmetrize G matrix @>=
       do i = 1, m
          do j = 1, i-1
