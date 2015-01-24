@@ -427,9 +427,7 @@ with the electron distribution of the fragment in question.
 
       @< DFI: Calculate Nuclear Repulsion Energy for Whole Fragment Aggregate @>
       
-c      if (.false.) then   /* Temporary until development finished */
       @< DFI: Calculate Interfragment ERIs @>
-c      end if
 
       do nf = 1, nfrag
 
@@ -459,12 +457,23 @@ c      end if
       @< DFI: Final Messages @>
 @
 
+Here we calculate the total nuclear repulsion energy in the whole multifragment
+system. The expression coded in this module is 
+%
+\begin{equation}
+E_{\rm nuc} = \sum_I \sum_{J\neq I} \frac{Z_IZ_J}{\vert {\bf r}_I - {\bf r}_J \vert} \;,
+\end{equation}
+%
+where ${\bf r}_I$ stands for position of $I$-th atomic nucleus with atomic number $Z_I$.
+We note that the energy is in atomic units hence prefactor $\frac{1}{4\pi \varepsilon_0}$
+is taken to be unity.
+
 @< DFI: Calculate Nuclear Repulsion Energy for Whole Fragment Aggregate @>=
       Enuc = CalNRP(vlist, ncmx_tot, 0)
       write(ERROR_OUTPUT_UNIT,206) Enuc
 @
 
-This WEB module evaluates the ERIs between two fragments and stores them
+The following WEB module evaluates the ERIs between two fragments and stores them
 in a binary file |ERI_UNIT_AO_INTER|. As for now it can be used only in
 the case when the number of fragments is equal to two. In the future it will
 be extended in such a way that the module will save ${N}\choose{2}$ interfragment ERI files
@@ -477,6 +486,13 @@ with a bar as basis function belonging to fragment $2$.
 There are 8 possible permutation of indices in the coulomb integral but only one of them
 is unique. The other seven integrals has identical values so it is necessary to store only
 $(ij,\bar{k}\bar{l})$ integral with the convention that $i\ge j$ and $k \ge l$.
+Here we depict only 4 integrals and assume that the other four being hermitian conjugates
+are obvious (recall we work in a real basis). The unique integral is marked by an underline:
+%
+\begin{equation}
+\underline{ (ij,\bar{k}\bar{l}) } = (ij,\bar{l}\bar{k}) = (ji,\bar{k}\bar{l}) = (ji,\bar{l}\bar{k})
+\end{equation}
+%
 
 For exchange type of intergragment ERI the matters get a bit more complicated. We have
 the following integrals:
@@ -493,7 +509,8 @@ $(i\bar{l},\bar{k}j)$.
 The last aspect is to design the logic for determining which integral is actually the last 
 appearing in the file. In this implementation both coulomb and exchange integrals are written
 to the same file. However, integrals which are smaller than |CRIT_ERI| are neglected and not saved.
-Therefore, it has to be determined whether the last integral is coulomb or exchange integral.
+Therefore, it has to be determined whether the last integral is coulomb or exchange integral of the two
+possible types described above.
 
 @< DFI: Calculate Interfragment ERIs @>=
       if (nfrag.EQ.2) then
@@ -558,6 +575,10 @@ Therefore, it has to be determined whether the last integral is coulomb or excha
           ndfi = DIRECT_DFI
       end if
 @
+
+Here we set up the local (fragment) memory offset for vector and matrix storage
+as well as number of nuclei, basis functions and GTFs for each fragment.
+
 @< DFI: Local Integer Setup @>=
       write(*,*) " --- CALCULATION FOR MOLECULE ", nf, " ---"
       noffsn_nf = noffsn(nf); noffsg_nf = noffsg(nf); noffsb_nf = noffsb(nf)
@@ -567,14 +588,39 @@ Therefore, it has to be determined whether the last integral is coulomb or excha
       noffsm = (nf-1) * nn           /* linear memory offset for matrix */
       noffsv = (nf-1) * nbasis       /* linear memory offset for vector */
 @
+
+We need to calculate interfragment one- and two-electron integrals. This module 
+computes the gas-phase core Hamiltonian for fragment in question, its density matrix
+in AO representation as well as ERIs which are stored in a binary file for that fragment.
+They will be used later in DFI iteration procedure to form itrafragment part of ${\bf G}_n$ matrices. 
+Additionally,
+we need to store for this time (and only here) the overlap matrix in |S(noffsm+1)|.
+
 @< DFI: Calculate integrals for the current fragment @>=
       call genint(ngmx(nf),nbfns(nf),eta,ntype,ncntr,nfirst,nlast,
      &            vlist,ncmx(nf),ncmx(nf),S(noffsm+1),H(noffsm+1),ERI_UNIT_AO+nf+1,read_eri,
      &            noffsn_nf, noffsg_nf, noffsb_nf)
 @
+
+Here we need to evaluate the orthogonalizer from previously calculated overlap matrix in AO representation.
+The orthogonalizer is just
+%
+\begin{equation}
+{\bf V} = {\bf S}^{-\frac{1}{2}} = {\bf U} {\bf s}^{-\frac{1}{2}} {\bf U}^{\dagger}
+\end{equation}
+%
+and the previously obtained overlap matrix is now replaced by this orthogonalizer which will be in turn replaced
+by the wavefunction LCAO coefficients in the non-orthogonal (original) basis.
+
 @< DFI: Orthogonalize the basis @>=
       call shalf(S(noffsm+1),R(noffsm+1),Cbar,nbasis)
 @
+
+Using calculated core Hamiltonian |H(noffsm+1)|, orthogonalizer |S(noffsm+1)| and interfragment ERIs
+stored in |ERI_UNIT_AO+nf+1| file solve the SCF equation for a given fragment in gas phase (so no other
+fragments included yet). The density matrix is written into |R(noffsm+1)| and orbital energies to 
+|epsilon(noffsv+1)|.
+
 @< DFI: Solve Hartree-Fock equations in gas-phase @>=
       if (scf(H(noffsm+1),S(noffsm+1),nbasis,nelec(nf),ERI_UNIT_AO+nf+1,irite,damp,interp,E,HF(noffsm+1),VT,R(noffsm+1), 
      &            Rold,Cbar,epsilon(noffsv+1),crit).EQ.OK) then
@@ -584,16 +630,15 @@ Therefore, it has to be determined whether the last integral is coulomb or excha
           write(*,*) " SCF FAILED. "
       end if
 @
-@< DFI: Final Messages @>=
-      go to 1111
 
- 9999 write(*,*) " MAXIMUM NUMBER OF ITERATIONS REACHED IN DFI. TERMINATION."
-      STOP
+Once all gas phase matrices are evaluated, one has to start taking into account the contributions
+from other fragments in the self-consistent DFI iterative procedure. In short, it consists of 
+the formation of the core effective DFI Hamiltonian and calculating new density matrix for a fragment 
+in question by using interfragment ERIs in a local SCF procedure. In this implementation, during a single
+DFI iteration one has to loop over all the fragments and obtain new density matrices for them. During this
+process, the total energy need to be accumulated and stored to compare with the energy from previous DFI iteration.
+The convergence is established based on the total energy criterion written in |CRIT_DFI|.
 
- 1111 continue
-      write(*,*) " DFI SCF DONE. FINAL DFI ENERGY=", Etot
-      write(*,*) 
-@
 @< DFI: Single DFI Iteration @>=
       Eprev = Etot
       iter = iter + 1
@@ -654,16 +699,50 @@ Therefore, it has to be determined whether the last integral is coulomb or excha
       @< DFI-Iter: Compute the total energy of the system @>
 @
 
+Here just print the final information about convergence of DFI procedure and, if succeeded, 
+show the final total energy of the system.
+
+@< DFI: Final Messages @>=
+      go to 1111
+
+ 9999 write(*,*) " MAXIMUM NUMBER OF ITERATIONS REACHED IN DFI. TERMINATION."
+      STOP
+
+ 1111 continue
+      write(*,*) " DFI SCF DONE. FINAL DFI ENERGY=", Etot
+      write(*,*) 
+@
+
+Now we are about to start describing the single DFI iteration in more detail.
+First, we start with initializing the effective DFI core Hamiltonian by copying
+the gas phase one into |HF(noffsma+1)| which, at the end, will contain the DFI Fock
+matrix in orthogonal basis (DFI fragment eigenvalues).
+
 @< DFI-Iter: Initialize the gas-phase core Hamiltonian for fragment |a| @>=
       do i = 1, nana
          HF(noffsma+i) = H(noffsma+i)
       end do
 @
+
+Here we accumulate the one-electron contribution to the DFI core Hamiltonian
+which is a result of interaction of current fragment with other fragments' nuclei.
+Therefore, we need to evaluate the potential integrals
+%
+\begin{equation}
+V_{ij}^n = -\sum_{m\neq n} \sum_{M\in m} \int  {\rm d}{\bf r}\; \phi_i({\bf r})
+         \frac{Z_M}{\vert {\bf r} - {\bf r}_M \vert} \phi_j^*({\bf r}) 
+\end{equation}
+%
+In the above formula $i$ and $j$ denote indices of basis functions centered at the 
+fragment $n$.
+
 @< DFI-Iter: Contribution to fragment |a| from nuclei of fragment |b| @>=
       vij = genvei(i, j, eta, ngmxa, nfirst,
      &                   nlast, ntype, nr, 20, vlist, ncmxb, ncmxb,
      &                   noffsnb, noffsga, noffsba)
 @
+
+
 @< DFI-Iter: Contribution to fragment |a| from electron density of fragment |b| @>=
       do k = 1, nbasisb
       do l = 1, nbasisb
