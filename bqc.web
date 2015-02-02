@@ -552,19 +552,19 @@ possible types described above.
              /* Store */
              dvJ = dabs(vJ); dvK1 = dabs(vK1); dvk2 = dabs(vK2)
              last_vJ = NO; last_vK1 = NO; last_vK2 = NO
-             if ((l.EQ.nb).AND.(j.EQ.na).AND.(dvJ.GT.1.0D-20)) then
-                 if (dvK1.LT.1.0D-20) then
+             if ((l.EQ.nb).AND.(j.EQ.na).AND.(dvJ.GT.CRIT_ERI)) then
+                 if (dvK1.LT.CRIT_ERI) then
                      last_vJ = YES
                  else
                      last_vJ = NO
-                     if (dvK2.LT.1.0D-20) then
+                     if (dvK2.LT.CRIT_ERI) then
                          last_vK1 = YES
                      else
                          last_vK1 = NO
                          last_vK2 = YES
                      end if
                  end if
-             else if ((l.EQ.nb).AND.(j.EQ.na).AND.(dvJ.LT.1.0D-20)) then
+             else if ((l.EQ.nb).AND.(j.EQ.na).AND.(dvJ.LT.CRIT_ERI)) then
                  write(*,*) " LAST COULOMB INTEGRAL IS TOO SMALL"
                  STOP
              end if
@@ -678,7 +678,7 @@ The convergence is established based on the total energy criterion written in |C
                 do j = 1, i
 
                    @< DFI-Iter: Contribution to fragment |a| from nuclei of fragment |b| @>
-                   if (.FALSE.) then
+                   if (.false.) then
                    @< DFI-Iter: Contribution to fragment |a| from electron density of fragment |b| @>
                    end if
                    @< DFI-Iter: Accumulate DFI core Hamiltonian matrix for fragment |a| @>
@@ -687,11 +687,9 @@ The convergence is established based on the total energy criterion written in |C
                 end do
 
                 if (.TRUE.) then
-                if (nfa.LT.nfb) then
-                    call dfiGR(R(noffsmb+1), HF(noffsma+1), na, nb, ERI_UNIT_AO_INTER, 0)
-                else
-                    call dfiGR(R(noffsmb+1), HF(noffsma+1), na, nb, ERI_UNIT_AO_INTER, 1)
-                end if
+                nord = 0
+                if (nfa.GT.nfb) nord = 1
+                call dfiGR(R(noffsmb+1), HF(noffsma+1), na, nb, ERI_UNIT_AO_INTER, nord)
                 end if
 
                 if (.FALSE.) then
@@ -1265,31 +1263,31 @@ c            write(*,*) spin, i,j,k,l
       pointer = 0
 
       if (nord.EQ.0) then
-      do while (getint(nfile, i, j, k, l, mu, val, pointer).NE.END_OF_FILE)
-
-         ij = n1*(i-1) + i
-         kl = n2*(l-1) + k
-         lk = n2*(k-1) + l
-         if (mu.EQ.COULOMB) then
-            @< dfiGR: Process Coulomb Integral @>
-         else
-            @< dfiGR: Process Exchange Integral @>
-         end if
-
-      enddo
+          do while (getint(nfile, i, j, k, l, mu, val, pointer).NE.END_OF_FILE) 
+                                                                                
+             ij = n1*(j-1) + i
+             kl = n2*(l-1) + k
+             lk = n2*(k-1) + l
+             if (mu.EQ.COULOMB) then
+                @< dfiGR: Process Coulomb Integral @>
+             else
+                @< dfiGR: Process Exchange Integral @>
+             end if
+                                                                                
+          enddo
       else
-      do while (getint(nfile, k, l, i, j, mu, val, pointer).NE.END_OF_FILE)
-
-         ij = n1*(j-1) + i
-         kl = n2*(l-1) + k
-         lk = n2*(k-1) + l
-         if (mu.EQ.COULOMB) then
-            @< dfiGR: Process Coulomb Integral @>
-         else
-            @< dfiGR: Process Exchange Integral @>
-         end if
-
-      enddo
+          do while (getint(nfile, k, l, i, j, mu, val, pointer).NE.END_OF_FILE) 
+                                                                                
+             ij = n1*(j-1) + i
+             kl = n2*(l-1) + k
+             lk = n2*(k-1) + l
+             if (mu.EQ.COULOMB) then
+                @< dfiGR: Process Coulomb Integral @>
+             else
+                @< dfiGR: Process Exchange Integral @>
+             end if
+                                                                                
+          enddo
       end if
 
       @< dfiGR: Symmetrize G matrix @>
