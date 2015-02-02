@@ -32,7 +32,7 @@
 @m CRIT_ERI                 1.00D-10
 @m CRIT_FMCH                1.00D-09
 @m CRIT_SCF                 1.00D-06
-@m CRIT_DFI                 1.00D-06
+@m CRIT_DFI                 1.00D-08
 
 @m UHF_CALCULATION            11
 @m CLOSED_SHELL_CALCULATION   21

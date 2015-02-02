@@ -628,13 +628,13 @@ The convergence is established based on the total energy criterion written in |C
                 end do
                 end do
 
-                if (.TRUE.) then
+                if (.true.) then
                 nord = 0
                 if (nfa.GT.nfb) nord = 1
                 call dfiGR(R(noffsmb+1), HF(noffsma+1), na, nb, ERI_UNIT_AO_INTER, nord)
                 end if
 
-                if (.FALSE.) then
+                if (.false.) then
                 do ii = 1, nbasisa 
                 do jj = 1, nbasisa
                    iiiijjjj = nbasisa*(jj-1) + ii
@@ -713,11 +713,11 @@ fragment $n$.
          vJ = generi2(i,j,k,l,0,eta,nfirst, 
      &                      nlast,ntype,nr,20,
      &                      noffsga, noffsba, noffsgb, noffsbb, COULOMB)
-c         vK = generi2(i,l,k,j,0,eta,nfirst, 
-c     &                      nlast,ntype,nr,20,
-c     &                      noffsga, noffsba, noffsgb, noffsbb, EXCHANGE)
-c         vij = vij + R(noffsmb+kl) * (two*vJ - vK)
-         vij = vij + R(noffsmb+kl) * two*vJ
+         vK = generi2(i,l,k,j,0,eta,nfirst, 
+     &                      nlast,ntype,nr,20,
+     &                      noffsga, noffsba, noffsgb, noffsbb, EXCHANGE)
+         vij = vij + R(noffsmb+kl) * (two*vJ - vK)
+C         vij = vij + R(noffsmb+kl) * two*vJ
 c         if (l.NE.k) vij = vij + R(noffsmb+kl) * two*vJ
 c        if ((i.EQ.j).AND.(i.EQ.14)) write(1000,*) i,j,k,l, R(noffsmb+kl) * two*vJ
       end do
@@ -1187,9 +1187,21 @@ c            write(*,*) spin, i,j,k,l
       if ((spin.GT.1).AND.(ntype.EQ.CLOSED_SHELL_CALCULATION)) exit
 @
 
+The above code is accumulating only lower triangle and the diagonal
+of ${\bf G}$ matrix. Therefore, it should be symmetrized (we assume 
+it is symmetric).
+
+@< Symmetrize G matrix @>=
+      do i = 1, m
+         do j = 1, i-1
+            ij = locGR(i,j); ji = locGR(j,i)
+            G(ji) = G(ij)
+         end do
+      end do
+@
+
 @*1 dfiGR. Make the interfragment contribution to DFI G-matrix from repulsion integrals - RHF case only.
 
-@m  locGR(i,j) (m*(j-1) + i)
 @a
       subroutine dfiGR(R, G, n1, n2, nfile, nord)
       double precision R(*), G(*)
@@ -1210,7 +1222,7 @@ c            write(*,*) spin, i,j,k,l
              if (mu.EQ.COULOMB) then
                 @< dfiGR: Process Coulomb Integral @>
              else
-                @< dfiGR: Process Exchange Integral @>
+                @< dfiGR: Process Exchange Integral (nord=0) @>
              end if
                                                                                 
           enddo
@@ -1220,19 +1232,18 @@ c            write(*,*) spin, i,j,k,l
              if (mu.EQ.COULOMB) then
                 @< dfiGR: Process Coulomb Integral @>
              else
-                @< dfiGR: Process Exchange Integral @>
+                @< dfiGR: Process Exchange Integral (nord=1) @>
              end if
                                                                                 
           enddo
       end if
-
-      @< dfiGR: Symmetrize G matrix @>
 
       return
       end
 @
 @< dfiGR: Process Coulomb Integral @>=
       ij = n1*(j-1) + i
+      ji = n1*(i-1) + j
       kl = n2*(l-1) + k
       lk = n2*(k-1) + l
 
@@ -1244,22 +1255,28 @@ c            write(*,*) spin, i,j,k,l
           vv = two * val * R(kl)
       end if
 
-c      if ((i.EQ.j).AND.(i.EQ.14)) write(1000,*) i,j,k,l,vv
-
       G(ij) = G(ij) + vv 
+      if (i.NE.j) G(ji) = G(ji) + vv
 @
-@< dfiGR: Process Exchange Integral @>=
-      ij = n1*(j-1) + i
-      G(ij) = G(ij) + zero 
+@< dfiGR: Process Exchange Integral (nord=0) @>=
+      ij = n1*(l-1) + i
+      ji = n1*(i-1) + l
+      kl = n2*(j-1) + k
+      lk = n2*(k-1) + j
+      /* (il,kj) */
+      G(ij) = G(ij) - val * R(kl)
+      /* (jk,li) */
+      if ((j.NE.k).AND.(i.NE.l)) G(ji) = G(ji) - val * R(lk)
 @
-
-@< Symmetrize G matrix @>=
-      do i = 1, m
-         do j = 1, i-1
-            ij = locGR(i,j); ji = locGR(j,i)
-            G(ji) = G(ij)
-         end do
-      end do
+@< dfiGR: Process Exchange Integral (nord=1) @>=
+      ij = n1*(l-1) + i
+      ji = n1*(i-1) + l
+      lk = n2*(k-1) + j
+      kl = n2*(j-1) + k
+      /* (il,kj) */
+      G(ij) = G(ij) - val * R(kl)
+      /* (jk,li) */
+      if ((k.NE.j).AND.(i.NE.l)) G(ji) = G(ji) - val * R(lk)
 @
 @< dfiGR: Symmetrize G matrix @>=
       do i = 1, n1
