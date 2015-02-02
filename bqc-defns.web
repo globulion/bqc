@@ -10,7 +10,7 @@
 @m LAST_BLOCK               12
 @m NOT_LAST_BLOCK          -12
 
-@m ARB                      1  
+@m ARB                      *
 
 @m BYTES_PER_INTEGER        4
 @m LEAST_BYTE               1
@@ -56,7 +56,7 @@
 @m FOCK_HALF_CLOSED           2345
 
 @m COULOMB                    1
-@m EXCHANGE                  -1
+@m EXCHANGE                   2
 
 @m DIRECT_DFI                 32690
 @m DISK_DFI                  -1934

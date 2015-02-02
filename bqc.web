@@ -528,6 +528,7 @@ possible types described above.
           i = 1; j = 1; k = 1; l = 0
                                                                     
           do while (next_label_inter2(i,j,k,l,na,nb).EQ.YES)
+
              /* Coulomb (ij,kl) integral */
              vJ = generi2(i,j,k,l,0,eta,nfirst,                               
      &                            nlast,ntype,nr,20,
@@ -551,24 +552,28 @@ possible types described above.
              /* Store */
              dvJ = dabs(vJ); dvK1 = dabs(vK1); dvk2 = dabs(vK2)
              last_vJ = NO; last_vK1 = NO; last_vK2 = NO
-             if ((l.EQ.nb).AND.(j.EQ.na).AND.(dvJ.GT.CRIT_ERI)) then
-                 if (dvK1.LT.CRIT_ERI) then
+             if ((l.EQ.nb).AND.(j.EQ.na).AND.(dvJ.GT.1.0D-20)) then
+                 if (dvK1.LT.1.0D-20) then
                      last_vJ = YES
                  else
                      last_vJ = NO
-                     if (dvK2.LT.CRIT_ERI) then
+                     if (dvK2.LT.1.0D-20) then
                          last_vK1 = YES
                      else
                          last_vK1 = NO
                          last_vK2 = YES
                      end if
                  end if
+             else if ((l.EQ.nb).AND.(j.EQ.na).AND.(dvJ.LT.1.0D-20)) then
+                 write(*,*) " LAST COULOMB INTEGRAL IS TOO SMALL"
+                 STOP
              end if
 
              if (dvJ .GT.CRIT_ERI) call putint(nfile,i,j,k,l,COULOMB,vJ,pointer,last_vJ)
              if (dvK1.GT.CRIT_ERI) call putint(nfile,i,l,k,j,EXCHANGE,vK1,pointer,last_vK1)
              if (dvK2.LT.CRIT_ERI) cycle
              call putint(nfile,i,k,l,j,EXCHANGE,vK2,pointer,last_vK2)
+
           end do
       else
           write(*,*) " INTERFRAGMENT ERI STORAGE SKIPPED BECAUSE -NFRAG- LARGER THAN 2"
@@ -673,14 +678,33 @@ The convergence is established based on the total energy criterion written in |C
                 do j = 1, i
 
                    @< DFI-Iter: Contribution to fragment |a| from nuclei of fragment |b| @>
-                                                                                            
+                   if (.FALSE.) then
                    @< DFI-Iter: Contribution to fragment |a| from electron density of fragment |b| @>
-
+                   end if
                    @< DFI-Iter: Accumulate DFI core Hamiltonian matrix for fragment |a| @>
 
                 end do
                 end do
-                                                                                            
+
+                if (.TRUE.) then
+                if (nfa.LT.nfb) then
+                    call dfiGR(R(noffsmb+1), HF(noffsma+1), na, nb, ERI_UNIT_AO_INTER, 0)
+                else
+                    call dfiGR(R(noffsmb+1), HF(noffsma+1), na, nb, ERI_UNIT_AO_INTER, 1)
+                end if
+                end if
+
+                if (.FALSE.) then
+                do ii = 1, nbasisa 
+                do jj = 1, nbasisa
+                   iiiijjjj = nbasisa*(jj-1) + ii
+                   write(1000,*) ii, jj, HF(noffsma+iiiijjjj)
+                end do
+                end do
+                end if
+
+c                STOP
+
             end if
          end do
 
@@ -742,7 +766,6 @@ fragment $n$.
      &                   noffsnb, noffsga, noffsba)
 @
 
-
 @< DFI-Iter: Contribution to fragment |a| from electron density of fragment |b| @>=
       do k = 1, nbasisb
       do l = 1, nbasisb
@@ -750,11 +773,13 @@ fragment $n$.
          vJ = generi2(i,j,k,l,0,eta,nfirst, 
      &                      nlast,ntype,nr,20,
      &                      noffsga, noffsba, noffsgb, noffsbb, COULOMB)
-         vK = generi2(i,l,k,j,0,eta,nfirst, 
-     &                      nlast,ntype,nr,20,
-     &                      noffsga, noffsba, noffsgb, noffsbb, EXCHANGE)
-         vij = vij + R(noffsmb+kl) * (two*vJ - vK)
-C        vij = vij + R(noffsmb+kl) * two*vJ
+c         vK = generi2(i,l,k,j,0,eta,nfirst, 
+c     &                      nlast,ntype,nr,20,
+c     &                      noffsga, noffsba, noffsgb, noffsbb, EXCHANGE)
+c         vij = vij + R(noffsmb+kl) * (two*vJ - vK)
+         vij = vij + R(noffsmb+kl) * two*vJ
+c         if (l.NE.k) vij = vij + R(noffsmb+kl) * two*vJ
+c        if ((i.EQ.j).AND.(i.EQ.14)) write(1000,*) i,j,k,l, R(noffsmb+kl) * two*vJ
       end do
       end do
 @
@@ -1169,6 +1194,8 @@ C
          ijs = is*(is-1)/2+js 
          kls = ks*(ks-1)/2+ls
 
+c         write(*,*) is, js, ks, ls
+         if (is*js*ks*ls.EQ.0) cycle
          do spin = 1, 4
 
             @< Check the UHF or RHF case @>
@@ -1191,7 +1218,7 @@ C
 
             cK = one
             if (spin.GE.3) cK = zero
-            
+c            write(*,*) spin, i,j,k,l 
             call GofR(R,G,m,cJ,cK,i,j,k,l,val)
          end do
       enddo
@@ -1224,11 +1251,11 @@ C
 
 @m  locGR(i,j) (m*(j-1) + i)
 @a
-      subroutine dfiGR(R, G, n1, n2, nfile)
+      subroutine dfiGR(R, G, n1, n2, nfile, nord)
       double precision R(*), G(*)
-      integer n1, n2, nfile
+      integer n1, n2, nfile, nord
 
-      double precision val
+      double precision val, vv
       integer i, j, k, l, mu, pointer
       integer getint
       double precision zero, one, two
@@ -1237,21 +1264,53 @@ C
       rewind nfile
       pointer = 0
 
+      if (nord.EQ.0) then
       do while (getint(nfile, i, j, k, l, mu, val, pointer).NE.END_OF_FILE)
 
-         /* Coulomb integral */
+         ij = n1*(i-1) + i
+         kl = n2*(l-1) + k
+         lk = n2*(k-1) + l
          if (mu.EQ.COULOMB) then
+            @< dfiGR: Process Coulomb Integral @>
          else
-         /* Exchange integral */
-            write(*,*) "EXCH"
+            @< dfiGR: Process Exchange Integral @>
          end if
 
       enddo
+      else
+      do while (getint(nfile, k, l, i, j, mu, val, pointer).NE.END_OF_FILE)
 
-      /* Symmetrize G matrix */
+         ij = n1*(j-1) + i
+         kl = n2*(l-1) + k
+         lk = n2*(k-1) + l
+         if (mu.EQ.COULOMB) then
+            @< dfiGR: Process Coulomb Integral @>
+         else
+            @< dfiGR: Process Exchange Integral @>
+         end if
+
+      enddo
+      end if
+
+      @< dfiGR: Symmetrize G matrix @>
 
       return
       end
+@
+@< dfiGR: Process Coulomb Integral @>=
+      /* (ij,kl) AND (ij,lk) */
+      if (k.NE.l) then
+          vv = two * val * (R(kl) + R(lk))
+      else 
+          vv = two * val * R(kl)
+      end if
+
+c      if ((i.EQ.j).AND.(i.EQ.14)) write(1000,*) i,j,k,l,vv
+
+      G(ij) = G(ij) + vv 
+@
+@< dfiGR: Process Exchange Integral @>=
+      G(ij) = G(ij) + zero 
 @
 
 @< Symmetrize G matrix @>=
@@ -1261,6 +1320,15 @@ C
             G(ji) = G(ij)
          end do
       end do
+@
+@< dfiGR: Symmetrize G matrix @>=
+      do i = 1, n1
+         do j = 1, i-1
+            ij = n1*(j-1) + i; ji = n1*(i-1) + j
+            G(ji) = G(ij)
+         end do
+      end do
+c      call pmat(G,14,14,33)
 @
 
 @*2 GofR. Make the total G-matrix from current density matrix - RHF/UHF case.
@@ -1277,6 +1345,7 @@ C
       ij = locGR(i,j); kl = locGR(k,l)
       il = locGR(i,l); ik = locGR(i,k)
       jk = locGR(j,k); jl = locGR(j,l)
+c      write(*,*) "IJ ", ij, i, j, m
       if (j.LT.k) jk = locGR(k,j)
       if (j.LT.l) jl = locGR(l,j)
 
@@ -2496,6 +2565,7 @@ integrals are computed as a sum of geometrical factors computed by
      &      (eta(nbiss,3)-eta(nbjss,3))**2 
 
       genvei = zero 
+      totnai = zero
 
       do irun = iss, il          /* start of "i" contraction */                                
          do jrun = jss, jl       /* start of "j" contraction */
@@ -2515,7 +2585,7 @@ integrals are computed as a sum of geometrical factors computed by
 
                call auxg(m,t,g)   /* Generate all the $F_\nu$ required */
 
-               @< Form As @>      /* Generate the geometrical $A$-factors */
+               @< Form As @>
 
                do ii = 1, imax                                                             
                   do jj = 1, jmax
@@ -2681,7 +2751,7 @@ Cartesian component.
       call aform(imax,sf,fact,cpx,epsi,Airu,1)  /* form $A_{i,r,u}$  */
       call aform(jmax,sf,fact,cpy,epsi,Ajsv,2)  /* form $A_{j,s,v}$  */
       call aform(kmax,sf,fact,cpz,epsi,Aktw,3)  /* form $A_{k,t,w}$  */
-
+@
 
 @*2 aform. Compute the nuclear-attraction $A$ factors. These quantitities
 arise from the components of the three position vectors of the two
@@ -2736,7 +2806,7 @@ $$
       cpy = p(2) - vlist(nbn,2)
       cpz = p(3) - vlist(nbn,3)
       pcsq = cpx*cpx + cpy*cpy + cpz*cpz
-
+@
 
 @*1 generi. 
 The general electron-repulsion integral formula for contracted
@@ -3774,10 +3844,10 @@ Integrals over the new basis generated by |C| are output into
 @a
       subroutine tran2e(nfile1,nfile2,nbasis,C,W,RS,V)
       implicit double precision (a-h,o-z)
-      double precision C(1)
+      double precision C(*)
       double precision V(*)
       double precision W(1)
-      integer RS(1)
+      integer RS(*)
       integer nbasis,nfile1,nfile2
 
       @< Tran2e Local Declarations @>
@@ -4147,7 +4217,7 @@ otherwise this routine is identical to |gmprd|
 @a
       subroutine eigen (H, U, n)
       implicit double precision (a-h,o-z)
-      double precision H(1), U(1)
+      double precision H(*), U(*)
       integer n      
 
       data zero, eps, one, two, four, big/0.0D+00,1.0D-20,1.0D+00,
