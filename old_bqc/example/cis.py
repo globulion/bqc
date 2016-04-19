@@ -5,7 +5,8 @@ from time import time
 from PyQuante.cints import ijkl2intindex
 from PyQuante.hartree_fock import rhf
 from PyQuante.Molecule import Molecule
-from utilities import QMFile, PRINT
+from libbbg.utilities import QMFile, PRINT
+from libbbg.units import UNITS
 from sys import argv
 
 
@@ -84,7 +85,7 @@ def CISMatrix(Ints,orbs,Ehf,orbe,nocc,nvirt):
 
     # Do the four-index transformation of the 2e ints. This is expensive!
     MOInts = TransformInts(Ints,orbs)
-    for i in MOInts: print "%20.4f"%i
+
     # Build the CI matrix using the Slater Condon rules
     # see Szabo/Ostlund Table 4.1
     CIMatrix = zeros((nex,nex),'d')
@@ -95,7 +96,7 @@ def CISMatrix(Ints,orbs,Ehf,orbe,nocc,nvirt):
             rabs = ijkl2intindex(r,a,b,s)
             rsba = ijkl2intindex(r,s,b,a)
             CIMatrix[ar,bs] = 2*MOInts[rabs] - MOInts[rsba]
-            if r==s and a==b: CIMatrix[ar,bs] += Ehf+orbe[r]-orbe[a]
+            if r==s and a==b: CIMatrix[ar,bs] += orbe[r]-orbe[a]
             CIMatrix[bs,ar] = CIMatrix[ar,bs]
     return CIMatrix
 
@@ -136,9 +137,10 @@ def test(file):
     
     CIS_H = CISMatrix(Ints, orbs, en, orbe, nocc, nvirt)
     EN, U = linalg.eig(CIS_H)
-    print " CIS Energies"
-    PRINT ( EN - en )
-    print " First excited state energy = %20.4f" % min(EN-en)
+    EE = EN; EE.sort()
+    print " CIS Energies [eV]"
+    PRINT ( EE )#* UNITS.HartreeToElectronVolt)
+    print " First excited state energy = %20.4f" % min(EN)
     return
 
 test(argv[1])
