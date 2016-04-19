@@ -1,0 +1,69 @@
+ NUCLEAR REPULSION ENERGY=   457.337880
+  CALCULATION OF MOLECULAR INTEGRALS
+  ONE ELECTRON INTEGRALS COMPUTED
+  * RHF CALCULATION CHOSEN
+ Current Electronic Energy =       0.00000000 Change =     836.65477591
+ Current Electronic Energy =    -674.89511328 Change =     863.81171618
+ Current Electronic Energy =    -805.50252883 Change =    1302.30739700
+ Current Electronic Energy =    -824.71208876 Change =    1193.12872275
+ Current Electronic Energy =    -834.85563472 Change =     166.56161415
+ Current Electronic Energy =    -838.67838250 Change =     148.10595822
+ Current Electronic Energy =    -839.89611419 Change =      60.12679001
+ Current Electronic Energy =    -840.49029377 Change =      11.06747822
+ Current Electronic Energy =    -840.65644736 Change =      17.03220456
+ Current Electronic Energy =    -840.67485372 Change =       6.75900232
+ Current Electronic Energy =    -840.68624193 Change =       1.02520295
+ Current Electronic Energy =    -840.68934175 Change =       2.18357383
+ Current Electronic Energy =    -840.68964275 Change =       0.94013202
+ Current Electronic Energy =    -840.68983511 Change =       0.10914374
+ Current Electronic Energy =    -840.68989243 Change =       0.28344495
+ Current Electronic Energy =    -840.68989875 Change =       0.13324384
+ Current Electronic Energy =    -840.68990242 Change =       0.01610765
+ Current Electronic Energy =    -840.68990366 Change =       0.03781742
+ Current Electronic Energy =    -840.68990386 Change =       0.01954772
+ Current Electronic Energy =    -840.68990396 Change =       0.00359222
+ Current Electronic Energy =    -840.68990400 Change =       0.00537694
+ Current Electronic Energy =    -840.68990401 Change =       0.00309669
+ Current Electronic Energy =    -840.68990402 Change =       0.00094468
+ Current Electronic Energy =    -840.68990402 Change =       0.00089002
+ Current Electronic Energy =    -840.68990402 Change =       0.00056323
+ Current Electronic Energy =    -840.68990402 Change =       0.00025545
+ Current Electronic Energy =    -840.68990402 Change =       0.00018600
+ Current Electronic Energy =    -840.68990402 Change =       0.00012233
+ Current Electronic Energy =    -840.68990402 Change =       0.00006933
+ Current Electronic Energy =    -840.68990402 Change =       0.00004631
+ Current Electronic Energy =    -840.68990402 Change =       0.00003914
+ Current Electronic Energy =    -840.68990402 Change =       0.00002203
+ Convergence in R =      0.00002     0  Changing
+ SCF converged in  32 iterations
+  --- ORBITAL ENERGIES ---
+
+  OCCUPIED:
+   -11.242354   -11.241390   -11.236832   -11.236792   -11.236459   -11.236363   -11.235539
+   -11.235486   -11.234888   -11.234866    -1.169437    -1.102367    -1.044636    -1.002713
+    -0.974166    -0.848865    -0.829847    -0.805254    -0.701730    -0.692548    -0.670528
+    -0.619155    -0.605165    -0.577684    -0.577127    -0.558422    -0.526251    -0.520070
+    -0.482826    -0.472627    -0.441259    -0.379560    -0.312952    -0.281227
+  VIRTUAL:
+     0.096132     0.129324     0.190543     0.237184     0.257311     0.263629     0.286698
+     0.310089     0.315883     0.320640     0.336628     0.355672     0.414839     0.415547
+     0.459528     0.490162     0.491660     0.494335     0.507975     0.545189     0.668736
+     0.720948     0.729668     0.739882     0.741817     0.746145     0.752875     0.778406
+     0.792695     0.803209     0.812784     0.827365     0.844107     0.848327     0.851098
+     0.851292     0.856862     0.861213     0.865099     0.922072     0.935323     0.935588
+     1.004860     1.083372     1.089210     1.099528     1.103723     1.106763     1.123654
+     1.128744     1.148501     1.156418     1.185203     1.197362     1.205102     1.244041
+     1.250467     1.278235     1.279612     1.300891     1.344896     1.402167     1.451636
+     1.459186     1.496983     1.512221     1.532053     1.565284     1.660228     1.682669
+     1.700184     1.718352     1.731302     1.755072     1.768508     1.772734     1.779395
+     1.790315     1.795412     2.011830     2.073207     2.078533     2.152511     2.174441
+     2.175528     2.210369     2.243470     2.264514     2.269148     2.273744     2.302062
+     2.354188     2.375480     2.445807     2.464715     2.477536     2.518463     2.520442
+     2.524724     2.599263     2.607292     2.630023     2.656125     2.663491     2.709032
+     2.745118     2.948428     2.958775     2.958797     2.962470     2.983474     3.016836
+     3.058044     3.097955     3.130507     3.196016     3.201591     3.246917     3.308560
+     3.452842     3.734147     3.855575     4.508607     4.518649     4.543166     4.546119
+     4.572247     4.684998     4.774465     4.824488     4.942226     5.231687
+  SCF DONE.
+ FINAL TOTAL ENERGY=    -383.35202422
+

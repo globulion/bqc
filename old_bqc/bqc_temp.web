@@ -1,0 +1,3774 @@
+\def\title{--- BQC SCF PROGRAM ---}
+
+@n
+
+@* INTRODUCTION. 
+
+This simple program performs LCAO-MO calculations
+for an arbitrary molecule with GTF-type basis set size not larger than
+256. Basis functions are allowed to be contracted. 
+Generation of 1-electron integrals is performed directly during calculation.
+2-electron integrals are stored in the file \verb+fort.17+ which is a binary file.
+
+Currently the following methods are available:
+%
+\begin{itemize}
+   \item[$\bullet$] RHF  - Restricted Closed Shell Hartree-Fock
+   \item[$\bullet$] UHF  - Unrestricted Hartree-Fock
+   \item[$\bullet$] ROHF - Restricted Open Shell 'Hartree-Fock'
+   \item[$\bullet$] CIS  - Configuration Interaction with Singles (only closed shells)
+\end{itemize}
+%
+For CIS run RHF wavefunction is used as a reference determinant. At this moment
+there is no guess for molecular orbitals implemented so the computation starts 
+from zero density matrices. Therefore, the convergence is quite poor as for the time being
+and is quite long. For example, in the case of water molecule using STO-3G basis set
+RHF calculations needs 31 iterations.
+
+@*1 Usage. 
+
+BQC program reads input file which contains molecule specification, basis set structure
+and computational task specifications. To run BQC type
+%
+\begin{verbatim}
+./bqc < input_file
+\end{verbatim}
+%
+The input file can be easily prepared by a helper Python script \verb+make-bqc-inp+ 
+provided along with the BQC package. For usage information type 
+%
+\begin{verbatim}
+make-bqc-inp -h
+\end{verbatim}
+%
+to get detailed help for options (setting the charge, multiplicity, etc.).
+To clarify the meaning of each line in such an input file we depict its layout
+below.
+%
+\begin{figure}[h]
+\begin{verbatim}
+ [1] task_type
+ [2] scf_cvg       scf_damp        scf_interp
+ [3] eri_read
+ [4] chg           mult
+ [5] nelec
+ [6] ncmx          nbfns           ngmx
+ [7] X             Y               Z              nZ
+     ...           ...             ...            ...
+     X             Y               Z              alpha          coeff
+     ...           ...             ...            ...            ...
+    (ntype (i), i=1, nbfns) 
+    (ncntr (i), i=1, nbfns) 
+    (nfirst(i), i=1, nbfns) 
+    (nlast (i), i=1, nbfns) 
+
+\end{verbatim}
+\caption{\label{fig:bqc-input} The layout of the BQC input file contents. 
+Abbreviations: 
+\emph{task\_type} - type of the task, see below; \emph{scf\_cvg} - treshold for density matrix 
+convergence during SCF; \emph{scf\_damp} - SCF damping parameter; \emph{scf\_interp} - maximum
+number of iteration when SCF damping is to be used; \emph{eri\_read} - read ERI binary file; 
+\emph{chg} - molecular charge; \emph{mult} - multiplicity; \emph{nelec} - total number of electrons;
+\emph{ncmx} - number of atoms; \emph{nbfns} - number of basis functions; \emph{ngmx} - number of GTFs.}
+\end{figure}
+%
+
+@
+
+@* LCAO-MO PROGRAM. 
+
+@I bqc-defns.web
+@a 
+      program LCAO_MO_SCF
+/*
+      GENERATING INTEGRALS AND CALCULATION OF WFN AND ENERGY
+*/
+      @< Program Declarations @>
+      @< Program Parameters @>
+      @< Program Formats @>
+
+      irite = 12
+
+      @< Read Structure Input @>
+      @< Calculate Nuclear Repulsion Energy @>
+      @< Generate Molecular Integrals @>
+      @< Orthogonalize The Basis @>
+
+      if (task.EQ.PURE_SCF) then
+
+         @< Perform SCF @> 
+  
+      else if (task.EQ.ROHF) then
+
+         @< Perform ROHF @>
+
+      else if (task.EQ.DCI) then
+
+         @< Perform SCF @> 
+         @< Transform Molecular Integrals @>
+         @< Perform CIS @>
+
+      else if (task.EQ.MCSCF) then
+
+         @< Perform SCF @> 
+         @< Transform Molecular Integrals @>
+         @< Perform MCSCF @>
+
+      end if
+
+      STOP
+      END
+      subroutine pmol(A,k,nocc,nbasis)
+      double precision A(*)
+      integer k, nocc, nbasis
+      
+      double precision u(10), crit
+      integer kk, ia, ir, ij, kkk
+      logical lprint
+      data crit/1.0D-02/
+
+      if (k.GT.10) then
+          write(*,*) " To many columns requested in pmol"
+          return
+      end if
+
+      write(ERROR_OUTPUT_UNIT,201)
+      do ia = 1, nocc
+      do ir = nocc+1, nbasis
+         kk = (ia-1)*(nbasis-nocc) + ir - nocc
+         lprint = .FALSE.
+         do j = 1, k
+            kkk = (nbasis-nocc)*nocc*j + kk
+            d = A(kkk)
+            u(j) = d
+            if (d.GT.crit) lprint = .TRUE.
+         end do
+         if (lprint) write(ERROR_OUTPUT_UNIT,202) ia,ir,(u(j),j=1,k)
+      end do
+      end do
+      write(ERROR_OUTPUT_UNIT,*)
+  201 format(/," --- CIS SLATER DETERMINANT'S CONTRIBUTIONS TO EXCITED",
+     &       " STATES ---",/ )
+  202 format(i6,"  -->",i6,"  :",10f16.6)
+      return
+      end
+@
+@< Program Declarations @>=
+      double precision vlist(MAX_CENTRES,4)
+      double precision eta(MAX_PRIMITIVES,5)
+      integer nfirst(MAX_BASIS_FUNCTIONS)
+      integer nlast(MAX_BASIS_FUNCTIONS)
+      integer ntype(MAX_BASIS_FUNCTIONS)
+      integer ncntr(MAX_BASIS_FUNCTIONS)
+      integer nr(NO_OF_TYPES,3)
+      integer nbfns, ngmx, ncmx, nelec
+      integer interp, irite
+      double precision S(MATRIX_SIZE),H(MATRIX_SIZE),HF(MATRIX_SIZE)
+      double precision R(MATRIX_SIZE),Rold(MATRIX_SIZE)
+      double precision C(MATRIX_SIZE),Cbar(MATRIX_SIZE),V(MATRIX_SIZE)
+      double precision crit, damp, E, Enuc
+      double precision epsilon(MAX_BASIS_FUNCTIONS)
+      double precision VT(MATRIX_SIZE_BIG)
+      integer RS(MATRIX_SIZE)
+      double precision xc(MAX_SHELLS,MAX_SHELLS)
+      double precision yc(MAX_SHELLS,MAX_SHELLS)
+      double precision alpha(MAX_SHELLS)
+      double precision b(MAX_SHELLS,MAX_SHELLS)
+      double precision nu(MAX_SHELLS)
+      integer noclst(MAX_SHELLS,MAX_BASIS_FUNCTIONS)
+      integer norbs(MAX_SHELLS)
+      integer scf, grhf
+      double precision calnrp, vv
+      integer i, j, task, read_eri, charge, multiplicity 
+      integer n_unpaired, nsize
+     /* convention to store/use GTO types */
+      data nr /
+     &     0,1,0,0,2,0,0,1,1,0,3,0,0,2,2,1,0,1,0,1,
+     &     0,0,1,0,0,2,0,1,0,1,0,3,0,1,0,2,2,0,1,1,
+     &     0,0,0,1,0,0,2,0,1,1,0,0,3,0,1,0,1,2,2,1/
+@
+@< Program Parameters @>=
+      data zero,one,two,half/0.00D+00,1.00D+00,2.00D+00,0.50D+00/
+@
+@< Read Structure Input @>=
+      read(INPUT_UNIT,*) task                                        /* The task integer identifier */
+      read(INPUT_UNIT,*) crit, damp, interp                          /* SCF parmeters */
+      read(INPUT_UNIT,*) read_eri                                    /* Flag of reading eri */
+      read(INPUT_UNIT,*) charge, multiplicity
+      read(INPUT_UNIT,*) nelec                                       /* number of electrons */
+      read(INPUT_UNIT,*) ncmx, nbfns, ngmx                           /* number of atoms, bfns and GTFs */
+      read(INPUT_UNIT,*) (vlist(i,1), vlist(i,2), vlist(i,3),        /* atomic coordinates and charges */
+     &                    vlist(i,4), i=1,ncmx)
+      read(INPUT_UNIT,*) (eta(i,1), eta(i,2), eta(i,3), eta(i,4),    /* GTF's specifications */ 
+     &                    eta(i,5), i=1, ngmx)
+      read(INPUT_UNIT,*) (ntype (i), i=1, nbfns)                     /* */
+      read(INPUT_UNIT,*) (ncntr (i), i=1, nbfns)
+      read(INPUT_UNIT,*) (nfirst(i), i=1, nbfns)
+      read(INPUT_UNIT,*) (nlast (i), i=1, nbfns)
+
+      n_unpaired = multiplicity - 1
+@       
+@< Calculate Nuclear Repulsion Energy @>=
+      Enuc = CalNRP(vlist, ncmx)
+      write(ERROR_OUTPUT_UNIT,206) Enuc
+@
+@< Generate Molecular Integrals @>=
+      write(*,*) " CALCULATION OF MOLECULAR INTEGRALS"
+      call genint(ngmx,nbfns,eta,ntype,ncntr,nfirst,nlast,
+     &            vlist,ncmx,ncmx,S,H,ERI_UNIT_AO,read_eri)
+@
+@< Orthogonalize The Basis @>=
+      if (irite.GT.0) then
+         write(irite,*) " OVERLAP MATRIX"
+         call pmat(S,nbfns,nbfns,irite)
+      end if
+      call shalf(S,R,Cbar,nbfns)
+      if (irite.GT.0) then
+         write(irite,*) " ORTOGONALIZING MATRIX"
+         call pmat(S,nbfns,nbfns,irite)
+      end if
+      /* save the orthogonalizer */
+      do i=1,nbfns*nbfns
+         V(i) = S(i)
+      end do
+@
+@< Transform Back To Original Basis @>=
+      call gmprd(V,S,C,nbfns,nbfns,nbfns)
+@
+@< Transform Molecular Integrals @>=
+      write(ERROR_OUTPUT_UNIT,*) " TRANSFORMATION OF INTEGRALS TO MO BASIS"
+      call tran2e(ERI_UNIT_AO,ERI_UNIT_MO,nbfns,S,C,RS,VT)
+@
+@< Perform SCF @>=
+      if (irite.GT.0) then
+          write(irite,*) " CORE HAMILTONIAN - NON-ORTHOGONAL BASIS"
+          call pmat(H,nbfns,nbfns,irite)
+      end if
+      if (scf(H,S,nbfns,nelec,ERI_UNIT_AO,irite,damp,interp,E,HF,VT,R,
+     &            Rold,Cbar,epsilon,crit).EQ.OK) then
+          write(*,*) " SCF DONE."
+          write(ERROR_OUTPUT_UNIT,200) E+Enuc
+/*          @< Transform Back To Original Basis @> */
+          if (irite.GT.0) then
+             write(irite,*) " DENSITY MATRIX (ORTHOGONAL BASIS)"
+             call pmat(R,nbfns,nbfns,irite)
+             write(irite,*) " MO COEFFICIENTS (NON-ORTHOGONAL BASIS)"
+             call pmat(S,nbfns,nbfns,irite)
+          end if
+      else
+          write(*,*) " SCF FAILED. "
+      end if
+@
+@< Perform ROHF @>=
+      /* setup the memorials for ROHF */
+      number_of_shells = 2
+      nu(1) = two; nu(2) = one
+      norbs(1) =(nelec - n_unpaired)/2
+      norbs(2) = n_unpaired
+      alpha(1) = zero; alpha(2) = zero
+      xc(1,1) = one ; xc(1,2) = one ; xc(2,1) = one ; xc(2,2) = one
+      yc(1,1) = half; yc(1,2) = half; yc(2,1) = half; yc(2,2) = one
+      b(1,1) = one; b(1,2) = one; b(2,1) = -one; b(2,2) = one
+
+      j_prev = 0
+      do i = 1, number_of_shells
+         do j = 1, norbs(i)
+            noclst(i,j) = j_prev + j
+         end do
+         j_prev = norbs(i)
+      end do
+      /* perform ROHF calculation */     
+      initial_scf = YES
+      if (grhf(H,S,nbfns,2,norbs,noclst,ERI_UNIT_AO,nu,xc,yc,alpha,b,E,
+     &        HF,R,epsilon,Cbar,V,C,initial_scf,irite).EQ.OK) then
+          write(*,*) " SCF DONE."
+          call porbe(epsilon, nbfns, norbs(1)+norbs(2))
+          write(ERROR_OUTPUT_UNIT,200) E+Enuc
+      else
+          write(*,*) " SCF FAILED. "
+      end if
+@
+@< Perform CIS @>=
+      if (nelec.GT.zero) then /* closed shell case */ 
+          nocc    = nelec/2
+          m       = nbfns
+      else                    /* open shell case */
+          nocc    = abs(nelec)
+          m       = nbfns * 2
+      end if
+      vv = two
+      if (nelec.LT.0) vv = one
+      write(*,*) " CONSTRUCTING EXPLICIT CIS HAMILTONIAN"
+      call H_CIS(H, m, nocc, epsilon, ERI_UNIT_MO, vv, nsize)
+      write(*,*) " DIAGONALIZATION OF CIS HAMILTONIAN OF DIM ", nsize
+      call eigen(H, Cbar, nsize)
+      do i=1,5
+         epsilon(i) = H(nocc*(m-nocc)*(i-1)+i)
+      end do
+      write(ERROR_OUTPUT_UNIT,209)
+      call pvec(epsilon,5)
+      call pmol(Cbar,5,nocc,nbfns)
+      write(irite,*)
+      call pmat(H,nsize,nsize,irite)
+@
+@< Perform MCSCF @>=
+      write(*,*) " MCSCF NOT IMPLEMENTED YET. QUITTING ..."
+      STOP
+@
+@< Program Formats @>=
+  200 format(" FINAL TOTAL ENERGY= ",f16.8)
+  206 format(" NUCLEAR REPULSION ENERGY= ", f12.6)
+  209 format(/," --- EXCITED STATE ENERGIES ---",/)
+@
+
+@* RHF and UHF. 
+
+This is  Version 1 of the Hartree-Fock theory implemented
+for closed shells (RHF) and open shells (UHF-DODS) calculations.
+
+\ \\ \ \\
+\begin{minipage}{4.5in}
+\ \\
+\begin{description}
+\item[NAME] \    SCF     \\
+ Perform LCAO-MO-SCF calculation on a molecule.
+
+\item[SYNOPSIS] \     \\
+ {\tt double precision function scf(H, C, nbasis, nelec, nfile, \\
+                              irite, damp, interp, E, HF, V, R, Rold, Ubar, eps, crit)
+   \ \\
+  integer nbasis, nelec, nfile, irite \\
+  double precision damp, E \\
+  double precision H(ARB), C(ARB), HF(ARB), V(ARB), R(ARB) \\
+  double precision Rold(ARB), Ubar(ARB), eps(ARB) \\
+ }
+
+\item[DESCRIPTION] \  \\
+ Perform LCAO-MO calculation of either closed-shell RHF type or more general
+open-shell (real) UHF-DODS type. The method is traditional Roothan repeated
+diagonalizations of Hartree-Fock matrix until self-consistency is reached:
+\[
+   {\bf F} \cdot {\bf C} = {\bf S} \cdot {\bf C} \cdot {\boldmath \epsilon}
+\]
+
+\item[ARGUMENTS] \    \\
+\begin{description}
+\item[H] Input: One-electron Hamiltonian of size ({\tt nbasis x nbasis}), i.e.,
+                matrix elements of one-electron operator
+\item[C] Input/Output: An initial MO matrix - it must at least
+                orthigonalize the basis. Normally, it is simply the orthogonalization
+                matrix ${\bf S}^{-\frac{1}{2}}$. On output the SCF {\bf C} matrix
+                is placed here.
+\item[nbasis] Input: the number of \emph{spatial} orbitals in the basis (i.e., half
+                of the number of the spin-basis set functions if {\tt nelec} $\ge 0$)
+\item[nelec]  Input: The number of electrons in the system. 
+\item[nfile]  The electron-repulsion file unit.
+\item[itite]  Channel number for convergence information or zero if this information
+              is not necessary.
+\item[damp]   Hartree-Fock damping parameter.
+\item[interp] Interpolation parameter. If 0 no interpolation will be undertaken.
+\item[HF]     Output: for use as the Fock matrix
+\item[V]      Workspace: 
+\item[R]      Output: Density matrix
+\item[Rold]   Workspace:
+\item[Ubar]   Workspace:
+\item[eps]    Output: orbital energies (first {\tt nelec} are the occupied orbitals)
+\item[E]      Output: Total HF electronic energy
+\item[crit]   Convergence of the SCF procedure
+\end{description}
+
+\item[RETURNS] \    \\
+%\begin{description}
+   {\tt YES} if the calculation is converged in {\tt MAX\_SCF\_ITERATIONS} \\
+   {\tt NO } if no convergence is met. Typical usage:
+   {\tt if ( SCF(......) .EQ. YES ) then \\
+               output succesful calculation
+   }
+%\end{description}
+
+\item[SEE ALSO] \    \\
+%\begin{description}
+ {\tt scfR, scfGR, eigen} 
+%\end{description}
+
+\item[DIAGNOSTICS] \  \\
+Happy!
+\end{description}
+\ \\ \ \\
+\end{minipage}
+\ \\ \ \\
+
+@a
+
+      integer function SCF(H,C,nbasis,nelec,nfile,irite,damp,interp,E,HF,V,R,
+     &                     Rold,Cbar,epsilon,crit)
+
+      @< SCF Interface Declarations @>
+      @< SCF Local Declarations @>
+
+      @< Select SCF Type @>
+      @< Set initial matrices and counters @>
+
+      do while ((icon.NE.0).AND.(kount.LT.MAX_ITERATIONS)) 
+  
+         @< Sigle SCF iteration @>
+
+      end do
+
+      @< Write the output result @> 
+      @< SCF Formats @>
+
+      return
+      end
+
+@
+
+@< SCF Interface Declarations @>=
+      implicit double precision (a-h,o-z)
+      integer nbasis, nelec, nfile, irite
+      integer interp
+      double precision H(ARB), C(ARB), HF(ARB), V(ARB), R(ARB)
+      double precision Rold(ARB), Cbar(ARB)
+      double precision epsilon(ARB)
+      double precision E, damp, crit
+@
+
+@< SCF Local Declarations @>=
+      integer scftype, kount, nocc, m, mm, i
+      double precision term, turm, Rsum
+      double precision zero, half
+      data zero,half/0.0D+00,0.5D+00/
+@
+
+@< Select SCF Type @>=
+      if (nelec.GT.zero) then /* closed shell case */ 
+          scftype = CLOSED_SHELL_CALCULATION
+          nocc    = nelec/2
+          m       = nbasis
+          WRITE(*,*) " * RHF CALCULATION CHOSEN"
+      else                /* open shell case */
+          scftype = UHF_CALCULATION
+          nocc    = abs(nelec)
+          m       = nbasis * 2
+          call spinor(H, nbasis)
+          call spinor(C, nbasis)
+          WRITE(*,*) " * UHF CALCULATION CHOSEN"
+      end if
+@
+
+@< Set initial matrices and counters @>=
+      /* basis set size */            
+      mm = m*m
+      do i = 1, mm
+         R(i) = zero; Rold(i) = zero
+      end do
+      SCF    = OK
+      kount = 0
+      icon = 100
+@   
+
+@< Sigle SCF iteration @>=
+
+      @< SCF Iter: Initialize counters @>
+      @< SCF Iter: Start Accumulating Energy @>
+      @< SCF Iter: Form G Matrix @>
+      @< SCF Iter: Calculate Total Energy @>                                            
+      @< SCF Iter: Transform HF To Orthogonal Basis And Diagonalize @>            
+      @< SCF Iter: Compute Density Matrix in Original Basis @>
+      @< SCF Iter: Check For Density Matrix Convergence @>
+
+@
+@< SCF Iter: Initialize counters @>=
+      kount = kount + 1
+      E = zero; icon = 0
+@
+@< SCF Iter: Start Accumulating Energy @>=
+      do i = 1, mm
+         HF(i) = H(i)
+         E = E + R(i)*HF(i)
+      enddo
+@
+@< SCF Iter: Form G Matrix @>=
+      call scfGR(R, HF, nbasis, nfile, scftype)
+@
+@< SCF Iter: Calculate Total Energy @>=
+      do i = 1, mm
+         E = E + R(i)*HF(i)
+      enddo
+
+      if (scftype.EQ.UHF_CALCULATION) E = half*E
+@
+@< SCF Iter: Transform HF To Orthogonal Basis And Diagonalize @>=
+      call gtprd(C, HF, R, m, m, m)
+      call gmprd(R, C, HF, m, m, m)
+      call eigen(HF, Cbar, m)
+      do i = 1, m
+         epsilon(i) = HF(m*(i-1)+i)
+      enddo
+@
+@< SCF Iter: Compute Density Matrix in Original Basis @>=
+      call gmprd(C, Cbar, V, m, m, m)
+      call scfR(V, R, m, nocc)
+@
+@< SCF Iter: Check For Density Matrix Convergence @>=
+      Rsum = zero
+      do i = 1, mm
+         turm = R(i) - Rold(i)
+         term = dabs(turm)
+         Rold(i) = R(i)
+         C(i) = V(i)
+         if (term.GT.crit) icon = icon + 1
+         Rsum = Rsum + term
+         if (kount.LT.interp) R(i) = R(i) - damp*turm
+      enddo
+      write(ERROR_OUTPUT_UNIT, 200) E, Rsum
+@
+@< Write the output result @>=
+      write(ERROR_OUTPUT_UNIT, 201) Rsum, icon
+
+      if ((kount.EQ.MAX_ITERATIONS).AND.(icon.NE.0)) then
+          write(ERROR_OUTPUT_UNIT, 204)
+          SCF = ERR
+      else
+         write(ERROR_OUTPUT_UNIT, 202) kount
+         call porbe(epsilon, m, nocc)
+      endif
+@
+
+@< SCF Formats @>=
+ 200  format(" Current Electronic Energy = ", f16.8, " Change = ",f16.8)
+ 201  format(" Convergence in R = ", f12.5,i6, "  Changing")
+ 202  format(" SCF converged in", i4, " iterations")
+ 204  format(" SCF did not converged... quitting")
+@
+
+
+@*1 scfR. 
+
+@a
+      subroutine scfR (C, R, m, nocc)
+      double precision C(ARB), R(ARB)
+      integer m, nocc
+C
+      double precision suma, zero
+      integer i, j, k, ij, ji, kk, ik, jk
+      data zero/0.0D+00/
+C
+      do i = 1, m
+         do j = 1, i
+            suma = zero
+            do k = 1, nocc
+               kk = m*(k-1)
+               ik = kk + i
+               jk = kk + j
+               suma = suma + C(ik)*C(jk)
+            enddo
+            ij = m*(j-1) + i
+            ji = m*(i-1) + j
+            R(ij) = suma
+            R(ji) = suma
+         enddo
+      enddo
+C
+      return
+      end
+@
+
+@*1 scfGR. Make the G-matrix from repulsion integrals - RHF/UHF case.
+
+@m  locGR(i,j) (m*(j-1) + i)
+@a
+      subroutine scfGR(R, G, n, nfile, ntype)
+      double precision R(*), G(*)
+      integer m, n, nfile, ntype
+      /* m: total basis size
+         n: spatial basis size */
+
+      double precision val
+      integer i, j, k, l, is, js, ks, ls, ijs, kls, mu
+      integer getint
+      double precision zero, one, cJ, cK
+      integer pointer, spin, skip
+      data zero,one,two/0.0D+00,1.0D+00,2.0D+00/
+
+      rewind nfile
+      pointer = 0
+
+      @< Establish the type of calculation @>
+
+      do while (getint(nfile, is, js, ks, ls, mu, val, pointer).NE.
+     &                                              END_OF_FILE)
+
+         ijs = is*(is-1)/2+js 
+         kls = ks*(ks-1)/2+ls
+
+         do spin = 1, 4
+
+            @< Check the UHF or RHF case @>
+            skip = NO
+
+            select case (spin)                                
+                case (1) 
+                  i=is   ; j=js   ; k=ks   ; l=ls
+                case (2)
+                  i=is+n ; j=js+n ; k=ks+n ; l=ls+n
+                case (3)
+                  i=is+n ; j=js+n ; k=ks   ; l=ls
+                case (4)
+                  if (ijs.EQ.kls) skip = YES
+                  i=is   ; j=js   ; k=ks+n ; l=ls+n
+                  call order(i,j,k,l)
+            end select
+
+            if (skip.EQ.YES) cycle
+
+            cK = one
+            if (spin.GE.3) cK = zero
+            
+            call GofR(R,G,m,cJ,cK,i,j,k,l,val)
+         end do
+      enddo
+
+      @< Symmetrize G matrix @>
+
+      return
+      end
+@
+
+@< Establish the type of calculation @>=
+      if (ntype.EQ.CLOSED_SHELL_CALCULATION) then
+      /* RHF case */
+          m  = n    /* size of basis: spatial basis */
+          cJ = two
+          cK = one  /* G(R) = 2J(R) - K(R) */
+      else
+      /* UHF case */
+          m  = 2 * n/* size of basis: spin basis */
+          cJ = one
+          cK = one  /* G(R) = J(R) - K(R) */
+      end if
+@
+
+@< Check the UHF or RHF case @>=
+      if ((spin.GT.1).AND.(ntype.EQ.CLOSED_SHELL_CALCULATION)) exit
+@
+
+@< Symmetrize G matrix @>=
+      do i = 1, m
+         do j = 1, i-1
+            ij = locGR(i,j); ji = locGR(j,i)
+            G(ji) = G(ij)
+         end do
+      end do
+@
+
+@*2 GofR. Make the total G-matrix from current density matrix - RHF/UHF case.
+
+@m  locGR(i,j) (m*(j-1) + i)
+@a
+      subroutine GofR(R,G,m,a,b,i,j,k,l,val)
+      double precision R(*), G(*)
+      double precision val, a, b
+      integer i, j, k, l, m
+      integer ij, kl, il, ik, jk, jl
+      double precision coul1, coul2, coul3, exch
+
+      ij = locGR(i,j); kl = locGR(k,l)
+      il = locGR(i,l); ik = locGR(i,k)
+      jk = locGR(j,k); jl = locGR(j,l)
+      if (j.LT.k) jk = locGR(k,j)
+      if (j.LT.l) jl = locGR(l,j)
+
+      coul1 = a*R(ij)*val; coul2 = a*R(kl)*val; exch = b*val
+
+      if (k.NE.l) then
+          coul2 = coul2 + coul2
+          G(ik) = G(ik) - R(jl)*exch
+          if ((i.NE.j).AND.(j.GE.k)) G(jk) = G(jk) - R(il)*exch
+      end if
+      
+      G(il) = G(il) - R(jk)*exch; G(ij) = G(ij) + coul2
+
+      if ((i.NE.j).AND.(j.GE.l)) G(jl) = G(jl) - R(ik)*exch
+      
+      if (ij.NE.kl) then
+          coul3 = coul1
+          if (i.NE.j) coul3 = coul3 + coul1
+          if (j.LE.k) then
+              G(jk) = G(jk) - R(il)*exch
+              if ((i.NE.j).AND.(i.LE.k)) G(ik) = G(ik) - R(jl)*exch
+              if ((k.NE.l).AND.(j.LE.l)) G(jl) = G(jl) - R(ik)*exch
+          end if
+          G(kl) = G(kl) + coul3
+      end if
+
+      return 
+      end
+@
+
+@*2 order. 
+
+@a
+      subroutine order(i,j,k,l)
+      integer i, j, k, l
+      integer integ
+
+      i = abs(i); j = abs(j); k = abs(k); l = abs(l)
+
+      if (i.LT.j) then
+          integ = i
+          i = j
+          j = integ
+      end if
+      
+      if (k.LT.l) then
+          integ = k
+          k = l
+          l = integ
+      end if
+
+      if ((i.LT.k).OR.((i.EQ.k).AND.(j.LT.l))) then
+           integ = i
+           i = k
+           k = integ
+           integ = j
+           j = l
+           l = integ
+      end if
+
+      return
+      end
+@
+
+@* GRHF. This is an implementation of the General Energy Functional
+which can be succesfully used in the diverse methods such as ROHF, MCSCF
+and others.
+A rather cursory manual page is prepended. \ \\
+\newcommand{\nmat}[1]{\mbox{\large \boldmath $ #1$}}
+\newcommand{\nmatt}[1]{\mbox{\boldmath $ #1$}}
+\begin{minipage}{4.5in}
+\ \\
+\begin{description}
+\item[NAME] grhf
+
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+   subroutine grhf(H,V,nbasis,number_of_shells,norbs,noclst,
+                  nfile,nu,x,y,alpha,b,en,HF,R,eps,
+                  Work,Hbar,U, initial_scf,irite);
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+Solves the spin-restricted many-shell ``Hartree-Fock'' problem.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[H] Input: One-electron Hamiltonian. 
+\item[V] Input: Orthogonalistion Matrix.
+\item[nbasis] Input: Number of basis functions.
+\item[number\_of\_shells] Input: self explanatory
+\item[norbs] Input: |norbs(i), i=1,number_of_shells| are the number
+of MOs in each shell.
+\item[noclst] Input: |noclst(j,i), i = 1,norbs(j), j= 1,number_of_shells|
+are the sequence numbers of the orbitals in each shell.
+\item[nfile] Input: Logical file for repulsion integrals.
+\item[nu] Input: |nu(i), i = 1, number_of_shells| are
+the shell occupation  numbers.
+\item[x,y] Input: Symmetric matrices 
+(|number_of_shells|$\times$|number_of_shells|) of coupling coefficients. 
+\item[alpha] Input |alpha(i), i=1,number_of_shells| are ``level
+shifters'' for the shells.
+\item[b] Input: an 
+(|number_of_shells|$\times$|number_of_shells|) 
+anti-symmetric  matrix of ``damp factors''
+\item[HF] Workspace:  Large enough for a stack of
+|number_of_shells| Fock matrices.
+\item[R] Workspace: Must be large enough for a stack of
+|number_of_shells| density matrices.
+\item[Work] Workspace: Large enough for a stack of
+|number_of_shells|  matrices.
+\item[Hbar] Workspace:  The McWeenyan.
+\item[eps] Output: Eigenvalues of McWeenyan.
+\item[U] Input/Output: An initial set of MO
+coefficients if |initial_scf = NO|. On output final MO coefficients.
+
+\end{description}
+
+\item[DIAGNOSTICS] \  \\
+Routine output of Energy and convergence information
+as calculation proceeds. Message on convergence failure.
+\end{description}
+\ \\ \ \\
+\end{minipage}
+\clearpage
+
+
+@a
+      integer function grhf(H,V,nbasis,number_of_shells,norbs,noclst, 
+     &                      nfile,nu,x,y,alpha,b,en,HF,R,eps,              
+     &                      Work,Hbar,U,initial_scf,irite)                 
+      @< Grhf Interface Declarations @>
+      @< Grhf Local Declarations @>
+      @< Grhf Formats @>
+
+      n = nbasis ; nn = n*n
+      grhf = OK
+
+      @< Choose which effective Fock matrix @>
+      @< Invert the orthogonalisation matrix @> 
+      @< Compute total number of occupied orbitals @>
+      @< Calculate the R matrices if the input U is a sensible one @>
+
+      iteration = 0
+      icon = 10000
+ 
+      do while( icon.NE.0 )
+
+         @< One iteration of GRHF-SCF cycle @>
+
+      end do
+
+      return 
+      end
+
+@ First, decide which form of the single effective
+Fock-like matrix is to be used; both are due to McWeeny
+and are known (at least in Sheffield) as McWeenyans.
+
+@< Choose which effective Fock matrix @>= 
+ 
+/*  decide path i.e. which form of "Fock Operator" */
+      iw1 = int(nu(1) + 0.1)
+      iw2 = int(nu(2) + 0.1)
+      path = FOCK_GENERAL
+      if ( (number_of_shells.EQ.2).AND.(iw1.EQ.2).AND.(iw2.EQ.1) ) then
+         path = FOCK_HALF_CLOSED
+      end if
+
+@ We only have the shell occupation numbers in the arguments,
+get the total.
+
+@< Compute total number of occupied orbitals @>=
+      total_occupied_orbitals = 0                                     
+      do i = 1, number_of_shells
+         total_occupied_orbitals = total_occupied_orbitals + norbs(i)
+      end do
+
+@ We need the orthogonalisation matrix {\em and} its inverse.
+The orthogonaliser comes in via the interface, so invert a copy
+and add it to the end of the original.
+
+@< Invert the orthogonalisation matrix @>= 
+      do i = 1, nn                                               
+         V(nn+i) = V(i)  /*  a copy to invert */
+      end do
+      call minv(V(nn+1),n,det,lwork,mwork) /*V**-1 in V(nn+1) */
+
+@ If, by chance, the incoming matrix is a guess
+at the MO coefficients, not just an orthogonaliser,
+form the corresponding R matrices.
+
+@< Calculate the R matrices if the input U is a sensible one @>=
+      if (initial_scf .NE. YES ) then                     
+          call grhfR(U,R,n,noclst,norbs,number_of_shells)
+      end if
+
+@ Here is the ``inner'' code for one complete SCF cycle.
+It is further broken down into smaller modules as appropriate.
+
+@< One iteration of GRHF-SCF cycle @> = 
+      icon = 0
+      iteration = iteration + 1
+
+      en = zero /* accumulator for total energy */
+ 
+      if ( (initial_scf) .EQ. NO .AND. ( iteration .EQ. 1 ) ) then
+
+         @< Start first cycle from one-electron Hamiltonian @>
+
+      else
+
+         @< Put one-electron Hamiltonian into each Fock matrix @>
+         @< Use the repulsion integrals to form the Fock matrices @>
+         @< Scale the Fock matrices by occupation number @>
+         @< Choose the appropriate form of the effective Fock matrix @>
+         @< Transpose the inverse-orthogonaliser for convenience @>
+
+      end if
+
+      @< Transform and diagonalise the single Fock matrix @>
+      @< Transform back to the original basis and form the new R @>
+      @< Check for convergence and prepare to re-cycle @>
+
+@ If no guess at the R matrices is available, set the
+effective Hamiltonian to the one-electron Hamiltonian to
+start the process off.
+
+@< Start first cycle from one-electron Hamiltonian @>= 
+      do i = 1, nn
+          Hbar(i) = H(i)
+          R(i) = V(i)
+      end do
+
+@ Each shell Fock matrix must contain the one-electron
+Hamiltonian, so put it there. Here is a good place to start
+accumulating the total electronic energy in |en|. The one-electron
+contribution is entered here; note the occupation number is
+used to scale |R|.
+
+@< Put one-electron Hamiltonian into each Fock matrix @>= 
+      do shell = 1, number_of_shells
+         shell_offset = (shell-1)*nn
+         do i = 1, nn
+            ioffset = shell_offset + i
+            HF(ioffset) = H(i)  /* put H into each `HF' */
+            en = en + nu(shell)*HF(i)*R(ioffset)
+         end do
+      end do
+
+@ Now that each Fock matrix contains the one-electron
+Hamiltonian, use |grhfGR| to add in the relevant 
+electron-repulsion contributions. Also set up the ``virtual''
+Fock matrix.
+
+@< Use the repulsion integrals to form the Fock matrices @>= 
+      virtual_offset = number_of_shells*nn
+      do i = 1, nn
+         HF(virtual_offset+i) = zero
+      end do
+      call grhfGR(R,HF,n,nfile,nu,x,y,number_of_shells,Work)
+
+@ If the calculation is the simplest case, a closed shell plus
+one shell of parallel-spin singly occupied orbitals, use
+McWeeny's original form of the effective Fock matrix; otherwise
+use the general case. The general case will also work for the
+special case but convergence is poorer.
+
+@< Choose the appropriate form of the effective Fock matrix @>= 
+      if (path.EQ.FOCK_HALF_CLOSED) then
+         call Hhalf(HF,R,n,Work,Work(nn+1),Hbar)
+                 /* ``half-closed case'' use RMcW form */   
+      else
+         call Hone(HF,R,n,alpha,b,nu,number_of_shells,
+     &             Work,Work(nn+1),Hbar)
+        /* general case; display stationary conditions */
+      end if
+
+@ It is convenient to transpose the transformation matrix
+in order to use |gtprd| and |gmprd| to transform the
+effective Fock matrix to the orthogonal basis.
+
+@< Transpose the inverse-orthogonaliser for convenience @>=
+      do i = 1, n
+         do j = 1, n
+            ij = (j-1)*n+i
+            ji = (i-1)*n + j
+            R(ij) = V(nn+ji)     /* R has V**-1 transposed */   
+         end do
+      end do
+
+@ Use the inverse-orthogonaliser to transform the single
+Fock matrix to the orthogonalised basis, diagonalise it
+and save the eigenvalues. Notice that, if inter-shell
+level shifters have been used, this is the place to
+remove them from the eigenvalues if the eigenvalues are
+to be interpreted as orbital energies. The single Hamiltonian
+is stored in |Hbar| and orthogonalized.
+
+@< Transform and diagonalise the single Fock matrix @>=
+      call gtprd(R,Hbar,HF,n,n,n) /* HF now work space */
+      call gmprd(HF,R,Hbar,n,n,n)
+      call eigen(Hbar,Work,n)
+
+      do i = 1, n
+         ii = (i-1)*n+i
+         eps(i) = Hbar(ii)
+      end do
+/*REMOVE THE SHIFTERS when they are passed back to the caller!!*/
+
+@ The R matrices must always be in the original 
+non-orthogonal basis because they must be compatible with the
+basis over which the
+repulsion integrals are available, so transform the 
+eigenvectors back to this basis and form the new R matrices.
+
+@< Transform back to the original basis and form the new R @>=
+      call gmprd(V,Work,U,n,n,n) /* HF now contains new U */
+      call grhfR(U,R,n,noclst,norbs,number_of_shells)
+
+@ Compare the new eigenvector matrix with the saved one 
+from the previous cycle and, if covergence has not
+been achieved, set things up for the next cycle.
+If the cycle limit is hit, quit with a message.
+
+@< Check for convergence and prepare to re-cycle @>=
+      do i = 1, n
+         do j = 1, total_occupied_orbitals
+            ij = (j-1)*n + i
+            test = dabs(U(ij)-U(nn+ij))
+            U(nn+ij) = U(ij)      /*  replace old U by new U */
+            if ( test .GT. crit ) icon = icon + 1
+         end do
+      end do
+
+      if (irite .GT. 0) write(ERROR_OUTPUT_UNIT, 200) icon,en,iteration
+
+      if (iteration .GT. max_iteration ) then
+         grhf = ERR
+         return
+      end if
+
+
+@ We have factored out the shell occupation numbers from
+the numerical factors in the energy expression
+(``coupling coefficients''), so multiply the individual shell
+Fock matrices by these occupation numbers before using
+the coupling coefficients. This is also a convenient place to 
+finish  the energy accumulation.
+
+@< Scale the Fock matrices by occupation number @>=
+      do shell = 1, number_of_shells
+         shell_offset = (shell-1)*nn
+         do i = 1, nn
+            ioffset = shell_offset + i
+            HF(ioffset) = nu(shell) * HF(ioffset)
+            en = en + HF(ioffset) * R(ioffset)
+         end do
+      end do
+      en = half*en          /*   all energy terms added */   
+@ 
+
+@< Grhf Interface Declarations @>=
+      double precision H(*),U(*),HF(*),R(*),Work(*),Hbar(*),eps(*)
+      double precision V(*)
+      double precision nu(*),alpha(*)
+      double precision x(MAX_SHELLS,*)
+      double precision y(MAX_SHELLS,*)
+      double precision b(MAX_SHELLS,*)
+      double precision en
+      integer nbasis, nfile, irite, initial_scf
+      integer number_of_shells, norbs(*), noclst(MAX_SHELLS,*)
+
+@ These are declarations of working space which are
+local to |grhf| and some required initialisations.
+
+@< Grhf Local Declarations @>=
+      integer lwork(WORK_MINV),mwork(WORK_MINV) /*  work space for minv */
+      integer path, iw1, iw2
+      integer iteration, max_iteration
+      integer shell_offset, ioffset, virtual_offset, shell
+      integer total_occupied_orbitals
+      double precision det, test
+      data zero,half,crit/0.0d00,0.5d00,CRIT_SCF/
+      data max_iteration/MAX_ITERATIONS/
+@
+
+@< Grhf Formats @>=
+ 200  format(I4,"  Elements of T Changing ",
+     &          "  Energy is ",f20.10,"  Iteration  ",I4)
+@
+
+@*1 grhfR. Forms the grhf `R' matrices from the single MO matrix
+ |U|.
+@a
+      subroutine grhfR(U,R,n,noclst,norbs,number_of_shells)
+      implicit double precision (a-h,o-z)
+      dimension R(*), U(*)
+      integer n, number_of_shells
+      integer noclst(MAX_SHELLS,*), norbs(*)
+
+      integer shell, nshell, offset_ij, offset, offset_ji
+      data zero/0.0d0/
+
+      @< Form the virtual shell from unoccupied orbitals @>
+
+      nshell = number_of_shells + 1 /* include the virtual shell */ 
+      nn = n*n
+
+      do shell = 1, nshell
+
+         @< Form the R matrix for each shell using noclst @>
+
+      end do
+      return
+      end
+
+@ Use the information about the orbital structure of the
+shells to form the list of orbitals in the virtual shell.
+This could be done once and for all outside |grhfR| if
+the orbital shell structure is preserved throughout.
+
+@< Form the virtual shell from unoccupied orbitals @>=
+      nz = number_of_shells + 1
+
+/* First make the virtual shell all the orbitals */
+
+      do i = 1,n
+         noclst(nz,i) = i
+      end do
+
+/* Now, subtract each of the occupied orbitals in each
+shell from the full list; the remainder is the virtual shell */
+
+      do shell = 1, number_of_shells
+         ntop = norbs(shell)
+         do kd = 1, ntop
+            k = noclst(shell,kd)
+            noclst(nz,k) = 0
+         end do
+      end do
+
+/* Now reorder this random list and count the number of
+orbitals in the virtual shell */
+
+      iz = 0
+      do i = 1, n
+         kz = noclst(nz,i)
+         if ( kz .NE. 0 ) then
+            iz = iz + 1
+            noclst(nz,iz) = kz
+        end if
+      end do
+
+      norbs(nz) = iz
+
+@ The information about which orbitals belong to which shell
+is in |noclst| and so the |R| matrix for each shell is formed
+from the orbital coefficients and this information. All the
+R matrices are stored as contiguous arrays in |R|, each one
+is |nn| long; |offset| keeps track of where each one is
+to be put.
+
+@< Form the R matrix for each shell using noclst @>=
+      offset = (shell-1) * nn
+      do i=1,n
+         do j=1,i
+            ij=n*(j-1)+i ; ji = n*(i-1)+j
+            sum=zero
+            ntop = norbs(shell)
+            do kd=1,ntop
+               k = noclst(shell,kd)
+               kk= n * (k-1) 
+               ik= kk + i
+               jk= kk + j
+               sum = sum + U(ik)*U(jk)
+            end do
+            offset_ij = offset + ij
+            R(offset_ij) = sum
+            offset_ji = offset + ji
+            R(offset_ji) = sum
+         end do
+      end do
+
+@*1 grhfGR. Adds the G(R)s needed for grhf to the stack of copies
+of the one-electron Hamiltonian  by collecting together all
+the R matrices contributing to one Fock matrix and using the simple
+linear result
+\[
+\sum_i a_i \mbox{\large \boldmath{G}}( \mbox{\large \boldmath{R}}^i) = 
+   \mbox{\large \boldmath{G}} \left( \sum_i a_i \mbox{\large \boldmath{R}}^i \right)
+\]
+for any linear combination of $\mbox{\large \boldmath{G}}$ matrices.
+
+@a
+
+      subroutine grhfGR(R,G,n,nfile,nu,x,y,number_of_shells,Rwork)
+
+      @< GrhfGR Interface Declarations @>
+      @< GrhfGR Local Declarations @>
+
+      /* Loop over all shell G  matrices   */
+
+      do shellh = 1, number_of_shells
+
+         @< Set up the Combinations of R matrices @>
+         @< Obtain the repulsion integrals and form the Gs @>
+
+      end do
+
+      @< Now symmetrise all the Gs @>
+
+   return
+   end
+@ 
+
+@< GrhfGR Interface Declarations@>=
+      implicit double precision (a-h,o-z)
+      double precision G(*),R(*),nu(number_of_shells)
+      double precision x(MAX_SHELLS,*)
+      double precision y(MAX_SHELLS,*)
+      double precision Rwork(*)
+@
+
+@< GrhfGR Local Declarations @>=
+      double precision zero
+      integer shellh,shellr,hoffset,roffset,nn,n,nfile
+      integer pointer
+      integer getint
+
+@m locg(i,j) (((j)-1)*n+(i)) /* macro for subscripting */
+
+      data zero/0.0d00/
+      nn = n*n
+@
+ 
+@<Set up the Combinations of R matrices@> =
+      hoffset = (shellh-1)*nn
+      do m = 1, nn
+         Rwork(m) = zero    /* initialise the "net" R matrix */           
+         Rwork(nn+m) = zero /*  and the one for K(R) */                 
+      end do
+      do shellr = 1, number_of_shells
+         roffset = (shellr-1)*nn
+         do m = 1, nn
+            Rwork(m) = Rwork(m) + 
+     &                 nu(shellr)*x(shellr,shellh)*R(roffset+m)
+            Rwork(nn+m) = Rwork(nn+m) + 
+     &                 nu(shellr)*y(shellr,shellh)*R(roffset+m)
+         end do
+      end do
+@ 
+
+@< Obtain the repulsion integrals and form the Gs @>=
+      rewind nfile; pointer = 0 /*  initialise the file*/         
+      do while ( getint(nfile,i,j,k,l,mu,val,pointer) .NE. END_OF_FILE )
+         call JofR (Rwork,G(hoffset+1),n,i,j,k,l,val)
+         call KofR (Rwork(nn+1),G(hoffset+1),n,i,j,k,l,val)
+      end do
+@ 
+
+@< Now symmetrise all the Gs @>=
+      do shellh = 1, number_of_shells                
+         hoffset = (shellh-1)*nn
+         do mi = 1, n
+            do mj = 1, mi
+               ij = locg (mi,mj); ji = locg (mj,mi)
+               if ( mi .EQ. mj ) cycle
+               G(hoffset+ji) = G(hoffset+ij)
+            end do
+         end do
+      end do
+@
+
+@*2 JofR. J(R) primitive; familiar from the Closed-Shell
+and UHF case.
+
+@a 
+      subroutine JofR(R,G,n,i,j,k,l,val)
+      implicit double precision (a-h,o-z)
+      dimension R(*), G(*)
+      integer i, j, k, l
+      double precision val
+/*  assumes that the matrix is already multiplied by the various
+   "coupling coefficients" */
+
+@m locj(i,j) (((j)-1)*n+(i)) /* macro for subscripting */
+
+      ij = locj(i,j) 
+      kl = locj(k,l)
+      t1 = R(ij) * val
+      t2 = R(kl) * val
+      if ( i .NE. j  ) t1 = t1 + t1
+      G(kl) = G(kl) + t1
+      if ( ij .NE. kl ) then
+         if ( k .NE. l ) t2 = t2 + t2
+         G(ij) = G(ij) + t2
+      end if
+
+      return
+      end
+@
+
+@*2 KofR. K(R) primitive. Forms the familar exchange contribution.
+
+@a
+      subroutine KofR(R,G,n,i,j,k,l,val)
+      implicit double precision (a-h,o-z)
+      dimension R(*), G(*)
+      integer i, j, k, l
+      double precision val
+/*  assumes that the matrix R is already multiplied by the
+  various "coupling coefficients" */
+
+@m lock(i,j) (((j)-1)*n+(i)) /* macro for subscripting */
+
+      ij = lock(i,j); kl = lock(k,l)
+      il = lock(i,l); ik = lock(i,k)
+      jk = lock(j,k); jl = lock(j,l)
+      if ( j .LT. k ) jk = lock(k,j)
+      if ( j .LT. l ) jl = lock(l,j)
+                                                                      
+      exch = val
+      if ( k.NE.l ) then
+         G(ik) = G(ik) - R(jl)*exch
+         if ( ( i.NE.j ).AND.( j.GE.k ) ) G(jk) = G(jk) - R(il)*exch
+      end if
+      G(il) = G(il) - R(jk)*exch                                     
+      if ( ( i.NE.j ).AND.( j.GE.l ) ) G(jl) = G(jl) - R(ik)*exch     
+      if ( ij != kl ) then                                            
+         if ( j.LE.k) then                                             
+            G(jk) = G(jk) - R(il)*exch                                  
+            if (( i.NE.j ).AND.( i.LE.k )) G(ik) = G(ik) - R(jl)*exch   
+            if (( k.NE.l ).AND.( j.LE.l )) G(jl) = G(jl) - R(ik)*exch   
+         end if                                                        
+      end if                                                          
+   return
+   end
+@
+
+@*1 Hone. Given a ``stack'' of individual shell Fock matrices in
+|H| and a stack of shell R matrices in |R|, forms the single effective
+Hamiltonian for the combined set of shells: the general McWeenyan.
+
+@a
+
+      subroutine Hone(H,R,n,alpha,b,nu,number_of_shells,
+     &                Work1,Work2,Hbar)
+
+      @< Hone Interface Declarations @>
+      @< Hone Local Declarations @>
+      @< Hone initialisations @> 
+      @< Add the off-diagonal projections @> 
+      @< Now the diagonal terms including level shifters @> 
+      
+      return
+      end
+@ 
+ 
+@< Hone Interface Declarations @>=
+      implicit double precision (a-h,o-z)
+      double precision H(*),R(*),Work1(*),Work2(*),Hbar(*)
+      double precision alpha(number_of_shells)    /*  shifters; */
+      double precision    nu(number_of_shells)    /*  occupations */
+      double precision b(MAX_SHELLS,MAX_SHELLS)   /*  dampers */
+      integer n, number_of_shells
+@ 
+
+@< Hone Local Declarations @>=
+      double precision damp_factor,shifter,half
+      double precision correct  /* used to divide by nu(shell1) */
+      integer shell1,shell2,nshell,number_of_shells
+      integer shell1_offset,shell2_offset
+      data one, zero, half/1.0d00, 0.0d00, 0.5d00/
+@ 
+
+@< Hone initialisations@>=
+      nshell = number_of_shells + 1  /*  allow for virtual shell */
+      nn = n*n
+      do i = 1, nn
+         Hbar(i) = zero /*  initialise Hbar since addprd cannot!*/
+      end do
+@ 
+
+@< Add the off-diagonal projections @>=
+      do shell1 = 1, nshell
+         shell1_offset = (shell1-1)*nn
+         do shell2 = 1, nshell
+            if ( shell1 .EQ. shell2 ) cycle
+            damp_factor = b(shell1,shell2)
+            shell2_offset = ( shell2 - 1)*nn
+            do i = 1, nn
+               Work1(i) = (H(shell2_offset + i) - H(shell1_offset +i))
+     &                     * damp_factor
+            end do
+            call gmprd(R(shell1_offset+1),Work1,Work2,n,n,n)
+            call addprd(Work2,R(shell2_offset+1),Hbar,n,n,n)
+         end do
+      end do
+@ 
+
+@< Now the diagonal terms including level shifters @>=
+      do shell1 = 1, number_of_shells
+         shell1_offset = (shell1-1)*nn
+         shifter = alpha(shell1)
+         /* correct = one/nu(shell1) */
+         correct = 1.0d00
+         do i = 1, nn
+            Work1(i) = correct * H(shell1_offset+i)
+         end do
+         do i = 1, n
+            ii = (i-1)*n + i   /*  add a diagonal level-shifter */
+            Work1(ii) = Work1(ii) + shifter
+         end do
+         call gmprd(R(shell1_offset+1),Work1,Work2,n,n,n)
+         call addprd(Work2,R(shell1_offset+1),Hbar,n,n,n)
+      end do
+      do i = 1, nn
+         Hbar(i) = half*Hbar(i) /*  get the eigenvalues right */
+      end do
+
+@*1 Hhalf. Special form for half-closed case of the effective
+many-shell Hamiltonian.
+Given a ``stack'' of individual shell Fock matrices in
+|H| and a stack of shell R matrices in |R|, forms the single effective
+Hamiltonian for the combined set of shells: the original McWeenyan.
+
+@a
+      subroutine Hhalf(HF,R,n,Work1,Work2,Hbar)
+
+      @< Hhalf Interface Declarations @> 
+      @< Hhalf Local Declarations @> 
+      @< Hhalf initialisation @> 
+      @< Form (R1+R2)(2H1-H2)(R1+R2) @> 
+      @< Add in (R1+RZ)(H1)(R1+RZ) + (R2+RZ)(H2)(R2+RZ) @> 
+
+      return
+      end
+@ 
+
+@< Hhalf Interface Declarations @>=
+      double precision HF(*),R(*),Work1(*),Work2(*),Hbar(*)
+      integer n
+@ 
+
+@< Hhalf Local Declarations @>=
+      double precision half,zero
+      integer shell,offset,offset2,zoffset
+      data half,zero/0.5d00,0.0d00/
+@ 
+
+@< Hhalf initialisation @>=
+      nn = n*n; offset2 = nn; zoffset = nn+nn
+      do i = 1, nn
+         Hbar(i) = zero  /* initialise Hbar */
+      end do
+@ 
+
+@< Form (R1+R2)(2H1-H2)(R1+R2) @>=
+      do i = 1, nn
+         Work1(i) = R(i) + R(offset2 +i)  /* R1 + R2 */
+      end do
+      call gmprd(Work1,HF,Work2,n,n,n)
+      call addprd(Work2,Work1,Hbar,n,n,n) /* (R1+R2)(2H1)(R1+R2) */
+      call gmprd(Work1,HF(offset2+1),Work2,n,n,n)
+      do i = 1, nn
+         Work1(i) = -Work1(i)  /* to get -H2 */
+      end do
+      call addprd(Work2,Work1,Hbar,n,n,n)
+
+/*     (R1+R2)(-H2)(R1+R2) */                                                                      
+/*     so far Hbar = (R1+R2)(2H1-H2)(R1+R2) */
+
+      do i = 1, nn
+         HF(i) = half*HF(i) /*  correct for occupation number of 2 */
+      end do
+@ 
+
+@< Add in (R1+RZ)(H1)(R1+RZ) + (R2+RZ)(H2)(R2+RZ) @>=
+      do shell = 1,2                                 
+         offset = (shell-1)*nn
+         do i = 1, nn
+            Work1(i) = R(offset+i) + R(zoffset+i)
+         end do
+         call gmprd(Work1,HF(offset+1),Work2,n,n,n)
+         call addprd(Work2,Work1,Hbar,n,n,n)
+      end do
+
+/*    Hbar = as before + (R1+RZ)(H1)(R1+RZ) + (R2+RZ)(H2)(R2+RZ) */
+
+      do i = 1, nn
+         Hbar(i) = half*Hbar(i)  /* get eigenvalues right */
+      end do
+@
+
+@* CI. Here we describe the Configuration Interaction
+method and its implementation in {\sc BQC}. The idea is very simple: 
+we have to construct the series of Slater determinants:
+%
+\newcommand{\eri}[4]{\left( {#1}{#2} \vert {#3}{#4} \right)}
+\begin{equation}
+\vert \Phi \rangle = \vert \Phi_0 \rangle + \sum_{ar} C_a^r \vert \Phi_a^r \rangle
+ + \sum_{abrs} C_{ab}^{rs} \vert \Phi_{ab}^{rs} \rangle + \ldots
+\end{equation}
+%
+Then, we evaluate the matrix $\langle \Phi \vert \mathcal{H} \vert \Phi \rangle$
+and diagonalize it to obtain the CI coefficients and eigenenergies.
+
+In {\sc BQC} package SCI and DCI are implemented as for now. 
+
+@*1 Implementation of CI Hamiltonian.
+
+For the evaluation of SCI matrix elements we need the following
+%
+\begin{eqnarray}
+\langle \Phi_0 \vert \mathcal{H} \vert \Phi_a^r \rangle &=& 0 \\
+\langle \Phi_a^r \vert \mathcal{H} - E_0\vert \Phi_b^s \rangle &=& 
+    \left( \varepsilon_r - \varepsilon_a \right) \delta_{rs} \delta_{ab} - \eri{r}{s}{b}{a} + v\eri{r}{a}{b}{s}
+\end{eqnarray}
+%
+whereas for DCI matrix elements we must compute
+%
+\begin{eqnarray}
+\langle \Phi_0 \vert \mathcal{H} - E_0\vert {}^1\Phi_{ab}^{rs} \rangle &=& ?
+\end{eqnarray}
+%
+Note that in the case of RHF reference $v=2$ while for UHF $v=1$.
+
+@*1 H\_CIS. Generate the CIS Hamiltonian.
+
+\begin{minipage}{4.5in}
+  \ \\
+\begin{description}
+\item[NAME] H\_CIS \\
+  Generate explicit CIS Hamiltonian matrix
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+      subroutine H_CIS(HCI, nbasis, nocc, epsilon, nfile, v, nsize)
+
+      double precision HCI(*), epsilon(*), v
+      integer nbasis, nocc, nfile, nsize
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+ Make the CIS matrix in explicit matrix-list form HCI(*). The size of the
+ matrix is $(nocc*(nbasis-nocc)+1)^2$.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[HCI]     Input/Output: CIS Hamiltonian matrix
+\item[nbasis]  Input: Basis size (total number of orbitals)
+\item[nocc]    Input: Number of occupied orbitals
+\item[epsilon] Input: Orbital energies
+\item[nfile]   Input: File unit for ERI in MO space
+\item[v]       Input: 2 when reference is RHF case, 1 for UHF reference determinant
+\item[nsize]   Output: Dimension of CIS Hamiltonian
+\end{description}
+\item[DIAGNOSTICS] \ \\
+ Since the resulting CIS matrix is generally very large this subroutine 
+ cannot be used for larger systems in larger basis sets.
+\end{description}
+\ \\
+\end{minipage}
+
+@m JUSE(r,a,s,b) BigK = ((a)-1) * mn+((r)-nocc); 
+                 BigL = ((b)-1) * mn+((s)-nocc); 
+                 KL = nt*(BigL-1) + BigK; 
+                 HCI(KL) = HCI(KL) + val*v
+
+@m KUSE(r,s,a,b) BigK = ((a)-1) * mn+((r)-nocc); 
+                 BigL = ((b)-1) * mn+((s)-nocc); 
+                 KL = nt*(BigL-1) + BigK; 
+                 HCI(KL) = HCI(KL) - val
+
+@a
+      subroutine H_CIS(HCI, nbasis, nocc, epsilon, nfile, v, nsize)
+
+               /*  
+                 LK = nt*(BigK-1) + BigL;
+ if (BigK.NE.BigL) HCI(LK) = HCI(LK) + val*v */
+      @< H\_CIS Interface Declarations @>
+      @< H\_CIS Local Declarations @>
+      @< Build CIS Hamiltonian @>
+
+      return
+      end
+@
+@< Build CIS Hamiltonian @>=
+
+      @< Initialize HCI @>
+      @< Contributions due to 2-electron integrals @>
+      @< Orbital energies contributions @>
+@
+@< Initialize HCI @>=
+      mn = nbasis-nocc
+      nt = (nbasis-nocc)*nocc
+      nsize = nt
+      do i = 1, nt
+      do j = 1, nt
+         KL = nt*(i-1) + j
+         LK = nt*(j-1) + i
+         HCI(KL) = zero
+         HCI(LK) = zero
+      end do
+      end do
+@
+@< Contributions due to 2-electron integrals @>=
+      rewind nfile
+      point = 0
+      do while (getint(nfile,i,j,k,l,mu,val,point).NE.END_OF_FILE) 
+         @< (VO,VO) integral contributions @>
+         @< (VV,OO) integral contributions @> 
+      end do
+@
+@< (VO,VO) integral contributions @>=
+      if ((i.GT.nocc).AND.(j.LE.nocc).AND.(k.GT.nocc).AND.(l.LE.nocc))
+     &then
+          JUSE(i,j,k,l)
+          if (i.NE.k) then
+              if (j.NE.l) then
+                  JUSE(k,j,i,l)
+                  JUSE(i,l,k,j)
+                  JUSE(k,l,i,j)
+              else
+                  JUSE(k,j,i,l)
+              end if
+          else
+              if (j.NE.l) then
+                  JUSE(i,l,k,j)
+              end if
+          end if
+
+      end if
+@
+@< (VV,OO) integral contributions @>=
+      if ((i.GT.nocc).AND.(j.GT.nocc).AND.(k.LE.nocc).AND.(l.LE.nocc))
+     &then
+          KUSE(i,j,k,l)
+          if (i.NE.j) then
+              if (k.NE.l) then
+                  KUSE(j,i,k,l)
+                  KUSE(j,i,l,k)
+                  KUSE(i,j,l,k)
+              else
+                  KUSE(j,i,k,l)
+              end if
+          else
+              if (k.NE.l) then
+                  KUSE(i,j,l,k)
+              end if
+          end if
+
+      end if
+@
+@< Orbital energies contributions @>=
+      do a = 1, nocc
+      do r = nocc+1, nbasis
+         BigK = (a-1)*mn+(r-nocc) 
+         do b = 1, nocc
+         do s = nocc+1, nbasis
+            if ((r.EQ.s).AND.(a.EQ.b)) then
+                BigL = (b-1)*mn + (s-nocc) 
+                KL = nt*(BigL-1) + BigK
+                HCI(KL) = HCI(KL) + epsilon(r) - epsilon(a)
+            end if
+         end do
+         end do
+      end do
+      end do
+@
+@< H\_CIS Interface Declarations @>=
+      double precision HCI(*), epsilon(*), v
+      integer nbasis, nocc, nfile, nsize
+@
+@< H\_CIS Local Declarations @>=
+      double precision val 
+      integer i, j, k, l, point, mu, BigK, BigL, mn, nt, KL, LK
+      integer r, s, a, b
+      integer getint
+      data one,zero/1.00D+00,0.00D+00/
+@
+
+@* INTEGRALS.
+
+@
+
+@*1 genoei. 
+Function to compute the one-electron integrals (overlap,
+kinetic energy and nuclear attraction).
+The STRUCTURES and GENOEI manual pages must be
+consulted for a detailed description of the calling sequence.
+
+The overlap and kinetic energy integrals are expressed in terms of
+a basic one-dimensional Cartesian overlap component computed by
+|function ovrlap| while the more involved nuclear-attraction
+integrals are computed as a sum of geometrical factors computed by
+|subroutine aform| and the standard $F_\nu$ computed by |function fmch|.
+
+
+@a
+      double precision function genoei(i, j, eta, ngmx, nfirst,
+     &      nlast, ntype, nr, ntmx, vlist, noc, ncmx, ovltot, kintot)
+      implicit double precision (a-h,o-z) 
+      integer i, j, ngmx, ncmx, noc, ntmx 
+      integer nfirst(*), nlast(*), ntype(*), nr(ntmx,3) 
+      double precision ovltot, kintot 
+      double precision eta(MAX_PRIMITIVES,5), vlist(MAX_CENTRES,4) 
+
+      @< Genoei Local Declarations @>
+
+      @< Factorials @>
+
+/* Obtain the powers of x,y,z and summation limits */
+
+      @< One-electron Integer Setup @>   
+
+/* Inter-nuclear distance */
+ 
+      rAB = (eta(iss,1)-eta(jss,1))**2 + 
+     &      (eta(iss,2)-eta(jss,2))**2 + 
+     &      (eta(iss,3)-eta(jss,3))**2 
+
+/* Initialise all accumulators   */
+
+      genoei = zero 
+      totnai = zero
+      kintot = zero
+      ovltot = zero
+
+/* Now start the summations over the contracted GTFs  */
+
+      do irun = iss, il          /* start of "i" contraction */                                
+         do jrun = jss, jl       /* start of "j" contraction */
+            @< Compute PA @>
+            @< Overlap Components @>
+                                                                                      
+            ovltot = ovltot + anorm*bnorm*ovl
+            
+            @< Kinetic Energy Components @>
+                                                                                      
+            kintot = kintot + anorm*bnorm*kin
+
+            tnai = zero           /* nuclear attraction */
+
+            @< Form fj @>
+
+            do n = 1, noc         /* loop over nuclei */
+               pn = zero   
+               @< Nuclear data @>
+   
+               t = t1*pcsq
+
+               call auxg(m,t,g)   /* Generate all the $F_\nu$ required */
+
+               @< Form As @>      /* Generate the geometrical $A$-factors */
+
+               do ii = 1, imax                                                             
+                  do jj = 1, jmax
+                     do kk = 1, kmax
+                        nu = ii + jj + kk - 2
+                        pn = pn + Airu(ii)*Ajsv(jj)*Aktw(kk)*g(nu)
+                     end do
+                  end do
+               end do
+                                                                                           
+               tnai = tnai -pn*vlist(n,4)
+                                                                                           
+            end do                /* end of loop over nuclei */
+            totnai = totnai + prefa*tnai
+         end do                   /* end of "j" contraction */
+      end do                      /* end of "i" contraction */
+
+      genoei = totnai + kintot  /* "T + V"  */
+      return
+      end
+
+@ These are the declarations which are local to |genoei|,
+working space {\em etc.}
+
+@< Genoei Local Declarations @>= 
+      double precision Airu(10), Ajsv(10), Aktw(10)                      
+      double precision p(3), sf(10,3), tf(20)
+      double precision fact(20), g(50)
+      double precision kin
+      data zero,one,two,half,quart /0.0d00,1.0d00,2.0d00,0.5d00,0.25d00/
+      data pi/3.141592653589d00/
+
+
+@ Get the various powers of $x$, $y$ and $z$ required from the data
+structures and obtain the contraction limits etc.
+
+@< One-electron Integer Setup @>=
+      ityp=ntype(i)  ; jtyp = ntype(j)                                      
+      l1 = nr(ityp,1); m1 = nr(ityp,2); n1 = nr(ityp,3)
+      l2 = nr(jtyp,1); m2 = nr(jtyp,2); n2 = nr(jtyp,3)
+      imax = l1+l2+1 ; jmax = m1+m2+1 ; kmax = n1+n2+1
+      maxall = imax
+      if ( maxall.LT.jmax ) maxall = jmax
+      if ( maxall.LT.kmax ) maxall = kmax
+      if ( maxall.LT.2 )  maxall = 2  /* when all functions are "s" type */
+      iss = nfirst(i); il = nlast(i)
+      jss = nfirst(j); jl = nlast(j)
+
+
+@ This simple code gets the Cartesian overlap components and
+assembles the total integral. It also computes the overlaps required
+to calculate the kinetic energy integral used in a later module.
+
+@< Overlap Components @>=
+      prefa = two*prefa                       
+      expab = dexp(-aexp*bexp*rAB/t1)         
+      s00=(pi/t1)**1.5*expab                  
+      dum = one;  tf(1) = one; del = half/t1  
+      do n = 2, maxall                        
+         tf(n) = tf(n-1)*dum*del              
+         dum = dum + two                      
+      end do                                  
+                                              
+      ox0  = ovrlap(l1, l2,   pax, pbx, tf)   
+      oy0  = ovrlap(m1, m2,   pay, pby, tf)   
+      oz0  = ovrlap(n1, n2,   paz, pbz, tf)   
+      ox2  = ovrlap(l1, l2+2, pax, pbx, tf)   
+      oxm2 = ovrlap(l1, l2-2, pax, pbx, tf)   
+      oy2  = ovrlap(m1, m2+2, pay, pby, tf)   
+      oym2 = ovrlap(m1, m2-2, pay, pby, tf)   
+      oz2  = ovrlap(n1, n2+2, paz, pbz, tf)   
+      ozm2 = ovrlap(n1, n2-2, paz, pbz, tf)   
+      ov0  = ox0*oy0*oz0; ovl = ov0*s00       
+      ov1  = ox2*oy0*oz0; ov4 = oxm2*oy0*oz0  
+      ov2  = ox0*oy2*oz0; ov5 = ox0*oym2*oz0  
+      ov3  = ox0*oy0*oz2; ov6 = ox0*oy0*ozm2  
+
+@*2 ovrlap. 
+One-dimensional Cartesian overlap. This function uses the
+precomputed factors in |tf| to evaluate the simple Cartesian components
+of the overlap integral which must be multiplied together to
+form the total overlap integral.
+
+@a
+      double precision function ovrlap(l1,l2,pax,pbx,tf)                       
+      implicit double precision (a-h,o-z)
+      integer l1, l2
+      double precision pax,pbx
+      double precision tf(*)  /* pre-computed exponent and double factorial
+                                factors: tf(i+1) = (2i-1)!!/(2**i*(A+B)**i) */
+      
+      double precision zero, one, dum
+      data zero,one/0.0d00,1.0d00/
+                                                                               
+      if( (l1.LT.0) .OR. (l2.LT.0) ) then 
+         ovrlap = zero
+         return
+      end if
+                                                                               
+      if ( (l1.EQ.0) .AND. (l2.EQ.0) ) then
+         ovrlap = one
+         return
+      end if
+                                                                               
+      dum = zero;  maxkk = (l1 + l2)/2 + 1
+                                                                               
+      do kk = 1, maxkk
+         dum = dum + tf(kk)*fj(l1,l2,2*kk-2,pax,pbx)
+      end do
+                                                                               
+      ovrlap = dum
+                                                                               
+      return
+      end
+   
+
+@ Use the previously-computed overlap components to 
+generate the Kinetic energy components and
+hence the total integral.
+
+@< Kinetic Energy Components @>=
+      xl=dfloat(l2*(l2-1));   xm=dfloat(m2*(m2-1))                                  
+      xn=dfloat(n2*(n2-1));   xj=dfloat(2*(l2+m2+n2)+3)                             
+      kin=s00*(bexp*(xj*ov0-two*bexp*(ov1+ov2+ov3))-half*(xl*ov4+xm*ov5 +xn*ov6))   
+
+@ Form the $f_j$ coefficients needed for the nuclear attraction integral.
+
+@< Form fj @>=
+      m = imax + jmax + kmax -2                
+      do n = 1, imax
+         sf(n,1) = fj(l1,l2,n-1,pax,pbx)      
+      end do
+                                               
+      do n = 1, jmax
+         sf(n,2) = fj(m1,m2,n-1,pay,pby)      
+      end do
+                                               
+      do n = 1, kmax
+         sf(n,3) = fj(n1,n2,n-1,paz,pbz)      
+      end do
+
+
+@ Use |aform| to compute the required $A$-factors for each
+Cartesian component.
+
+@< Form As @>=
+      epsi = quart/t1                                                   
+      do ii = 1, 10
+         Airu(ii) = zero
+         Ajsv(ii) = zero
+         Aktw(ii) = zero
+      end do
+                                                                        
+      call aform(imax,sf,fact,cpx,epsi,Airu,1)  /* form $A_{i,r,u}$  */
+      call aform(jmax,sf,fact,cpy,epsi,Ajsv,2)  /* form $A_{j,s,v}$  */
+      call aform(kmax,sf,fact,cpz,epsi,Aktw,3)  /* form $A_{k,t,w}$  */
+
+
+@*2 aform. Compute the nuclear-attraction $A$ factors. These quantitities
+arise from the components of the three position vectors of the two
+basis functions and the attracting centre with respect to the
+centre of the product Gaussian. There is one
+of these for each of the three dimensions of Cartesian space; a typical
+one (the $x$ component) is:
+$$
+A_{\ell,r,i} ( \ell_1 , \ell_2 , \vec{A}_x , \vec{B}_x , \vec{C}_x ,\gamma ) 
+= (-1)^{\ell} f_{\ell} ( \ell_1, \ell_2 , \vec{PA}_x , \vec{PB}_x )
+  {{ (-1)^i \ell ! \vec{PC}_x^{\ell-2r-2i} \epsilon^{r+i}} \over
+       {r! i! (\ell -2r-2i)!}}
+$$
+
+
+@a
+      subroutine aform(imax, sf, fact, cpx, epsi, Airu, xyorz)                      
+      implicit double precision (a-h,o-z)
+      integer imax, xyorz
+      double precision Airu(*), fact(*), sf(10,*)
+      
+      double precision one
+      data one/1.0d00/
+      do i = 1, imax
+         ai = (-one)**(i-1)*sf(i,xyorz)*fact(i)
+         irmax = (i-1)/2 + 1
+         do ir = 1, irmax
+            irumax = irmax -ir +1
+            do iru = 1, irumax
+               iq = ir + iru -2
+               ip = i  -2*iq -1
+               at5 = one
+               if ( ip .GT. 0 ) at5 = cpx**ip
+               tiru=ai*(-one)**(iru-1)*at5*epsi**iq
+     &             /(fact(ir)*fact(iru)*fact(ip+1))
+               nux = ip + iru
+               Airu(nux) = Airu(nux) + tiru
+            end do
+         end do
+      end do
+                                                                                    
+      return
+      end
+
+
+
+@ Get the co-ordinates of the attracting nucleus with respect to $\vec{P}$.
+
+@< Nuclear data @>=
+      cpx = p(1) - vlist(n,1)
+      cpy = p(2) - vlist(n,2)
+      cpz = p(3) - vlist(n,3)
+      pcsq = cpx*cpx + cpy*cpy + cpz*cpz
+
+
+@*1 generi. 
+The general electron-repulsion integral formula for contracted
+Gaussian basis functions. The STRUCTURES and GENERI manual pages must be
+consulted for a detailed description of the calling sequence.
+
+@a
+      double precision function generi(i,j,k,l,xyorz,eta,ngmx,nfirst, 
+     &                                         nlast,ntype,nr,ntmx)
+                                                                      
+      implicit double precision (a-h,o-z)
+      integer i, j, k, l, xyorz, ngmx, ntmx
+      double precision eta(MAX_PRIMITIVES,5)
+      integer nfirst(*), nlast(*), ntype(*), nr(ntmx,3)
+
+      @< Generi Local Declarations@>
+   
+      @< Factorials @>
+   
+      @< Two-electron Integer Setup @>
+   
+      rAB = (eta(is,1)-eta(js,1))**2 + 
+     &      (eta(is,2)-eta(js,2))**2 + 
+     &      (eta(is,3)-eta(js,3))**2
+      rCD = (eta(ks,1)-eta(ls,1))**2 + 
+     &      (eta(ks,2)-eta(ls,2))**2 + 
+     &      (eta(ks,3)-eta(ls,3))**2
+   
+      generi = zero
+   
+      do irun = is, il       /* start of "i" contraction*/
+         do jrun = js,jl     /* start of "j" contraction*/
+   
+            @< Compute PA @>
+   
+            @< Thetas for electron 1 @>
+   
+            do krun = ks, kl         /* start of "k" contraction*/
+               do lrun = ls, ll      /* start of "l" contraction*/
+                  eribit = zero      /* local accumulator */
+   
+                  @< Compute QC @>
+   
+                  w = pi/(t1+t2)
+   
+                  @< fj for electron 2 @>
+   
+                  call auxg(m,t,g)   /* Obtain the $F_\nu$ by recursion */
+   
+                  @< Form Bs @>
+   
+                  jt1 = i1max + i2max - 1
+                  jt2 = j1max + j2max - 1
+                  jt3 = k1max + k2max - 1
+   
+                  do ii = 1, jt1
+                     do jj = 1, jt2
+                        do kk = 1, jt3
+                           nu = ii + jj + kk -2
+                           if (xyorz .NE. 0) nu = nu + 1
+                           eribit = eribit + g(nu)*
+     &                               bbx(ii)*bby(jj)*bbz(kk)
+                        end do
+                     end do
+                  end do
+   
+                  generi = generi + prefa*prefc*eribit*dsqrt(w)
+   
+               end do  /* end of "l" contraction loop */
+            end do     /* end of "k" contraction loop */
+         end do        /* end of "j" contraction loop */
+      end do           /* end of "i" contraction loop */
+   
+      if (xyorz .EQ. 0) generi = generi*two
+      return
+      end
+
+
+@ Here are the local declarations (workspoace {\em etc.})
+for the two-electron main function |generi|.
+
+@< Generi Local Declarations@> = 
+      double precision p(3), q(3), ppx(20), ppy(20), ppz(20) 
+      double precision bbx(20), bby(20), bbz(20), sf(10,6)
+      double precision xleft(5,10), yleft(5,10), zleft(5,10)
+      double precision r(3), fact(20), g(50)
+      data zero,one,two,half    /0.0D00,1.0D00,2.0D00,0.5D00/
+      data pi/3.141592653589D00/
+
+
+@ These numbers are the first 20 factorials |fact(i)| contains $(i-1)!$.
+ 
+@< Factorials @> =
+      data fact/1.0D00,1.0D00,2.0D00,6.0D00,24.0D00,120.0D00,                
+     &          720.0D00,5040.0D00,40320.0D00,362880.0D00,3628800.0D00,
+     &          39916800.0D00,479001600.0D00,6227020800.0D00,6*0.0D00/
+
+@ This tedious code extracts the (integer) setup data; the powers of
+$x$, $y$ and $z$ in each of the Cartesian monomials of
+each of the four basis functions and the limits of the contraction 
+in each case.
+
+@< Two-electron Integer Setup @>=
+      ityp = ntype(i)    
+      jtyp = ntype(j)
+      ktyp = ntype(k)
+      ltyp = ntype(l)
+      l1   = nr(ityp, 1)
+      m1   = nr(ityp, 2)
+      n1   = nr(ityp, 3)
+      l2   = nr(jtyp, 1)
+      m2   = nr(jtyp, 2)
+      n2   = nr(jtyp, 3)
+      l3   = nr(ktyp, 1)
+      m3   = nr(ktyp, 2)
+      n3   = nr(ktyp, 3)
+      l4   = nr(ltyp, 1)
+      m4   = nr(ltyp, 2)
+      n4   = nr(ltyp, 3)
+      is   = nfirst(i)
+      il   = nlast(i)
+      js   = nfirst(j)
+      jl   = nlast(j)
+      ks   = nfirst(k)
+      kl   = nlast(k)
+      ls   = nfirst(l)
+      ll   = nlast(l)
+
+@ Use the Gaussian Product Theorem to find the position vector
+$\vec{P}$, of the product of the two Gaussian exponential factors
+of the basis functions for electron 1.
+
+@< Compute PA @>=
+      aexp = eta(irun,4); anorm = eta(irun,5) 
+      bexp = eta(jrun,4); bnorm = eta(jrun,5)
+
+/* |aexp| and |bexp| are the primitive GTF exponents for
+   GTF |irun| and |jrun|, |anorm| and |bnorm| are the
+   corresponding contraction coefficients bundled up into
+   |prefa|  */
+
+      t1 = aexp + bexp; deleft = one/t1                  
+                                                        
+      p(1) = (aexp*eta(irun,1)+bexp*eta(jrun,1))*deleft
+      p(2) = (aexp*eta(irun,2)+bexp*eta(jrun,2))*deleft
+      p(3) = (aexp*eta(irun,3)+bexp*eta(jrun,3))*deleft
+                                                        
+      pax = p(1) - eta(irun,1)
+      pay = p(2) - eta(irun,2)
+      paz = p(3) - eta(irun,3)
+                                                        
+      pbx = p(1) - eta(jrun,1)
+      pby = p(2) - eta(jrun,2)
+      pbz = p(3) - eta(jrun,3)
+                                                        
+      prefa = dexp(-aexp*bexp*rAB/t1)*pi*anorm*bnorm/t1
+
+@ Use the Gaussian Product Theorem to find the position vector
+$\vec{Q}$, of the product of the two Gaussian exponential factors
+of the basis functions for electron 2.
+
+@< Compute QC @>=
+      cexpp = eta(krun,4); cnorm = eta(krun,5) 
+      dexpp = eta(lrun,4); dnorm = eta(lrun,5)
+
+/* |cexp| and |dexp| are the primitive GTF exponents for
+   GTF |krun| and |lrun|, |cnorm| and |dnorm| are the
+   corresponding contraction coefficients bundled up into
+   |prefc|  */
+
+      t2     = cexpp + dexpp                             
+      t2m1   = one/t2
+      fordel = t2m1 + deleft
+                                                         
+      q(1) = (cexpp*eta(krun,1)+dexpp*eta(lrun,1))*t2m1
+      q(2) = (cexpp*eta(krun,2)+dexpp*eta(lrun,2))*t2m1
+      q(3) = (cexpp*eta(krun,3)+dexpp*eta(lrun,3))*t2m1
+                                                         
+      qcx = q(1) - eta(krun,1)
+      qcy = q(2) - eta(krun,2)
+      qcz = q(3) - eta(krun,3)
+                                                         
+      qdx = q(1) - eta(lrun,1)
+      qdy = q(2) - eta(lrun,2)
+      qdz = q(3) - eta(lrun,3)
+                                                         
+      r(1) = p(1)-q(1)
+      r(2) = p(2)-q(2)
+      r(3) = p(3)-q(3)
+                                                         
+      t = (r(1)*r(1) + r(2)*r(2) + r(3)*r(3))/fordel
+      prefc = exp(-cexpp*dexpp*rCD/t2)*pi*cnorm*dnorm/t2
+
+
+@ The series of terms arising from the expansion of the
+Cartesian monomials like $(x - PA)^{\ell_1}(x - PB)^{\ell_2}$ are
+computed by first forming the $f_j$ and hence the $\theta$s.
+
+@< Thetas for electron 1 @>=
+      i1max = l1+l2+1                           
+      j1max = m1+m2+1                               
+      k1max = n1+n2+1                               
+                                                
+      mleft = i1max + j1max + k1max               
+                                                
+      do n =1, i1max                              
+         sf(n,1) = fj(l1,l2,n-1,pax,pbx)          
+      end do                                      
+                                                
+      do n = 1, j1max                             
+         sf(n,2) = fj(m1,m2,n-1,pay,pby)          
+      end do                                      
+                                                
+      do n = 1, k1max                             
+         sf(n,3) = fj(n1,n2,n-1,paz,pbz)          
+      end do                                      
+                                                
+      call theta(i1max, sf, 1, fact, t1, xleft)   
+      call theta(j1max, sf, 2, fact, t1, yleft)   
+      call theta(k1max, sf, 3, fact, t1, zleft)   
+
+@ The series of terms arising from the expansion of the
+Cartesian monomials like $(x - QC)^{\ell_3}(x - QD)^{\ell_4}$ are
+computed by  forming the $f_j$ and storing them in the array |sf|
+for later use by |bform|.
+
+@< fj for electron 2 @>=
+      i2max  = l3 + l4 + 1                  
+      j2max  = m3 + m4 + 1                          
+      k2max  = n3 + n4 + 1                          
+                                            
+      twodel = half*fordel                          
+      delta  = half*twodel                          
+                                            
+      do n = 1, i2max                               
+         sf(n,4) = fj(l3,l4,n-1,qcx,qdx)            
+      end do                                        
+                                            
+      do n = 1, j2max                               
+         sf(n,5) = fj(m3,m4,n-1,qcy,qdy)            
+      end do                                        
+                                            
+      do n = 1, k2max                               
+         sf(n,6) = fj(n3,n4,n-1,qcz,qdz)            
+      end do                                        
+                                            
+      m = mleft + i2max + j2max + k2max + 1         
+
+@ In the central inner loops of the four contractions, 
+use the previously- computed $\theta$ factors to 
+form the combined geometrical $B$ factors.
+
+@< Form Bs @>=
+      ppx(1) = one; bbx(1) = zero                                    
+      ppy(1) = one; bby(1) = zero                                            
+      ppz(1) = one; bbz(1) = zero                                            
+                                                                     
+      jt1 = i1max + i2max                                                    
+      do n = 2, jt1                                                          
+         ppx(n) = -ppx(n-1)*r(1)                                             
+         bbx(n) =  zero                                                      
+      end do                                                                 
+                                                                     
+      jt1 = j1max + j2max                                                    
+      do n = 2, jt1                                                          
+         ppy(n) = -ppy(n-1)*r(2)                                             
+         bby(n) =  zero                                                      
+      end do                                                                 
+                                                                     
+      jt1 = k1max + k2max                                                    
+      do n = 2, jt1                                                          
+         ppz(n) = -ppz(n-1)*r(3)                                             
+         bbz(n) =  zero                                                      
+      end do                                                                 
+                                                                     
+      call bform(i1max,i2max,sf,1,fact,xleft,t2,delta,ppx,bbx,xyorz)         
+      call bform(j1max,j2max,sf,2,fact,yleft,t2,delta,ppy,bby,xyorz)         
+      call bform(k1max,k2max,sf,3,fact,zleft,t2,delta,ppz,bbz,xyorz)         
+@
+
+@*1 fj. 
+This is the function to evaluate the coefficient of $x^j$ in the expansion
+of
+$$
+(x + a)^\ell (x+b)^m
+$$
+The full expression is
+$$
+f_j (\ell , m , a, b) = \sum_{k = max (0, j-m)}^{min(j, \ell }
+                         { \ell \choose k}{ m \choose {j-k}}
+                          a^{\ell - k } b^{m + k - j}
+$$
+The function must take steps to do the right thing for
+$0.0^0$ when it occurs.
+
+@a
+      double precision function fj(l, m, j, a, b)           
+                                                            
+      implicit double precision (a-h,o-z)
+      integer l, m, j
+      double precision a,b
+                                                            
+      double precision sum, term, aa, bb
+      integer i, imax, imin
+      double precision fact(20)
+      @< Factorials @>
+                                                            
+      imax = min(j, l)
+      imin = max(0, j-m)
+                                                            
+      sum = 0.0D00
+      do i = imin, imax
+                                                            
+         term = fact(l+1)*fact(m+1)/(fact(i+1)*fact(j-i+1))
+         term = term/(fact(l-i+1)*fact(m-j+i+1))
+         aa = 1.0D00; bb = 1.0D00
+         if ( (l-i) .NE. 0 ) aa = a**(l-i)
+                                                            
+         if ( (m+i-j) .NE. 0 ) bb = b**(m+i-j)
+                                                            
+         term= term*aa*bb
+         sum = sum +term
+                                                            
+      end do
+                                                            
+      fj = sum
+                                                            
+      return
+      end
+@
+
+@*2 theta. 
+Computation of all the $\theta$ factors required from one
+basis-function product; any one of them is given by
+$$
+\theta (j , \ell_1 , \ell_2 , a, b,  r , \gamma )
+ = f_{j} (\ell_1 , \ell_2 , a, b) {{ j! \gamma^{r - j}} \over
+         { r! (j - 2r)!}}
+$$
+The $f_j$ are computed in the body of |generi| and passed to this
+routine in |sf|, the particular ones to use are in |sf(*,isf)|.
+They are stored in |xleft|, |yleft| and |zleft| because they
+are associated with electron 1 (the left-hand factor in the integrand
+as it is usually written $(ij,k\ell)$).
+
+@a
+      subroutine theta(i1max, sf, isf, fact, t1, xleft)              
+                                                                     
+      implicit double precision (a-h,o-z)
+      integer i1max, isf
+      double precision t1
+      double precision sf(10,*), fact(*), xleft(5,*)
+                                                                     
+      integer i1, ir1, ir1max, jt2
+      double precision zero, sfab, bbb
+                                                                     
+      data zero/0.0D00/
+                                                                     
+      do i1 = 1, 10
+         do ir1 = 1,5
+            xleft(ir1, i1) = zero
+         end do
+      end do
+                                                                     
+      do i1 = 1, i1max
+         sfab = sf(i1, isf)
+                                                                     
+         if ( sfab .EQ. zero ) cycle
+                                                                     
+         ir1max = (i1-1)/2 + 1
+         bbb = sfab * fact(i1)/t1**(i1-1)
+         do ir1 = 1, ir1max
+            jt2 = i1 + 2 - ir1 - ir1
+            xleft(ir1, i1) = bbb*(t1**(ir1-1))/(fact(ir1)*fact(jt2))
+         end do
+                                                                     
+      end do
+                                                                     
+      return
+      end
+@
+
+@*2 bform. 
+Use the pre-computed $f_j$ and $\theta$ to form the
+\lq\lq $B$ \rq\rq\ factors, the final geometrical expansion
+coefficients arising from the products of Cartesian monomials. Any one
+of them is given by
+\begin{eqnarray*}
+  B_{\ell , \ell' , r_1 , r_2 , i } (\ell_1 , \ell_2 , \vec{A}_x , 
+   \vec{B}_x , \vec{P}_x , \gamma_1 ;\ell_3 , \ell_4 , \vec{C}_x , 
+   \vec{D}_x , \vec{Q}_x , \gamma_2 )  \\
+ =  (-1)^{\ell'} 
+ \theta (\ell , \ell_1 , \ell_2 , \vec{PA}_x, \vec{PB}_x, r, \gamma_1 )
+\theta (\ell' , \ell_3 , \ell_4 , \vec{QC}_x, \vec{QD}_x, r', \gamma_2 ) \\
+  \times  \frac{(-1)^i (2\delta)^{2(r + r')}(\ell + \ell' -2r-2r')! 
+     \delta^i \vec{p}_x^{\ell + \ell' -2(r + r' +i)} }
+     { (4\delta)^{\ell + \ell'} i! [\ell + \ell' -2(r + r'+i)]!}
+\end{eqnarray*}
+
+
+@a 
+      subroutine bform(i1max,i2max,sf,isf,fact,xleft,t2,delta,ppx,
+     &                 bbx,xyorz)              
+                                                                                          
+      implicit double precision (a-h,o-z)
+      integer i1max, i2max, isf
+      double precision fact(*), sf(10,*), xleft(5,*), bbx(*), ppx(20)
+      double precision delta
+      integer xyorz, itab
+                                                                                          
+      double precision zero, one, two, twodel, fordel, sfab, sfcd
+      double precision bbc, bbd, bbe, bbf, bbg, ppqq
+      integer i1, i2, jt1, jt2, ir1max, ir2max
+      data zero,one,two/0.0D00,1.0D00,2.0D00/
+                                                                                          
+      itab = 0
+                                                                                          
+      if (xyorz .EQ. isf ) itab = 1
+                                                                                          
+      twodel = two*delta; fordel = two*twodel
+                                                                                          
+      do i1 = 1, i1max
+                                                                                          
+         sfab = sf(i1,isf)
+         if ( sfab .EQ. zero ) cycle
+         ir1max = (i1-1)/2 + 1
+
+         do i2 = 1, i2max
+                                                                                          
+            sfcd = sf(i2,isf+3)
+            if ( sfcd .EQ. zero ) cycle
+            jt1 = i1 + i2 -2
+            ir2max = (i2-1)/2 + 1
+            bbc = ((-one)**(i2-1))*sfcd*fact(i2)
+     &                            /(t2**(i2-1)*(fordel**jt1))
+                                                                                          
+            do ir1 = 1, ir1max
+                                                                                          
+               jt2 = i1 + 2 - ir1 - ir1
+               bbd = bbc*xleft(ir1, i1)
+               if ( bbd .EQ. zero ) cycle
+                                                                                          
+               do ir2 = 1, ir2max
+                                                                                          
+                  jt3 = i2 + 2 - ir2 - ir2
+                  jt4 = jt2 + jt3 -2
+                  irumax = (jt4+itab)/2 + 1
+                  jt1 = ir1 + ir1 + ir2 + ir2 - 4
+                                                                                          
+                  bbe = bbd*(t2**(ir2-1))*(twodel**jt1)*fact(jt4+1)
+     &                                  /(fact(ir2)*fact(jt3))
+                                                                                          
+                  do iru = 1, irumax
+                                                                                          
+                     jt5 = jt4 -iru - iru + 3
+                     ppqq = ppx(jt5)
+                     if( ppqq .EQ. zero ) cycle
+                                                                                          
+                     bbf = bbe*((-delta)**(iru-1))*ppqq
+     &                                 /(fact(iru)*fact(jt5))
+                                                                                          
+                     bbg = one
+                                                                                          
+                     if ( itab .EQ. 1 ) then
+                                                                                          
+                        bbg = dfloat(jt4+1)*ppx(2)/(delta*dfloat(jt5))
+                                                                                          
+                     end if
+                                                                                          
+                     bbf = bbf * bbg
+                     nux = jt4 - iru + 2
+                     bbx(nux) = bbx(nux) + bbf
+                                                                                          
+                  end do  
+               end do  
+            end do  
+         end do   
+      end do
+                                                                                          
+      return
+      end
+@
+
+@*1 auxg. 
+Find the maximum value of $F_\nu$ required, use |fmch| to
+compute it and obtain all the lower $F_\nu$ by downward recursion.
+$$
+F_{\nu-1}(x) = {{\exp(-x) + 2 x F_\nu (x) } \over {2 \nu -1 }}
+$$
+
+@a
+      subroutine auxg(mmax, x, g)                       
+                                                        
+      implicit double precision (a-h,o-z)
+      integer mmax
+      double precision x, g(*)
+                                                        
+      double precision fmch
+                                                        
+      double precision two, y
+      integer mp1mx, mp1, md, mdm
+      data two/2.0D00/
+      y = dexp(-x)
+      mp1mx = mmax+1
+      g(mp1mx) = fmch(mmax, x, y)
+      if ( mmax .LT. 1 ) go to 303 /* just in case!  */
+
+      /* Now do the recursion  downwards */
+
+      do mp1 = 1, mmax                                
+                                                      
+         md  = mp1mx - mp1
+         mdm = md - 1
+         g(md) = (two*x*g(md+1) + y )/dfloat(2*mdm+1)
+                                                      
+      end do
+
+ 303  return
+      end
+
+@
+
+@*2 fmch. This code is for the oldest and most general
+and reliable of the methods of computing 
+\begin{equation}
+ F_\nu (x) = \int_0^1 t^{2 \nu} \exp (-x t^2) dt
+\end{equation}
+One of two possible series expansions is used depending on the value of x.
+
+For |x<=10| (Small |x| Case) the (potentially) infinite series
+\begin{equation}
+ F_\nu (x) = \frac{1}{2} \exp(-x) \sum_{i=0}^{\infty} 
+   \frac{\Gamma (\nu + \frac{1}{2} ) } 
+   {\Gamma (\nu + i + \frac{3}{2})} x^i
+\end{equation}
+is used. 
+
+The series is truncated when the value of terms falls below $10^{-8}$.
+However, if the series seems to be becoming unreasonably long before
+this condition is reached (more than 50 terms), the evaluation is stopped
+and the function aborted with an error message on |ERROR_OUTPUT_UNIT|.
+
+If |x>10| (Large |x| Case) a different series expansion is used:
+%
+\begin{equation}
+ F_\nu(x) = \frac{\Gamma(\nu + \frac{1}{2})}{2x^{\nu + \frac{1}{2}}}
+         - \frac{1}{2} \exp(-x) \sum_{i=0}^{\infty} 
+           \frac{\Gamma(\nu + \frac{1}{2})}{\Gamma(\nu- i + \frac{3}{2})}
+           x^{-i}
+\end{equation}
+%
+This series, in fact, diverges but it diverges so slowly that the error obtained in truncating 
+it is always less than the last term in the truncated series. Thus,
+Thus, to obtain a value of the function to the same accuracy as the other series,
+the expansion is terminated when the last term is less than the same criterion
+($10^{-8}$).
+
+It can be shown that the minimum term is always for |i| close to 
+$\nu + x$, thus ifthe terms for this value of |i| are not below the criterion,
+the series expansion is abandoned, a message output on |ERROR_OUTPUT_UNIT|
+and the function aborted.
+
+The third argument, |y|, is $exp(-x)$, since it is assumed that this function
+will only be used {\it once} to evaluate the function $F_\nu(x)$ for the maximum value
+of $\nu$ required and other values will be obtained by downward recursion of the form
+%
+\begin{equation}
+ F_{\nu-1}(x) = \frac{\exp(-x) + 2xF_\nu(x)}{2\nu-1}
+\end{equation}
+%
+which also requires the value of $\exp(-x)$ to be available.
+%
+
+\ \\ \ \\
+\begin{minipage}{4.5in}
+\ \\
+\begin{description}
+\item[NAME] \         \\
+ fmch
+
+\item[SYNOPSIS] \     \\
+ {\tt double precision function fmch(nu,x,y) \\
+   \ \\
+  implicit double precision (a-h,o-z) \\
+  double precision x, y \\
+  integer nu \\
+ }
+
+\item[DESCRIPTION] \  \\
+ Computes
+\[
+  F_\nu (x) = \int_0^1 t^{2\nu} e^{-x t^2} dt
+\]
+given $\nu$ and $x$. It is used in the evaluation of GTF
+nuclear attraction and electron-repulsion integrals.
+
+\item[ARGUMENTS] \    \\
+\begin{description}
+\item[nu] Input: The value of $\nu$ in the explicit formula above ({\tt integer})
+\item[x] Input: $x$ in the formula ({\tt double precision})
+\item[y] Input: $\exp(-x)$, assumed to be available.
+\end{description}
+
+\item[DIAGNOSTICS] \  \\
+If the relevant series of expansion used do not converge to a tolerance
+of $10^{-8}$, an error message is printed on standard output and the computation
+aborted.
+\end{description}
+\ \\ \ \\
+\end{minipage}
+\ \\ \ \\
+
+
+@a
+      double precision function fmch(nu, x, y)
+      @< Fmch Interface Declarations @>
+      @< Fmch Local Declarations @>
+      m = nu
+      a = dfloat(m)
+      if (x.LE.ten) then
+          @< Small x Case @>
+      else
+          @< Large x Case @> 
+      end if
+      end
+
+@ Here are the declarations and |data| statements which are ...
+
+@< Fmch Interface Declarations @>=
+      implicit double precision (a-h,o-z)
+      double precision x, y
+      integer nu
+@
+
+@< Fmch Local Declarations @>=
+      double precision ten, half, one, zero, rootpi4, xd
+      double precision term, partialsum
+      integer m, i, numberofterms, maxone, maxtwo
+      data zero,half,one,rootpi4,ten
+     & /0.0D00,0.5D00,1.0D00,0.88622692D00,10.0D00/
+      data maxone/50/, maxtwo/200/
+@
+
+@< Small x Case @>= 
+      a = a + half
+      term = one/a
+      partialsum = term
+      do i = 2, maxone
+         a = a + one
+         term = term * x/a
+         partialsum = partialsum + term
+         if (term/partialsum < CRIT_FMCH) exit
+      end do
+
+      if (i.EQ.maxone) then
+         write(ERROR_OUTPUT_UNIT,200)
+200      format('i > 50 in fmch')
+         STOP
+      end if
+      fmch = half*partialsum*y
+      return 
+@
+
+@< Large x Case @>=
+      b = a + half
+      a = a - half
+      xd = one/x
+      approx = rootpi4*dsqrt(xd)*xd**m 
+      if (m.GT.0) then
+          do i=1, m
+             b = b - one
+             approx = approx * b
+          end do
+      end if
+      fimult = half*y*xd
+      partialsum = zero
+      
+      if (fimult.EQ.zero) then
+          fmch = approx
+          return
+      end if
+
+      fiprop = fimult / approx
+      term = one
+      partialsum = term
+      numberofterms = maxtwo
+      do i=2, numberofterms
+         term = term * a * xd
+         partialsum = partialsum + term
+         if (dabs(term*fiprop/partialsum).LE.CRIT_FMCH) then
+             fmch = approx - fimult*partialsum
+             return
+         end if
+         a = a - one
+      end do
+      write(ERROR_OUTPUT_UNIT,201)
+ 201  format(' numberofterms reached in fmch')
+      STOP
+     
+@
+
+@* INTEGRAL STORAGE AND PROCESSING.
+
+@
+
+@*1 getint. This function withdraws $(ij,kl)$ two-electron integral
+from the |file|.
+
+@a
+      integer function getint(file, i, j, k, l, mu, val, pointer)
+
+      integer file, i, j, k, l, mu, pointer
+      double precision val
+      save
+
+      integer max_pointer, id, iend
+      double precision zero
+      double precision value(INT_BLOCK_SIZE)
+      character*8 labels(INT_BLOCK_SIZE)
+      data max_pointer/INT_BLOCK_SIZE/, iend/NOT_LAST_BLOCK/
+      data zero/0.0D00/
+  
+   /* File must be rewound before first use of this function
+      and pointer must be set to 0 */
+  
+      if (pointer.EQ.max_pointer) then
+          if (iend.EQ.LAST_BLOCK) then
+              val = zero; i = 0; j = 0; k = 0; l = 0
+              max_pointer = 0; iend = NOT_LAST_BLOCK
+              getint = END_OF_FILE
+              return
+          end if
+          read(file) max_pointer, iend, labels, value
+          pointer = 0
+      end if
+      pointer = pointer + 1
+      call unpack(labels(pointer),i,j,k,l,mu,id)
+      val = value(pointer)
+      getint = OK
+
+      return
+      end
+@ 
+
+
+@*1 putint. This function is just happy.
+
+@a
+      subroutine putint(nfile, i, j, k, l, mu, val, pointer, last)
+      implicit double precision(a-h,o-z)
+      save
+
+      integer nfile, i, j, k, l, mu, pointer, last
+      double precision value(INT_BLOCK_SIZE)
+      character*8 labels(INT_BLOCK_SIZE)
+      double precision val
+      data max_pointer/INT_BLOCK_SIZE/, id/0/
+/* 
+      id is now unused
+*/
+      if (last.EQ.ERR) go to 100
+      iend = NOT_LAST_BLOCK
+      if (pointer.EQ.max_pointer) then
+          write(nfile) pointer, iend, labels, value
+          pointer = 0
+      end if
+      pointer = pointer + 1
+      call pack(labels(pointer),i,j,k,l,mu,id)
+      value(pointer) = val
+      if (last.EQ.YES) then
+          iend = LAST_BLOCK
+          last = ERR
+          write(nfile) pointer, iend, labels, value
+      end if
+
+100   return
+      end
+@
+@*1 genint. This subroutine generates one- and two-electron integrals.
+
+@a
+      subroutine genint (ngmx, nbfns, eta, ntype, ncntr, nfirst, 
+     &                   nlast, vlist, ncmx, noc, S, H, nfile, read_eri)
+      integer ngmx, nbfns, noc, ncmx
+      integer read_eri
+      double precision eta(MAX_PRIMITIVES, 5), vlist(MAX_CENTRES, 4)
+      double precision S(ARB), H(ARB)
+      integer ntype(ARB), nfirst(ARB), nlast(ARB), ncntr(ARB), nfile
+C
+      integer i, j, k, l, ltop, ij, ji, mu, m, n, jtyp, js, jf, ii, jj
+      double precision generi, genoei
+      integer pointer, last
+      double precision ovltot, kintot
+      double precision val, alpha, t, t1, t2, t3, sum, pitern
+      double precision SOO
+      double precision gtoC(MAX_PRIMITIVES)
+      double precision dfact(9)
+      integer nr(NO_OF_TYPES, 3)
+      data nr /
+     &     0,1,0,0,2,0,0,1,1,0,3,0,0,2,2,1,0,1,0,1,
+     &     0,0,1,0,0,2,0,1,0,1,0,3,0,1,0,2,2,0,1,1,
+     &     0,0,0,1,0,0,2,0,1,1,0,0,3,0,1,0,1,2,2,1/
+      data half,onep5,one,zero/0.5D+00,1.5D+00,
+     &                         1.0D+00,0.0D+00/
+      data pitern/5.568327997d00/   /* pi**1.5 */
+      data dfact/1.0D00,1.0D00,3.0D00,15.0D00,105.0D00,945.0D00,
+     &           10395.0D00,135135.0D00,2027025.0D00/
+      data gtoC/MAX_PRIMITIVES*0.0D+00/
+
+      mu = 0
+
+      @< Copy GTO contraction coeffs to gtoC @>
+
+      @< Normalize the primitives @>
+ 
+      /* one electron integrals */
+ 
+      do i=1, nbfns
+         do j=1, i
+            ij = (j-1)*nbfns+i; ji = (i-1)*nbfns+j
+            H(ij) = genoei(i,j,eta,ngmx,nfirst,nlast,ntype,
+     &               nr,NO_OF_TYPES,vlist,noc,ncmx,ovltot,kintot)
+            H(ji) = H(ij)
+            S(ij) = ovltot; S(ji) = ovltot
+         end do
+      end do
+      write(*,*) " ONE ELECTRON INTEGRALS COMPUTED"
+C
+      /* two electron integrals */
+      if (read_eri.EQ.NO) then
+          rewind nfile; pointer = 0                                 
+          last = NO
+          i = 1; j = 1; k = 1; l = 0
+                                                                    
+          do while (next_label(i,j,k,l,nbfns).EQ.YES)
+             if (l.EQ.nbfns) last = YES
+             val = generi(i,j,k,l,0,eta,ngmx,nfirst,nlast,ntype,nr,
+     &                            NO_OF_TYPES)
+             if (dabs(val).LT.CRIT_ERI) cycle
+             CALL putint(nfile,i,j,k,l,mu,val,pointer,last)
+          end do
+      end if
+C
+      return
+      end
+@
+
+@< Copy GTO contraction coeffs to gtoC @>=
+      do i=1,ngmx
+         gtoC(i) = eta(i,5)
+      end do
+@
+@< Normalize the primitives @>=
+      /* First, normalize the primitives */
+      do j = 1, nbfns
+         jtyp = ntype(j); js = nfirst(j); jf = nlast(j)
+         l = nr(jtyp,1); m = nr(jtyp,2); n = nr(jtyp,3)
+         do i = js, jf
+            alpha = eta(i,4); SOO = pitern*(half/alpha)**onep5
+            t1 = dfact(l+1)/alpha**l
+            t2 = dfact(m+1)/alpha**m
+            t3 = dfact(n+1)/alpha**n
+            eta(i,5) = one/dsqrt(SOO*t1*t2*t3)
+         end do
+      end do
+      /* Now normalize the basis functions */
+      do j = 1, nbfns
+         jtyp = ntype(j); js = nfirst(j); jf = nlast(j)
+         l = nr(jtyp,1); m = nr(jtyp,2); n = nr(jtyp,3)
+
+         sum = zero
+         do ii = js, jf
+            do jj = js, jf
+               t = one/(eta(ii,4)+eta(jj,4))
+               SOO = pitern*(t**onep5)*eta(ii,5)*eta(jj,5)
+               t = half*t
+               t1 = dfact(l+1)*t**l
+               t2 = dfact(m+1)*t**m
+               t3 = dfact(n+1)*t**n
+               sum = sum + gtoC(ii)*gtoC(jj)*SOO*t1*t2*t3
+            end do
+         end do
+         sum = one / dsqrt(sum)
+         do ii = js, jf
+            gtoC(ii) = gtoC(ii) * sum
+         end do
+      end do
+ 
+      do ii = 1, ngmx
+         eta(ii,5) = eta(ii,5) * gtoC(ii)
+      end do
+@
+@*1 Integral transfotmations.
+
+@*2 tran2e.
+%\newcommand{\tmat}[1]{\mbox{\large \boldmath $ #1$}}
+%\newcommand{\tmatt}[1]{\mbox{\boldmath $ #1$}}
+Two-electron (four-index) transformation routine. 
+Does the full transformation and assumes that there is room
+in main memory for |nbasis**2*(nbasis+1)/2| intermediate 
+results in |V|.
+
+The file (|nfile1|) of ``AO'' repulsion integrals contains
+the integrals (|getint|-legible) in random order (as they have
+been computed) and is read |nbasis| times;
+once for each transformed index.
+
+Integrals over the new basis generated by |C| are output into
+|nfile2| in the usual standard |putint| format. \ \\
+\begin{minipage}{4.5in}
+\ \\
+\begin{description}
+\item[NAME]  \      \\
+tran2e
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+   subroutine tran2e(nfile1,nfile2,nbasis,C,W,RS,V)
+   implicit double precision (a-h,o-z)
+   double precision C(nbasis,nbasis),V(ntt,nbasis)
+   double precision  W(*)
+   integer RS(*)
+   integer nbasis,nfile1,nfile2
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+Transforms the repulsion integrals residing on |nfile1| to the
+ones defined by the transformation matrix |C| and puts them onto
+file |nfile2|.
+\item[ARGUMENTS] \  \\
+\begin{description}
+\item[nfile1] Input: The logical number of the ({\tt getint}-legible)
+input repulsion integrals.
+\item[nfile2] Input: The logical number of the ({\tt putint}-generated)
+output repulsion integrals.
+\item[nbasis] Input: The number of basis functions.
+\item[C] Input: |nbasis|$\times$|nbasis| matrix of transformation
+coefficients (columns define new orbitals).
+\item[V, W, RS] Workspace. |RS| is an integer indexing array.
+\end{description}
+
+\item[DIAGNOSTICS] \  \\
+None
+\end{description}
+\ \\ \ \\
+\end{minipage}
+
+\clearpage
+
+@a
+      subroutine tran2e(nfile1,nfile2,nbasis,C,W,RS,V)
+      implicit double precision (a-h,o-z)
+      double precision C(1)
+      double precision V(*)
+      double precision W(1)
+      integer RS(1)
+      integer nbasis,nfile1,nfile2
+
+      @< Tran2e Local Declarations @>
+
+      @< Initialise RS and output file @>
+
+      /*  Start outer loop on first ``MO'' index |i| */
+
+      do i = 1, nbasis
+
+         @< Initialise input file and Zeroise V @>         
+                                                           
+         /* For each |i|, read the ``AO'' integrals 
+            and transform |r|. */
+                                                           
+         @< Transform r to i @>
+                                                           
+         /* We now have the integrals |(i s , t u)| */
+                                                           
+         /* Next, use these integrals to transform 
+            |t| and |u| by normal matrix multiplication */
+                                                           
+         @< Transform t and u to k and l @>
+                                                           
+         /* This gives us the integrals |(i s , k l)|, 
+          so, complete the
+         job by transforming |s| */
+                                                           
+         @< Transform s to j @>
+                                                           
+         @< Pack the Output in putint form @>
+
+      end do
+
+      return
+      end
+@
+@< Tran2e Local Declarations @>= 
+      integer point1, point2, getint /* File control integers */      
+                                                                       
+      integer i,j,k,l /* labels for output MO integrals */
+                                                                       
+      integer r,s,t,u /* labels for input AO integrals */
+      integer ntt, klj, sj, kls, iii, iri, rttr
+                                                                       
+      integer rtt, rsx,tux, maxkl,kl,lmax   /* working temporaries */
+      double precision val
+      double precision zero
+      data zero/0.0d00/
+      ntt = nbasis*(nbasis+1)/2
+@ 
+@< Initialise RS and output file @>= 
+      rewind nfile2;   point2 = 0
+      /* Set up indexing array */
+
+      do r = 1, nbasis + 1
+         RS(r) = (r*(r-1))/2
+      end do
+
+      /* Note that |RS(n+1)| = (n*(n+1))/2 */
+@ 
+@< Initialise input file and Zeroise V @>= 
+      /*  Initialise  file of AO integrals for each |i| */
+      rewind nfile1;  point1 = 0
+
+      /* Initialise |V| with zeroes for each |i| */
+
+      do r = 1, nbasis
+         do rtt = 1, ntt
+           rttr = ntt*(r-1) + rtt
+           V(rttr) = zero
+         end do
+      end do
+@ 
+Module to do the work for each of the 
+{\bf four} possible contributions from
+inequalities amongst the |i,j,k,l|. 
+Notice that there are indeed (at most) {\bf four
+not eight} because of the fact that we are only 
+forming a non-redundant
+list with respect to the two last indices. 
+So, if there is
+any contribution from interchanges due to 
+inequalities between the
+{\bf last two} indices, they must not be included.  
+
+The Macro |USE| therefore begins with a 
+redundant |if|; this is just
+belt and braces (belt and suspenders in the USA).
+
+@< Transform r to i @>=
+
+@m USE(r,s,t,u) if ((t).GE.(u)) then ; indtu=RS((t))+(u); iii = ntt*((s)-1) + indtu; iri = nbasis*(i-1) + (r); V(iii)=V(iii)+C(iri)*val; end if
+
+/* |getint| reads the AO integrals which are the usual non-redundant set */
+
+      do while (getint(nfile1,r,s,t,u,mu,val,point1).NE.END_OF_FILE)
+
+         USE(r,s,t,u)
+         if (r.NE.s) then 
+             USE(s,r,t,u)
+         end if
+         rsx = (r*(r-1))/2 + s
+         tux = (t*(t-1))/2 + u
+         if (rsx.NE.tux) then
+            USE(t,u,r,s)
+            if (t.NE.u) then 
+               USE(u,t,r,s)
+            end if
+         end if
+
+      end do
+
+/*
+ This completes the reading of the AO integrals and the transformation
+ of the AO index |r| to the MO index |i| */
+
+@ 
+@< Transform t and u to k and l @>=
+
+/* The transformation of the last two indices |t| and |u| to
+  |k| and |l| is just a straightforward 
+``one-electron" (two-index)
+  transformation; two matrix multiplications for each |s| 
+and |i| */
+      do s = 1, nbasis
+         call CdgVC(nbasis,V(ntt*(s-1)+1),C,W)
+      end do
+@ 
+@< Transform s to j @>=
+      maxkl = RS(i+1)
+/* This is to generate |(i*(i+1))/2|, the upper 
+    limit of the non-redundant set of indices */
+
+      do  kl = 1, maxkl
+         do  s = 1, nbasis
+            kls = ntt*(s-1) + kl
+            W(s) = V(kls)
+         end do
+
+/* |W| is workspace to enable the transformed
+  integrals to be put back into |V| 
+  The transformation is just a matrix multiplication */
+
+         do j = 1,i
+           klj = ntt*(j-1) + kl
+           V(klj) = zero
+           do s = 1,nbasis
+              sj = nbasis*(j-1) + s
+              V(klj) = V(klj) + C(sj)*W(s)
+           end do
+         end do
+      end do
+@ 
+Now, for each |i|, reorganise the 
+transformed integrals in |V| to the standard form of
+packed intgrals and use |putint| to fire them out 
+to the file |nfile2| which is then readable by |getint| */
+
+@< Pack the Output in putint form @>=
+
+/* For each |i| the set of integrals in |V| is (|i j , k l|)
+in the usual standard order of indices |i|, |j|, |k|, |l|. So,
+setting up the usual order of loops on |j|, |k| and |l| will
+enable the labels and values to be identified and 
+packed for output to  |putint| */
+
+      id = 0  /* a dummy for packing */
+      last = NO /* for |putint|, means that the integral is not the last */
+      do j = 1, i
+         do k = 1, i
+
+           /* Get the upper limit, |lmax|, for |l| right */
+
+            lmax = k
+            if ( i .EQ. k) lmax = j
+            do l = 1, lmax
+               kl = RS(k) + l
+               klj = ntt*(j-1) + kl
+               val = V(klj)
+
+/* If you want to leave out small integrals from the output file,
+|nfile2|, this is the place to do it: |if ( val < crit ) next; | would
+work OK */
+
+              if (l.EQ.nbasis) last = YES /* Signals last integral */
+              if (dabs(val).LT.CRIT_ERI) cycle
+              call putint(nfile2,i,j,k,l,id,val,point2,last)
+/* |putint| outputs the MO integrals to file |nfile2|. It keeps track of
+  things with |point2| and has to know when to close the file, hence
+  |last| has to be NO or YES */
+            end do
+         end do
+      end do
+@
+@*2 cdgvc. One-electron transformation.
+
+@a
+      subroutine CdgVC(n,A,B,R)
+      implicit double precision (a-h,o-z)
+      double precision A(*), B(1), R(1)
+      integer n
+
+      integer i,j,k,ijr,ik,kj,ki
+      double precision zero
+      data zero/0.0d00/
+
+/* Form $\mbox{\large \boldmath{R}} = \mbox{\large \boldmath{A}}
+   \mbox{\large \boldmath{B}}$ in full storage mode */
+
+      do i = 1, n
+         do j = 1, n
+            ijr = n*(j-1) + i
+            R(ijr) = zero
+            do k = 1, n
+               ik = (i*(i-1))/2 + k
+               if ( k .GT. i ) ik = (k*(k-1))/2 + i
+               kj = n*(j-1) + k
+               R(ijr) = R(ijr) + A(ik)*B(kj)
+            end do
+         end do
+      end do
+
+/* Now form $\mbox{\large \boldmath{A}} = \mbox{\large \boldmath{B}}^\dagger 
+\mbox{\large \boldmath{R}}$ which must be symmetric */
+
+      do i = 1, n                            
+         do j = 1, i
+            ijr = (i*(i-1))/2 + j
+            A(ijr) = zero
+            do k = 1, n
+               ki = n*(i-1) + k
+               kj = n*(j-1) + k
+               A(ijr) = A(ijr) + B(ki)*R(kj)
+            end do
+         end do
+      end do
+                                             
+      return
+      end
+@
+@* UTILITIES. The utility functions 
+
+@
+
+@*1 gtprd.
+
+@m  loch(i,j) (n*(j-1) + i)
+@a
+
+      subroutine gtprd (A, B, R, n, m, l)
+      double precision A(ARB), B(ARB)
+      double precision R(ARB)
+      integer n, m, l
+
+      double precision zero
+      integer k, ik, j, ir, ij, ib
+      data zero/0.0D+00/
+      /* stride counters initialization */
+      ir = 0; ik = -n
+      do k = 1, l
+         ij = 0
+         ik = ik + m
+         do j = 1, m
+            ir = ir + 1; ib = ik
+            R(ir) = zero
+            do i = 1, n
+               ij = ij + 1; ib = ib + 1
+               R(ir) = R(ir) + A(ij)*B(ib)
+            enddo
+         enddo
+      enddo
+
+      return
+      end
+@
+
+@*1 gmprd.
+
+@a
+      subroutine gmprd (A, B, R, n, m, l)
+      double precision A(ARB), B(ARB)
+      double precision R(ARB)
+      integer n, m, l
+
+      double precision zero
+      integer k, ik, j, ir, ji, ib
+      data zero/0.0D+00/
+      /* stride counters initialization */
+      ir = 0; ik = -m
+      do k = 1, l
+         ik = ik + m
+         do j = 1, n
+            ir = ir + 1; ji = j - n; ib = ik
+            R(ir) = zero
+            do i = 1, m
+               ji = ji + n; ib = ib + 1
+               R(ir) = R(ir) + A(ji)*B(ib)
+            enddo
+         enddo
+      enddo
+
+      return
+      end
+
+@
+
+@*1 addprd. Matrix multiplier which {\bf adds} |A| $\times$ |B| into existing |R| 
+i.e. there is no initialisation of |R|, 
+otherwise this routine is identical to |gmprd|
+
+@a
+      subroutine addprd (A, B, R, n, m, l)
+      implicit double precision (a-h,o-z)
+      dimension A(*), B(*), R(*)
+      integer n, m, l
+      
+      ir=0
+      ik=-m
+      do k = 1, l
+         ik=ik+m
+         do j = 1, n
+            ir = ir + 1
+            ji = j - n
+            ib=ik
+            do i = 1, m
+               ji=ji+n; ib=ib+1
+               R(ir)=R(ir)+A(ji)*B(ib)
+            end do
+         end do
+      end do
+      return
+      end
+@
+
+@*1 eigen.
+
+@a
+      subroutine eigen (H, U, n)
+      implicit double precision (a-h,o-z)
+      double precision H(1), U(1)
+      integer n      
+
+      data zero, eps, one, two, four, big/0.0D+00,1.0D-20,1.0D+00,
+     &                                    2.0D+00,4.0D+00,1.0D+20/
+      /* Initialize U matrix to unity */
+      do i = 1, n
+         ii = loch(i,i)
+         do j = 1, n
+            ij = loch(i,j)
+            U(ij) = zero
+         end do
+         U(ii) = one
+      end do
+      /* start sweep through off-diagonal elements */
+      hmax = big
+      do 90 while (hmax.GT.eps)
+         hmax = zero
+         do i = 2, n
+            jtop = i-1
+            do 10 j = 1, jtop
+               ii = loch(i,i); jj = loch(j,j)
+               ij = loch(i,j); ji = loch(j,i)
+               hii= H(ii); hjj = H(jj); hij = H(ij)
+               hsq= hij*hij
+               if (hsq.GT.hmax) hmax = hsq
+               if (hsq.LT.eps) go to 10
+               del = hii - hjj; sign = one
+               if (del.LT.zero) then
+                   sign = -one
+                   del  = -del
+               end if 
+               denom = del + dsqrt(del*del + four*hsq)
+               tan   = two*sign*hij/denom
+               c     = one/dsqrt(one + tan*tan)
+               s     = c*tan
+               do 20 k = 1, n
+                  kj = loch(k,j); ki = loch(k,i)
+                  jk = loch(j,k); ik = loch(i,k)
+                  temp = c*U(kj) - s*U(ki)
+                  U(ki)= s*U(kj) + c*U(ki); U(kj) = temp
+                  if ((i.EQ.k).OR.(j.EQ.k)) go to 20
+                  /* update the parts of H matrix affected by a rotation */
+                  temp = c*H(kj) - s*H(ki)
+                  H(ki)= s*H(kj) + c*H(ki)
+                  H(kj)= temp; H(ik)= H(ki); H(jk)= H(kj)
+ 20            continue
+               /* now transform the four elements explicitly targeted by theta */
+               H(ii) = c*c*hii + s*s*hjj + two*c*s*hij
+               H(jj) = c*c*hjj + s*s*hii - two*c*s*hij
+               H(ij) = zero; H(ji) = zero
+ 10         continue 
+         end do
+         /* Finish when largest off-diagonal is small enough */
+ 90    continue
+      /* Now sort the eigenvectors into eigenvalue order */
+      iq = -n
+      do i = 1, n
+         iq = iq + n; ii = loch(i,i); jq = n*(i-2)
+         do j = i, n
+            jq = jq + n; jj = loch(j,j)
+            if (H(ii).LT.H(jj)) go to 30
+            temp = H(ii); H(ii) = H(jj); H(jj) = temp
+            do k = 1, n
+               ilr = iq + k; imr = jq + k
+               temp = U(ilr); U(ilr) = U(imr); U(imr) = temp
+            end do
+ 30         continue
+         end do
+      end do
+      return
+      end
+@
+
+@*1 minv. Gauss-Jordan matrix inversion routine.
+
+@a
+      subroutine minv(A,n,d,l,m)                                            
+      implicit double precision (a-h,o-z)
+      double precision A(*), d
+      integer n, l(*), m(*)
+                                                                            
+      double precision hold, bigA, one, zero
+      integer  i,j,k,ij,nk,kk,ji,iz,jp,ik,ki,kj,jq,jr
+      data one/1.0d00/, zero/0.0d00/
+                                                                            
+      d  =  one
+      nk = -n
+      do k = 1, n /* main loop */
+         nk = nk + n; l(k) = k; m(k) = k; kk = nk + k
+         bigA = A(kk)
+         do j = k, n
+            iz = n*(j-1)
+            do i = k, n
+               ij = iz + i
+               if ( dabs(bigA)-dabs(A(ij)) .GE. zero ) cycle
+               bigA = A(ij); l(k) = i; m(k) = j
+            end do
+         end do
+/*    nw interchange rows */
+         j = l(k)
+         if ( j .GT. k ) then
+            ki = k-n
+            do i = 1, n
+               ki = ki + n
+               hold = -A(ki)
+               ji = ki - k + j
+               A(ki) = A(ji)
+               A(ji) = hold
+            end do
+         end if
+/*     interchange columns */
+         i = m(k)
+         if ( i .GT. k ) then
+            jp = n*(i - 1)
+            do j = 1, n
+               jk = nk + j; ji = jp + j
+               hold = -A(jk); A(jk) = A(ji); A(ji) = hold
+            end do
+         end if
+/*    test for singularity - zero determinant which is product of pivots */
+         if ( bigA .EQ. zero ) then
+              d = zero   /* zero pivot */
+              return  
+         end if
+/*d   ivide the column by (minus) pivot */
+         do i = 1, n
+            if ( i .EQ. k ) cycle
+            ik = nk + i; A(ik) = A(ik)/(-bigA)
+         end do
+/*    reduce the matrix */
+         do i = 1, n
+            ik = nk + i
+            hold = A(ik); ij = i - n
+            do j = 1, n
+               ij = ij + n
+               if ( i .EQ. k ) cycle
+               if ( j .EQ. k ) cycle
+               kj = ij - i + k
+               A(ij) = hold*A(kj) + A(ij)
+            end do
+         end do
+/*    divide row by pivot */
+         kj = k - n
+         do j = 1, n
+            kj = kj + n
+            if (i.EQ.k) cycle
+            A(kj) = A(kj)/bigA
+         end do
+         d = d*bigA  /*    accumulate the determinant as product
+                                  of pivots */
+         A(kk) = one/bigA
+      end do
+/*f   inal row and column interchange */
+      do k = n-1, 1, -1
+         i = l(k)
+         if ( i .GT. k ) then
+            jq = n*(k - 1)
+            jr = n*(i - 1)
+            do j = 1, n
+              jk = jq + j
+              hold = A(jk); ji = jr + j
+              A(jk) = -A(ji); A(ji) = hold
+            end do
+         end if
+         j = m(k)
+         if ( j .LE. k ) cycle
+         ki = k - n
+         do i = 1, n
+            ki = ki + n
+            hold = A(ki)
+            ji = ki - k + j
+            A(ki) = - A(ji); A(ji) = hold
+         end do
+      end do
+                                                                            
+      return
+      end
+@
+
+@*1 pack. Store the six electron repulsion labels.
+
+@a
+      subroutine pack(a, i, j, k, l, m, n)
+      character*8 a,b
+      integer i, j, k, l, m, n
+
+      data b/"        "/
+      a = b
+      a(1:1) = char(i);   a(2:2) = char(j)
+      a(3:3) = char(k);   a(4:4) = char(l)
+      a(5:5) = char(m);   a(6:6) = char(n)
+      return
+      end
+@
+
+@*1 unpack. Regenerate the 6 electron repulsion labels.
+
+@a
+      subroutine unpack(a, i, j, k, l, m, n)
+      character*8 a
+      integer i, j, k, l, m, n
+
+      i = ichar(a(1:1));   j = ichar(a(2:2))
+      k = ichar(a(3:3));   l = ichar(a(4:4))
+      m = ichar(a(5:5));   n = ichar(a(6:6))
+    
+      return
+      end
+@
+
+@*1 next\_label. Generate the next label of electron repulsion integral.
+
+A function to generate  the
+four standard loops which are used to generate (or, more rarely) process
+the electron repulsion integrals. 
+
+The sets of integer values are generated in the usual
+standard order in canonical form, that is, equivalent to the set of loops:
+\begin{verbatim}
+   do i = 1,n;
+      {
+      do j = 1,i;
+         {
+         do k = 1,i;
+            {
+            ltop = k;
+            if ( i == k ) ltop = j ;
+            do l = 1,ltop;
+               {
+               do something with i j k l
+               }
+            }
+         }
+      }
+\end{verbatim}
+%
+Note that, just as is the case with the |do|-loops,
+the whole process must be {\em initialised\/} by
+setting initial values of |i|, |j|, |k| and |l|. 
+If the whole set of labels is required then \\
+|i=1|, |j=1|, |k=1|, |l|=0 \\
+is appropriate.
+
+Usage is, typically, \\
+| i = 0; j = 0; k = 0; l = 0; | \\
+|while(next_label(i,j,k,l,n) == YES)| \\
+| {  | \\
+  do something with i j k and l \\
+|  } | \\
+
+@a
+      integer function next_label(i,j,k,l,n)
+      integer i, j, k, l, n
+C
+      integer ltop
+      
+      next_label = YES
+      ltop = k
+      if (i.EQ.k) ltop = j
+
+      if (l.LT.ltop) then
+         l = l + 1
+      else
+         l = 1
+         if (k.LT.i) then
+             k = k + 1
+         else
+            k = 1
+            if (j.LT.i) then
+                j = j + 1
+            else
+               j = 1
+               if (i.LT.n) then
+                   i = i + 1
+               else
+                  next_label = NO
+               end if
+            end if
+         end if
+      end if
+      return 
+      end
+
+@
+
+@*1 shalf. This subroutine calculates ${\bf S}^{-\frac{1}{2}}$ matrix 
+from ${\bf S}$ matrix. 
+
+@a
+      subroutine shalf (S, U, W, m)
+      implicit double precision (a-h,o-z)
+      double precision S(*), U(*), W(*)
+      integer m
+
+      data crit, one/1.0D-10,1.0D+00/
+      call eigen(S,U,m)
+      /* Transpose the eigenvalues of S for convenience */
+      do i = 1, m
+         do j = 1, i
+            ij=m*(j-1)+i ; ji=m*(i-1)+j ; d=U(ij)
+            U(ij) = U(ji) ; U(ji) = d
+         end do
+      end do
+      /* Get the inverse root of the eigenvalues */
+      do i = 1, m
+         ii = (i-1)*m+i
+         if (S(ii).LT.crit) then
+             write(ERROR_OUTPUT_UNIT, 200)
+             STOP
+         end if
+         S(ii) = one/dsqrt(S(ii))
+      end do
+      call gtprd(U, S, W, m, m, m)
+      call gmprd(W, U, S, m, m, m)
+C
+      return
+ 200  format(" Basis is linearly dependent; S is singular! ")
+      end
+@
+
+
+@*1 spinor.
+
+@a
+      subroutine spinor(H,m)
+      double precision H(*)
+      integer m
+
+      double precision zero
+      integer i, j, ij, ji, ip, jp, ijp, ijd, nl, n
+      data zero/0.0D+00/
+
+      n = 2*m; nl = m+1
+      
+      do i = 1, m
+         do j = 1, m
+            ij=m*(j-1)+i;  ip=i+m;  jp=j+m
+            ijp=n*(jp-1)+ip;  H(ijp) = H(ij)
+         end do
+      end do
+
+      do i = 1, m
+         do j = 1, m
+            ip = i+m; jp = j+m; ijp=n*(jp-1)+ip
+            ijd=n*(j-1)+i; H(ijd) = H(ijp)
+         end do
+      end do
+ 
+      do i = 1, m
+         do j = nl, n
+            ij = n*(j-1)+i; ji = n*(i-1)+j
+            H(ij) = zero
+            H(ji) = zero
+         end do
+      end do
+
+      return
+      end
+@
+@*1 Printing tools. 
+
+These subroutines print the various objects (vectors,
+matrices and tensors) in a special way.
+
+@*2 pvec. Print the entire vector as it stands.
+
+\begin{minipage}{4.5in}
+  \ \\
+\begin{description}
+\item[NAME] pvec \\
+  Print entire vector as it stands. Maximum number of text columns in one line is 8.
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+      subroutine pvec(vec, n)
+      double precision vec(*)
+      integer n
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+ None.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[vec]  Input: Vector to be printed
+\item[n]    Input: Length of the vector
+\end{description}
+\item[DIAGNOSTICS] \ \\
+None
+\end{description}
+\ \\
+\end{minipage}
+
+@a
+      subroutine pvec(vec,n)
+      /* n - length of the vector */
+      double precision vec(*)
+      integer n
+
+      write(ERROR_OUTPUT_UNIT,33) (vec(i),i=1,n)
+ 33   format ((8f13.6)) 
+      return
+      end
+@ 
+
+@*2 pmat. Print the entire matrix as it stands.
+
+\begin{minipage}{4.5in}
+  \ \\
+\begin{description}
+\item[NAME] pmat \\
+  Print entire matrix as it stands. Maximum number of text columns in one line is 10.
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+      subroutine pmat(mat, n, m, iout)
+      double precision mat(*)
+      integer n, m, iout
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+ None.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[mat]  Input: Matrix to be printed
+\item[n]    Input: Number of collumns in the matrix
+\item[m]    Input: Number of rows in the matrix
+\item[m]    Input: Output file unit
+\end{description}
+\item[DIAGNOSTICS] \ \\
+None
+\end{description}
+\ \\
+\end{minipage}
+
+@a
+      subroutine pmat(mat,n,m,iout)
+      /* m - number of rows */
+      /* n - number of columns */
+      double precision mat(*)
+      integer n, m, iout
+      integer i, j
+
+      do i = 1, m
+         write(iout,33) (mat(n*(j-1) + i),j=1,n)
+      end do
+33    format((10f13.6))
+      return
+      end
+@
+
+@*2 porbe. Prints the orbital energies.
+
+\begin{minipage}{4.5in}
+  \ \\
+\begin{description}
+\item[NAME] porbe \\
+  Print orbital energies on the screen.
+\item[SYNOPSIS] \ \\
+\begin{verbatim}
+      subroutine pvec(eps, n, nocc)
+      double precision eps(*)
+      integer n, nocc
+\end{verbatim}
+\item[DESCRIPTION] \ \\
+ The output is devided into occupied orbitals and virtual orbitals.
+\item[ARGUMENTS] \ \\
+\begin{description}
+\item[eps]  Input: Orbital energies
+\item[n]    Input: Basis size (total number of orbitals)
+\item[nocc] Input: Number of occupied orbitals
+\end{description}
+\item[DIAGNOSTICS] \ \\
+None
+\end{description}
+\ \\
+\end{minipage}
+
+@a
+      subroutine porbe(eps,n,nocc)
+      double precision eps(*)
+      integer n, nocc
+
+      write(ERROR_OUTPUT_UNIT,*) " --- ORBITAL ENERGIES ---"
+      write(ERROR_OUTPUT_UNIT,*)
+      write(ERROR_OUTPUT_UNIT,*) " OCCUPIED:"
+      write(ERROR_OUTPUT_UNIT,33) (eps(i),i=1,nocc)
+      write(ERROR_OUTPUT_UNIT,*) " VIRTUAL:"
+      write(ERROR_OUTPUT_UNIT,33) (eps(i),i=nocc+1,n)
+ 33   format ((7f13.6)) 
+      return
+      end
+@
+
+@*1 CalNRP. Calculates the nuclear repulsion energy.
+
+@a
+      double precision function CalNRP(vlist, ncmx)
+      double precision vlist(MAX_CENTRES,4)
+      integer ncmx
+
+      double precision rij, zero, one, dx, dy, dz
+      integer i, j
+      data zero, one /0.0D+00, 1.0D+00/
+
+      CalNRP = zero
+      do i=1, ncmx
+         do j=1, i-1
+            dx = vlist(i,1)-vlist(j,1)
+            dy = vlist(i,2)-vlist(j,2)
+            dz = vlist(i,3)-vlist(j,3)
+            rij= dsqrt(dx*dx+dy*dy+dz*dz)
+            CalNRP = CalNRP + vlist(i,4) * vlist(j,4) / rij
+         end do
+      end do
+
+      return 
+      end
+@
+
+@*1 mkCvec. Generate the wavefunction coefficient matrix ${\bf C}$
+of size |nbasis| $\times$ |nbasis| from the matrix 1-D array stored
+in the memory.
+
+@a
+      subroutine mkCvec(C,CT,nbasis)
+      double precision C(*)
+      double precision CT(MAX_BASIS_FUNCTIONS,*)
+      integer nbasis
+
+      integer i, j, ij
+
+      do i = 1, nbasis
+         do j = 1, nbasis
+            ij = nbasis*(j-1) + i
+            CT(i,j) = C(ij)
+         end do
+      end do
+
+      return
+      end
+@
+
+@* INDEX.
