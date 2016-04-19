@@ -1,0 +1,18 @@
+#!/bin/bash
+base=bqc
+execuctive=bqc.bin
+
+# produce 'machine' Fortran code
+notangle -RMain -L'%N' $base.nw > $base.f
+
+# produde documentation
+noweave  -latex -delay $base.nw > $base.tex
+latex    $base.tex
+dvipdf   $base.dvi
+rm -v $base.dvi
+mv -v $base.pdf doc/
+
+# compile
+gfortran -cpp -ffixed-line-length-none -o $execuctive $base.f
+
+chmod u+x $execuctive

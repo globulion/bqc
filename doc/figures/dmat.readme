@@ -1,0 +1,3 @@
+file dmat is a density matrix in orthogonal basis
+for ethylene dimer (28 basis functions)
+from the input file ../inp/inp_tot

@@ -1,0 +1,185 @@
+#!/usr/bin/python
+#*-* coding: utf-8 *-*
+"""
+ ---------------------------------------------------------------------------------------------------------
+                                              BQC-INPUTS
+ ---------------------------------------------------------------------------------------------------------
+
+ Make the Basis File input for BQC program.
+
+ 
+ Usage:
+ 
+   ./bqc-inp  <opts> xyz_1 < xyz_2  ... > 
+
+ ---------------------------------------------------------------------------------------------------------
+
+ Options:
+
+   -h     [inp]             help
+
+ Switchers:
+
+   --no-xxxxxx              XXXXXXXXXXXXXXXXXX
+
+ ---------------------------------------------------------------------------------------------------------
+
+ Examples:
+
+  ./bqc-inp  -b sto3g -m rhf -c 0 -M 1 water.xyz
+
+ ---------------------------------------------------------------------------------------------------------
+                                                                               Last Revision: 17 Apr 2016
+"""
+from sys import argv, stdout, exit
+from getopt import getopt, GetoptError
+
+# ----------------------------------------------------------------------------------------------------
+__title__           = " BQC.inputs program" 
+__authors__         = " Bartosz Błasiak (email: blasiak.bartosz@gmai.com)"
+__version__         = " Version: 1.0.1"
+# ----------------------------------------------------------------------------------------------------
+
+def Usage():
+    print __doc__
+    exit()
+
+def Info():
+    print
+    print __title__
+    print __authors__
+    print __version__
+    print " Use -h to see help\n"
+    exit()
+
+def Main(argv):
+    # defaults
+    basis_set      = "sto-3g"                                          # Basis set for calculations       
+    method         = "rhf"                                             # QM method
+    charge         =  0                                                # Total charge of the system
+    multiplicity   =  1                                                # Multiplicity of the system
+    #
+    try:
+       opts, args = getopt(argv, 
+          "hb:m:c:M:o:" , 
+         ["help" , "basis=", "method=", "charge=", "multiplicity=",
+          "out="])
+    except GetoptError, error:
+        print "\n Invalid option. Please refer to the usage below:" 
+        Usage()
+    if not opts: Info()
+    if ("-h",'') in opts or ("--help",'') in opts: Usage()
+    for opt, arg in opts:
+        if opt in ("-h", "--help"       ): Usage() 
+
+
+if __name__=='__main__': Main(argv[1:])
+
+class BQCInput:
+   def __init__(self, basis=basis, method=method, charge=charge, multiplicity=multiplicity,):
+       self.basis = basis 
+       self.method= method
+       self.charge= charge
+       self.multiplicity = multiplicity
+   def write(self): 
+       pass
+
+    
+if 0:
+     from libbbg.utilities import QMFile
+     from numpy import zeros, array, float64 as f64
+     # input data
+     a = QMFile()
+     a.open(argv[1],basis=argv[2],mol=True)
+     mol = a.get_mol()
+     bfs = mol.get_bfs()
+     a.close()
+     nelec = mol.get_atno().sum()
+     nstate1, nstate2 = 1, 1
+     
+     # types of GTOs
+     ntypes = {'[0 0 0]':1 ,
+               '[1 0 0]':2 , '[0 1 0]':3 , '[0 0 1]':4 ,
+               '[2 0 0]':5 , '[0 2 0]':6 , '[0 0 2]':7 , '[1 1 0]':8 , '[1 0 1]':9 , '[0 1 1]':10,
+               '[3 0 0]':11, '[0 3 0]':12, '[0 0 3]':13, '[2 1 0]':14, '[2 0 1]':15, '[1 2 0]':16, 
+                             '[0 2 1]':17, '[1 0 2]':18, '[0 1 2]':19, '[1 1 1]':20}
+     
+     # gather the operational arguments
+     natoms = len(mol)
+     nbasis = len(bfs)
+     nt     = bfs.get_bfst()
+     
+     # collect the basis set
+     exps  = list()
+     coefs = list()
+     origs = list()
+     nfirst= list()
+     nlast = list()
+     
+     ngmx = 0
+     for i in range(nbasis):
+         bf = bfs.bfs[i]
+         n_cont = len(bf.prims)
+         nfirst.append(ngmx+1)
+         nlast.append(ngmx+n_cont)
+         for j in range(n_cont):
+             origs += list(bf.prims[j].origin) 
+         orig  = bf.origin
+         exps +=bf.pexps
+         coefs+=bf.pcoefs
+         #
+         ngmx += n_cont
+     
+     # build the final data structures
+     vlist = zeros((natoms,4),f64)
+     eta   = zeros((ngmx  ,5),f64)
+     
+     # make vlist
+     vlist[:,:3] = mol.get_pos()
+     vlist[:,3] = mol.get_atno()
+     # make eta
+     eta[:,:3] = array(origs,f64).reshape(ngmx,3)
+     eta[:,3] = array(exps ,f64)
+     eta[:,4] = array(coefs,f64)
+     # make other
+     ncntr = array(bfs.LIST1, int) + 1
+     ncmx  = natoms
+     nbfns = nbasis
+     # make ntype
+     ntype = [ntypes[str(i)] for i in nt]
+     task = 90
+     crit = 1.00E-07
+     damp = 0.33
+     interp = 30
+     read_eri = 0 # NO. For YES set 1
+     charge = 0
+     multiplicity = 1
+     # save basis set input file
+     log = '%19d\n' % task
+     log+= '%19.4E %19.4E %19d\n' % (crit, damp, interp)
+     log+= '%19d\n' % read_eri
+     log+= '%19d %19d\n' % (charge, multiplicity)
+     log+= '%19d %19d\n' % (nstate1, nstate2)
+     log+= '%19d\n' % nelec
+     log+= '%19d %19d %19d\n' % (ncmx, nbfns, ngmx)
+     for i in range(ncmx):
+         log+= 4*"%19.10f " % tuple(vlist[i])
+         log+= '\n'
+     for i in range(ngmx):
+         log+= 5*"%19.10f " % tuple(eta[i])
+         log+= '\n'
+     log+= nbfns*"%19d " % tuple(ntype ) ; log+= '\n'
+     log+= nbfns*"%19d " % tuple(ncntr ) ; log+= '\n'
+     log+= nbfns*"%19d " % tuple(nfirst) ; log+= '\n'
+     log+= nbfns*"%19d " % tuple(nlast ) ; log+= '\n'
+     
+     
+     print " There are %d atomic centers"  % ncmx
+     print " There are %d basis functions" % nbfns
+     print " There are %d primitive GTFs"  % ngmx
+     print
+     inp = open('inp','w')
+     inp.write(log)
+     inp.close()
+     
+     print " The input file <inp> was saved.\n\n"
