@@ -1,7 +1,7 @@
 #!/bin/bash
 
 bqc=bqc
-eri_file=fort.17
+eri_file=
 verbose=0
 output_file=
 clean=0
@@ -51,6 +51,7 @@ if [ ${verbose} = 1 ]; then
    opts_rm="-v"
 fi
 
+# prepare for run
 echo    " BQC Input read              = ${input_file}"
 if [ ${eri_file} ]; then
    echo " ERI will be read from file  = ${eri_file}"

@@ -33,6 +33,7 @@
 """
 from sys import argv, stdout, exit
 from getopt import getopt, GetoptError
+from libbbg.utilities import text_to_list
 
 # ----------------------------------------------------------------------------------------------------
 __title__           = " BQC.inputs program" 
@@ -52,134 +53,318 @@ def Info():
     print " Use -h to see help\n"
     exit()
 
+# ---------------------------------------------
+from numpy import zeros, array, float64 as f64
+from libbbg.utilities import QMFile
+# ---------------------------------------------
+
+class BQCInput:
+   """ Poor implementation of BQCInput """
+   def __init__(self, xyz, task, read_eri,
+                      basis, charge, multiplicity,
+                      state_1, state_2, crit_eri, damp, interp):
+
+       # input data
+       self.nfrag            = len(xyz)
+       self.xyz              = xyz           
+
+       self.charge           = charge         
+       self.multiplicity     = multiplicity  
+       self.state_1          = state_1       
+       self.state_2          = state_2       
+
+       self.basis            = basis  # uniform basis set type only (in case nfrag > 1)
+       self.is_read_eri      = read_eri
+       self.task             = task.upper()
+       self.crit_eri         = crit_eri
+       self.damp             = damp
+       self.interp           = interp
+      
+       # types of GTOs                                                                                    
+       self.ntypes = {'[0 0 0]':1 ,                                                                        # S-functions  ( 1-S)
+                     '[1 0 0]':2 , '[0 1 0]':3 , '[0 0 1]':4 ,                                             # P-functions  ( 3-P)
+                     '[2 0 0]':5 , '[0 2 0]':6 , '[0 0 2]':7 , '[1 1 0]':8 , '[1 0 1]':9 , '[0 1 1]':10,   # D-functions  ( 6-D)
+                     '[3 0 0]':11, '[0 3 0]':12, '[0 0 3]':13, '[2 1 0]':14, '[2 0 1]':15, '[1 2 0]':16,   # F-functions  (10-F)
+                                   '[0 2 1]':17, '[1 0 2]':18, '[0 1 2]':19, '[1 1 1]':20}
+       # tasks name space to perform (must be consistent with BQC!)
+       self.task_id = {'RHF'       :   90, 
+                       'UHF'       :  -90, 
+                       'ROHF'      :   91, 
+                       'CIS'       :   92, 
+                       'DFI'       :  100, 
+                       'TDFI-CIS'  :  101}
+
+
+   def make(self, mol):                                                                                            
+       """
+    Make the data structure object for BQC.
+    This consists of:
+     
+      o eta        - GTO primitives 
+      o vlist      - Atomic coordinates and numbers
+      o nfirst     - PGTO starting indices per basis function
+      o nlast      - PGTO ending   indices per basis function
+      o ntype      - type of basis function
+      o ncntr      - contraction length per basis function
+   
+      Usage: pac = make(PyQuante::Molecule object)
+   
+      Note: mol has to have BasisSet object.
+   """
+       bfs = mol.get_bfs()
+       #nelec = mol.get_atno().sum()
+       
+       # gather the operational arguments
+       natoms = len(mol)
+       nbasis = len(bfs)
+       nt     = bfs.get_bfst()
+       
+       # collect the basis set
+       exps  = list()
+       coefs = list()
+       origs = list()
+       nfirst= list()
+       nlast = list()
+       
+       ngmx = 0
+       for i in range(nbasis):
+           bf = bfs.bfs[i]
+           n_cont = len(bf.prims)
+           nfirst.append(ngmx+1)
+           nlast.append(ngmx+n_cont)
+           for j in range(n_cont):
+               origs += list(bf.prims[j].origin) 
+           orig  = bf.origin
+           exps +=bf.pexps
+           coefs+=bf.pcoefs
+           #
+           ngmx += n_cont
+       
+       # build the final data structures
+       vlist = zeros((natoms,4),f64)
+       eta   = zeros((ngmx  ,5),f64)
+       
+       # make vlist
+       vlist[:,:3] = mol.get_pos()
+       vlist[:,3]  = mol.get_atno()
+       # make eta
+       eta[:,:3]   = array(origs,f64).reshape(ngmx,3)
+       eta[:,3]    = array(exps ,f64)
+       eta[:,4]    = array(coefs,f64)
+       # make other
+       ncntr       = array(bfs.LIST1, int) + 1
+       ncmx        = natoms
+       nbfns       = nbasis
+       # make ntype
+       ntype       = [self.ntypes[str(i)] for i in nt]
+           
+       pac         = {'eta'   : eta  , 'vlist': vlist, 'nfirst': nfirst, 'nlast': nlast, 
+                      'ntype' : ntype, 'ncntr': ncntr,
+                      'ncmx'  : ncmx , 'nbfns': nbfns, 'ngmx'  : ngmx}
+   
+       return  pac
+   
+   def sum_list(self, args):
+       l = []
+       for i in args: l+=i
+       return l
+
+   def concatenate_mol(self, qmf1, qmf2, basis):
+       tmp = 'xx_x_xx--_-_.xyz'
+       qmf1.insert(mol=qmf2, id=-1)
+       qmf1.write(tmp)
+       mol = QMFile(tmp, mol=True, basis=basis)
+       os.system('rm %s' % tmp)
+       del qmf1, qmf2 # important, otherwise qmf2 object is modified. Copy.deepcopy cannot be used due to segfault problem
+       return mol
+  
+   def make_inp(self, qmf_list, charge_list, multiplicity_list, state_1_list, state_2_list, 
+                task, crit_eri, damp, interp,
+                read_eri, basis):
+   
+       print "\n BQC input file generator"
+       # create concatenate molecule
+       qmf_join = qmf_list[0]
+       for qmf in qmf_list[1:]:
+           qmf_join = self.concatenate_mol(qmf_join, qmf, basis=basis)
+       # make input pac for concatenate
+       pac = self.make(qmf_join.get_mol())
+       # make pac for monomers
+       pac_m = list()
+       for qmf in qmf_list:
+           pac_m.append(self.make(qmf.get_mol()))
+       # write input
+       nbfns = pac['nbfns']
+       log = ""
+       nfrag = len(pac_m)
+       # --- task
+       log+= "%19d\n" % self.task_id[task]
+       # --- SCF parameters
+       log+= 2*"%19.4E" % (crit_eri, damp) 
+       log+= "%19d\n" % interp
+       # --- ERI 
+       log+= "%19d\n" % read_eri
+       # --- nfrag
+       log+= "%19d\n" % nfrag
+       # --- molecule propertis
+       # ------ charges
+       log+= nfrag*"%19d" % tuple( [ charge_list[i]  for i in range(nfrag) ])
+       log+= '\n' 
+       # ------ multiplicities
+       log+= nfrag*"%19d" % tuple( [ multiplicity_list[i]  for i in range(nfrag) ])
+       log+= '\n' 
+       # ------ electronic states to consider
+       print state_1_list
+       for states in [state_1_list, state_2_list]:
+           log+= nfrag*"%19d" % tuple( [ states[i]  for i in range(nfrag) ]) 
+           log+= '\n' 
+       # ------ number of electrons
+       log+= nfrag*"%19d" % tuple( [ int(pac_m[i]['vlist'][:,3].sum()) + charge_list[i]  for i in range(nfrag) ])
+       log+= '\n' 
+       # ------ ncmx, nbfns, ngmx
+       for K in ['ncmx','nbfns','ngmx']:
+           log+= nfrag*"%19d" % tuple( [ pac_m[i][K] for i in range(nfrag) ]) 
+           log+= '\n' 
+       # ------ ncmx, nbfns, ngmx offsets
+       for K in ['ncmx','nbfns','ngmx']:
+           log+= "%19d" % 0
+           prev = 0
+           for i in range(nfrag-1):
+               log+= "%19d" % (pac_m[i][K] + prev )
+               prev += pac_m[i][K]
+           log+= '\n' 
+       # --- structure
+       for i in range(pac['ncmx']):
+           log+= 4*"%19.10f " % tuple(pac['vlist'][i])
+           log+= '\n'
+       # -- basis set
+       for i in range(pac['ngmx']):
+           log+= 5*"%19.10f " % tuple(pac['eta'][i])
+           log+= '\n'
+  
+       print " There are %d fragments"       % nfrag 
+       print " There are %d atomic centers"  % pac['ncmx']
+       print " There are %d basis functions" % pac['nbfns']
+       print " There are %d primitive GTFs"  % pac['ngmx']
+       print
+   
+       log+= nbfns*"%19d " % tuple(self.sum_list([list(pac_x['ntype'])  for pac_x in pac_m]) ) ; log+= '\n'
+       log+= nbfns*"%19d " % tuple(self.sum_list([list(pac_x['ncntr'])  for pac_x in pac_m]) ) ; log+= '\n'
+       log+= nbfns*"%19d " % tuple(self.sum_list([list(pac_x['nfirst']) for pac_x in pac_m]) ) ; log+= '\n'
+       log+= nbfns*"%19d " % tuple(self.sum_list([list(pac_x['nlast'])  for pac_x in pac_m]) ) ; log+= '\n'
+      
+       return log
+
+
+   def make_inp_tot(self, out, **kwargs):                         
+       print self.xyz
+       f1 = QMFile(self.xyz[0], mol=1, basis=self.basis)
+       log= self.make_inp( [f1], **kwargs)
+   
+       out = open(out,'w')
+       out.write(log)
+       out.close()
+       return
+   
+   def make_inp_dfi(self, out, **kwargs):
+       
+       assert selg.nfrag == 2, " I am sorry. Only 2 fragments implemented at present." 
+
+       f1 = QMFile(self.xyz[0], mol=1, basis=self.basis)
+       f2 = QMFile(self.xyz[1], mol=1, basis=self.basis)
+
+       mol = self.concatenate_mol(f1, f2, **kwargs)
+       pac_12 = self.make(mol.get_mol())
+       pac_1  = self.make(f1.get_mol())
+       pac_2  = self.make(f2.get_mol())
+       
+       for pac in [pac_12, pac_1, pac_2]:
+           print "%4d %4d %4d" % (pac['ncmx'], pac['nbfns'], pac['ngmx'])
+
+       f1 = QMFile(self.xyz[0], mol=1, basis=self.basis)
+       f2 = QMFile(self.xyz[1], mol=1, basis=self.basis)
+      
+       log= make_inp([f1, f2], **kwargs)
+       
+       out = open(out,'w')
+       out.write(log)
+       out.close()
+       return
+
+   def write(self, out):
+       if self.nfrag > 1:
+          self.make_inp_dfi(out, charge_list       = self.charge         , 
+                                 multiplicity_list = self.multiplicity   , 
+                                 state_1_list      = self.state_1        , 
+                                 state_2_list      = self.state_2        ,
+                                 task              = self.task           , 
+                                 crit_eri          = self.crit_eri       , 
+                                 damp              = self.damp           , 
+                                 interp            = self.interp         ,
+                                 read_eri          = self.is_read_eri    , 
+                                 basis             = self.basis           )
+       else:
+          self.make_inp_tot(out, charge_list       = self.charge         , 
+                                 multiplicity_list = self.multiplicity   , 
+                                 state_1_list      = self.state_1        , 
+                                 state_2_list      = self.state_2        ,
+                                 task              = self.task           , 
+                                 crit_eri          = self.crit_eri       , 
+                                 damp              = self.damp           , 
+                                 interp            = self.interp         ,
+                                 read_eri          = self.is_read_eri    , 
+                                 basis             = self.basis           )
+       print " \n Input file written to < %s > \n" % out
+       return
+
+    
+
+
 def Main(argv):
     # defaults
     basis_set      = "sto-3g"                                          # Basis set for calculations       
-    method         = "rhf"                                             # QM method
-    charge         =  0                                                # Total charge of the system
-    multiplicity   =  1                                                # Multiplicity of the system
+    task           = "rhf"                                             # QM method
+    charge         = [0]                                               # Total charge of the system
+    multiplicity   = [1]                                               # Multiplicity of the system
+    state_1        = [0]                                               # Electronic state
+    state_2        = [1]                                               # Electronic state (second)
+    damp           =  0.3300                                           # SCF damping parameter
+    interp         =  30                                               # SCF interpolation: first n=30 iterations
+    crit_eri       =  1.00E-7                                          # Least ERI that is stored in fort.17
+    read_eri       =  False                                            # Weather read ERI from external source or compute them
+    xyz            =  None                                             # XYZ file list (must be specified)
+    out            = "inp.default"                                     # input file name (output)
     #
     try:
        opts, args = getopt(argv, 
-          "hb:m:c:M:o:" , 
-         ["help" , "basis=", "method=", "charge=", "multiplicity=",
+          "hb:t:c:M:X:X:o:" , 
+         ["help" , "basis=", "task=", "charge=", "multiplicity=",
+          "state_1=", "state_2=",
           "out="])
     except GetoptError, error:
-        print "\n Invalid option. Please refer to the usage below:" 
+        print "\n *** Invalid option. Please refer to the usage below:" 
         Usage()
     if not opts: Info()
     if ("-h",'') in opts or ("--help",'') in opts: Usage()
     for opt, arg in opts:
-        if opt in ("-h", "--help"       ): Usage() 
+        if opt in ("-h", "--help"            ): Usage() 
+        if opt in ("-m", "--task="           ): task          = arg
+        if opt in ("-b", "--basis="          ): basis         = arg
+        if opt in ("-o", "--out="            ): out           = arg
 
+        if opt in ("-c", "--charge="         ): charge        = list(text_to_list(arg,delimiter=','))
+        if opt in ("-M", "--multiplicity="   ): multiplicity  = list(text_to_list(arg,delimiter=','))
+        if opt in ("-X", "--state_1="        ): state_1       = list(text_to_list(arg,delimiter=','))
+        if opt in ("-X", "--state_2="        ): state_2       = list(text_to_list(arg,delimiter=','))
+
+    xyz = args
+
+    inp = BQCInput(xyz=xyz, read_eri=read_eri, task=task,
+                            basis=basis, charge=charge, multiplicity=multiplicity,
+                            state_1=state_1, state_2=state_2, crit_eri=crit_eri, damp=damp, interp=interp)
+    inp.write(out)
+        
 
 if __name__=='__main__': Main(argv[1:])
 
-class BQCInput:
-   def __init__(self, basis=basis, method=method, charge=charge, multiplicity=multiplicity,):
-       self.basis = basis 
-       self.method= method
-       self.charge= charge
-       self.multiplicity = multiplicity
-   def write(self): 
-       pass
 
-    
-if 0:
-     from libbbg.utilities import QMFile
-     from numpy import zeros, array, float64 as f64
-     # input data
-     a = QMFile()
-     a.open(argv[1],basis=argv[2],mol=True)
-     mol = a.get_mol()
-     bfs = mol.get_bfs()
-     a.close()
-     nelec = mol.get_atno().sum()
-     nstate1, nstate2 = 1, 1
-     
-     # types of GTOs
-     ntypes = {'[0 0 0]':1 ,
-               '[1 0 0]':2 , '[0 1 0]':3 , '[0 0 1]':4 ,
-               '[2 0 0]':5 , '[0 2 0]':6 , '[0 0 2]':7 , '[1 1 0]':8 , '[1 0 1]':9 , '[0 1 1]':10,
-               '[3 0 0]':11, '[0 3 0]':12, '[0 0 3]':13, '[2 1 0]':14, '[2 0 1]':15, '[1 2 0]':16, 
-                             '[0 2 1]':17, '[1 0 2]':18, '[0 1 2]':19, '[1 1 1]':20}
-     
-     # gather the operational arguments
-     natoms = len(mol)
-     nbasis = len(bfs)
-     nt     = bfs.get_bfst()
-     
-     # collect the basis set
-     exps  = list()
-     coefs = list()
-     origs = list()
-     nfirst= list()
-     nlast = list()
-     
-     ngmx = 0
-     for i in range(nbasis):
-         bf = bfs.bfs[i]
-         n_cont = len(bf.prims)
-         nfirst.append(ngmx+1)
-         nlast.append(ngmx+n_cont)
-         for j in range(n_cont):
-             origs += list(bf.prims[j].origin) 
-         orig  = bf.origin
-         exps +=bf.pexps
-         coefs+=bf.pcoefs
-         #
-         ngmx += n_cont
-     
-     # build the final data structures
-     vlist = zeros((natoms,4),f64)
-     eta   = zeros((ngmx  ,5),f64)
-     
-     # make vlist
-     vlist[:,:3] = mol.get_pos()
-     vlist[:,3] = mol.get_atno()
-     # make eta
-     eta[:,:3] = array(origs,f64).reshape(ngmx,3)
-     eta[:,3] = array(exps ,f64)
-     eta[:,4] = array(coefs,f64)
-     # make other
-     ncntr = array(bfs.LIST1, int) + 1
-     ncmx  = natoms
-     nbfns = nbasis
-     # make ntype
-     ntype = [ntypes[str(i)] for i in nt]
-     task = 90
-     crit = 1.00E-07
-     damp = 0.33
-     interp = 30
-     read_eri = 0 # NO. For YES set 1
-     charge = 0
-     multiplicity = 1
-     # save basis set input file
-     log = '%19d\n' % task
-     log+= '%19.4E %19.4E %19d\n' % (crit, damp, interp)
-     log+= '%19d\n' % read_eri
-     log+= '%19d %19d\n' % (charge, multiplicity)
-     log+= '%19d %19d\n' % (nstate1, nstate2)
-     log+= '%19d\n' % nelec
-     log+= '%19d %19d %19d\n' % (ncmx, nbfns, ngmx)
-     for i in range(ncmx):
-         log+= 4*"%19.10f " % tuple(vlist[i])
-         log+= '\n'
-     for i in range(ngmx):
-         log+= 5*"%19.10f " % tuple(eta[i])
-         log+= '\n'
-     log+= nbfns*"%19d " % tuple(ntype ) ; log+= '\n'
-     log+= nbfns*"%19d " % tuple(ncntr ) ; log+= '\n'
-     log+= nbfns*"%19d " % tuple(nfirst) ; log+= '\n'
-     log+= nbfns*"%19d " % tuple(nlast ) ; log+= '\n'
-     
-     
-     print " There are %d atomic centers"  % ncmx
-     print " There are %d basis functions" % nbfns
-     print " There are %d primitive GTFs"  % ngmx
-     print
-     inp = open('inp','w')
-     inp.write(log)
-     inp.close()
-     
-     print " The input file <inp> was saved.\n\n"
