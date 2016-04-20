@@ -1,6 +1,6 @@
 #!/bin/bash
 base=bqc
-execuctive=bqc.bin
+execuctive=bqc.inp
 
 # produce 'machine' Fortran code
 notangle -RMain -L'%N' $base.nw > $base.f
