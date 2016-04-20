@@ -34,6 +34,7 @@
 from sys import argv, stdout, exit
 from getopt import getopt, GetoptError
 from libbbg.utilities import text_to_list
+import os
 
 # ----------------------------------------------------------------------------------------------------
 __title__           = " BQC.inputs program" 
@@ -214,7 +215,6 @@ class BQCInput:
        log+= nfrag*"%19d" % tuple( [ multiplicity_list[i]  for i in range(nfrag) ])
        log+= '\n' 
        # ------ electronic states to consider
-       print state_1_list
        for states in [state_1_list, state_2_list]:
            log+= nfrag*"%19d" % tuple( [ states[i]  for i in range(nfrag) ]) 
            log+= '\n' 
@@ -257,7 +257,6 @@ class BQCInput:
 
 
    def make_inp_tot(self, out, **kwargs):                         
-       print self.xyz
        f1 = QMFile(self.xyz[0], mol=1, basis=self.basis)
        log= self.make_inp( [f1], **kwargs)
    
@@ -267,13 +266,13 @@ class BQCInput:
        return
    
    def make_inp_dfi(self, out, **kwargs):
-       
-       assert selg.nfrag == 2, " I am sorry. Only 2 fragments implemented at present." 
+      
+       assert self.nfrag == 2, " I am sorry. Only 2 fragments implemented at present." 
 
        f1 = QMFile(self.xyz[0], mol=1, basis=self.basis)
        f2 = QMFile(self.xyz[1], mol=1, basis=self.basis)
 
-       mol = self.concatenate_mol(f1, f2, **kwargs)
+       mol = self.concatenate_mol(f1, f2, basis=self.basis)
        pac_12 = self.make(mol.get_mol())
        pac_1  = self.make(f1.get_mol())
        pac_2  = self.make(f2.get_mol())
@@ -284,7 +283,7 @@ class BQCInput:
        f1 = QMFile(self.xyz[0], mol=1, basis=self.basis)
        f2 = QMFile(self.xyz[1], mol=1, basis=self.basis)
       
-       log= make_inp([f1, f2], **kwargs)
+       log= self.make_inp([f1, f2], **kwargs)
        
        out = open(out,'w')
        out.write(log)
@@ -339,7 +338,7 @@ def Main(argv):
        opts, args = getopt(argv, 
           "hb:t:c:M:X:X:o:" , 
          ["help" , "basis=", "task=", "charge=", "multiplicity=",
-          "state_1=", "state_2=",
+          "state-1=", "state-2=",
           "out="])
     except GetoptError, error:
         print "\n *** Invalid option. Please refer to the usage below:" 
@@ -348,14 +347,14 @@ def Main(argv):
     if ("-h",'') in opts or ("--help",'') in opts: Usage()
     for opt, arg in opts:
         if opt in ("-h", "--help"            ): Usage() 
-        if opt in ("-m", "--task="           ): task          = arg
-        if opt in ("-b", "--basis="          ): basis         = arg
-        if opt in ("-o", "--out="            ): out           = arg
+        if opt in ("-t", "--task"            ): task          = arg
+        if opt in ("-b", "--basis"           ): basis         = arg
+        if opt in ("-o", "--out"             ): out           = arg
 
-        if opt in ("-c", "--charge="         ): charge        = list(text_to_list(arg,delimiter=','))
-        if opt in ("-M", "--multiplicity="   ): multiplicity  = list(text_to_list(arg,delimiter=','))
-        if opt in ("-X", "--state_1="        ): state_1       = list(text_to_list(arg,delimiter=','))
-        if opt in ("-X", "--state_2="        ): state_2       = list(text_to_list(arg,delimiter=','))
+        if opt in ("-c", "--charge"          ): charge        = list(text_to_list(arg,delimiter=','))
+        if opt in ("-M", "--multiplicity"    ): multiplicity  = list(text_to_list(arg,delimiter=','))
+        if opt in ("-X", "--state-1"         ): state_1       = list(text_to_list(arg,delimiter=','))
+        if opt in ("-X", "--state-2"         ): state_2       = list(text_to_list(arg,delimiter=','))
 
     xyz = args
 
