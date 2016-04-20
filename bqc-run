@@ -1,0 +1,75 @@
+#!/bin/bash
+
+bqc=bqc
+eri_file=fort.17
+verbose=0
+output_file=
+clean=0
+opts_rm=
+
+# A POSIX variable
+OPTIND=1         # Reset in case getopts has been used previously in the shell.
+
+show_help ()
+{
+  echo " -------------------------------------------------------------" 
+  echo " BQC Launch Script.                                           "
+  echo "   -h                 help                                    "
+  echo "   -i [bqc input]                                             "
+  echo "   -e [eri file]      ERI binary to read. Default fort.17     "
+  echo "   -o [output]        Output file                             "
+  echo "   -c                 Clean                                   "
+  echo "   -v                 Verbose                                 "
+  echo " -------------------------------------------------------------" 
+  echo "                             Bartosz Błasiak, 20 Apr 2016     "
+}
+
+while getopts "h?vo:i:e:c" opt; do
+    case "$opt" in
+    h|\?)
+        show_help
+        exit 0
+        ;;
+    v)  verbose=1
+        ;;
+    o)  output_file=$OPTARG
+        ;;
+    i)  input_file=$OPTARG
+        ;;
+    e)  eri_file=$OPTARG
+        ;;
+    c)  clean=1
+        ;;
+    esac
+done
+
+shift $((OPTIND-1))
+
+[ "$1" = "--" ] && shift
+
+if [ ${verbose} = 1 ]; then
+   opts_rm="-v"
+fi
+
+echo    " BQC Input read              = ${input_file}"
+if [ ${eri_file} ]; then
+   echo " ERI will be read from file  = ${eri_file}"
+   cp $opts_rm $eri_file fort.17
+fi
+
+# run bqc
+echo
+if [ ${output_file} ] ; then
+
+   ./${bqc} < ${input_file} > ${output_file}
+
+else
+
+   ./${bqc} < ${input_file}
+
+fi
+
+# clean 
+if [ ${clean} = 1 ]; then
+   rm ${opts_rm} fort.*
+fi
