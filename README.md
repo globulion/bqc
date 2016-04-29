@@ -16,12 +16,14 @@ After you checked the contents of `CMakeLists.txt` file, you need to specify you
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 export EIGEN3_INCLUDE_DIR=<path to Eigen3>
-cmake .
+mkdir build
+cd build
+cmake ..
 make
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This should work fine if you have properly installed [Eigen3] header files. No other dependencies are necessary at
-present.
+present. Note that in-source builds are not allowed by BQC to maintain clarity in the source code.
 
 [cmake]:  https://cmake.org/ "Cmake package"
 [eigen3]: http://eigen.tuxfamily.org/dox/ "High-performance numerical libraries for manipulations on arrays, vectors and matrices"
