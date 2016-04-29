@@ -53,7 +53,7 @@ add_subdirectory (src)
 # configure header file
 configure_file (
   "${PROJECT_SOURCE_DIR}/BqcConfig.h.in"
-  "${PROJECT_BINARY_DIR}/BqcConfig.h"
+  "${PROJECT_SOURCE_DIR}/BqcConfig.h"
 )
 
 # Add the executable

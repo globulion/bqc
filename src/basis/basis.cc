@@ -1,22 +1,18 @@
-#include <boost/shared_ptr.hpp>
-#include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
 #include "libbasis.h"
 
 BasisSet::BasisSet (int integer) {
 
-     S_ = boost::shared_ptr<double> ( new double[integer] );
+     Eigen::MatrixXd _S = Eigen::MatrixXd(integer,integer);
      for (int i = 0; i < integer; i++) {
-          *(S_.get()+i) = static_cast<double>(i);
+          _S(i) = static_cast<double>(i,i);
      }   
-     nbfns_ = integer;
+     _nbfns = integer;
 }
 
-boost::shared_ptr<double> BasisSet::get_S () {
+Eigen::MatrixXd BasisSet::get_S () {
 
-      for (int i = 0; i < this->nbfns_; i++) {
-           fprintf(stdout, "%15.5f\n", *(S_.get()+i));
+      for (int i = 0; i < this->_nbfns; i++) {
+           fprintf(stdout, "%15.5f\n", _S(i,i));
       }
-      return S_;
+      return _S;
 }

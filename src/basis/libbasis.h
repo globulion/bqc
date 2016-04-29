@@ -1,9 +1,7 @@
-#define BQC_MAX_PRIMITIVES 40
-#define BQC_MAX_CENTERS 10
-#define BQC_MAX_BASIS 5
-
 #include <boost/shared_ptr.hpp>
 #include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
 #include <Eigen/Dense>
 
 /*! \typedef Dynamic allocation of matrices and arrays
@@ -38,7 +36,7 @@ class BasisSet {
        BasisSet() {};
        BasisSet(int ); 
 
-       VectorPtr get_S();
+       Eigen::MatrixXd get_S();
 
     protected: 
        /// PGTO cartesian coordinates, coefficients and exponents
@@ -54,13 +52,13 @@ class BasisSet {
        /// list of atomic centers each BSF belongs to
        VectorNlist _ncntr;
        /// number of BFS
-       VectorNlist _nbfns;
+       int _nbfns;
        /// number of PGTO's
-       VectorNlist _ngmx;
+       int _ngmx;
        /// number of PGTO's centers
-       VectorNlist _ncmx;
+       int _ncmx;
 
        /// overlap matrix in AO basis
-       Eigen::MatrixXd VectorPtr _S;
+       Eigen::MatrixXd _S;
 
 };
