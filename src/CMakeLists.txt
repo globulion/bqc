@@ -1,0 +1,6 @@
+add_subdirectory(basis)
+add_subdirectory(math)
+add_subdirectory(io)
+add_subdirectory(qm)
+add_subdirectory(ints)
+add_subdirectory(mol)

@@ -1,0 +1,6 @@
+// the configured options and settings for BQC
+#define BQC_VERSION "@BQC_VERSION@"
+//#cmakedefine USE_MYMATH
+// does the platform provide exp and log functions?
+//#cmakedefine HAVE_LOG
+//#cmakedefine HAVE_EXP
