@@ -4,7 +4,7 @@ BasisSet::BasisSet (int integer) {
 
      Eigen::MatrixXd _S = Eigen::MatrixXd(integer,integer);
      for (int i = 0; i < integer; i++) {
-          _S(i) = static_cast<double>(i,i);
+          _S(i,i) = static_cast<double>(i);
      }   
      _nbfns = integer;
 }

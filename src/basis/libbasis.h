@@ -12,6 +12,8 @@ typedef Eigen::Matrix<long, Eigen::Dynamic, 1> VectorNlist;
 typedef Eigen::Matrix<double, Eigen::Dynamic, 5> MatrixEta;
 typedef Eigen::Matrix<double, Eigen::Dynamic, 4> MatrixVlist;
 
+#ifndef __BQC_C_BASISSET__
+#define __BQC_C_BASISSET__
 /*! Define the CGTO basis set for a set of points in space.
  *
  *  Each basis function is a primitive gaussian-type orbital (PGTO)
@@ -62,3 +64,4 @@ class BasisSet {
        Eigen::MatrixXd _S;
 
 };
+#endif
