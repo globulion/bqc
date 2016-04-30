@@ -23,13 +23,6 @@ void print_dmatrix(double* A, int m, int n) {
     }
 };
 
-/*! Read BQC input file.
- *
- *  Input is an ASCI file containing basis set and all molecules
- *  in the system. The returned object is a shared poiter to
- *  System instance that describe all the system and task to be 
- *  performed on it.
- */
 boost::shared_ptr<System> read_bqc_input(const char* input) {
    short       task;          
    int         interp, nfrag;
