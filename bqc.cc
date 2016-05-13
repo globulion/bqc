@@ -43,5 +43,8 @@ int main (int argc, char *argv[])
   Al.append(Atom("H", 1));
   Al.print();
 
+  // generate the BQC system
+  read_bqc_input(argv[1]);
+
   return 0;
 }
