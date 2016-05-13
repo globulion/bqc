@@ -15,13 +15,23 @@
 
 #ifndef __BQC_C_LIBBASIS__
 #define __BQC_C_LIBBASIS__
-//using Eigen::VectorXi;
 
 using std::string;
 
+class Data;
+class Options;
+class BasisSet;
+class Fragment;
+class System;
 
+typedef std::map<string, Data> map_s_D;
+typedef std::vector<boost::shared_ptr<Fragment> > FragmentPtrVector;
+typedef boost::shared_ptr<Options> OptionsPtr;
+typedef boost::shared_ptr<BasisSet> BasisSetPtr;
+typedef boost::shared_ptr<Fragment> FragmentPtr;
+typedef boost::shared_ptr<System> SystemPtr;
 typedef boost::variant<bool, int, double, string> data_type;
-typedef Eigen::Matrix<int,   Eigen::Dynamic, 1> VectorNlist;
+typedef Eigen::Matrix<int   , Eigen::Dynamic, 1> VectorNlist;
 typedef Eigen::Matrix<double, Eigen::Dynamic, 5> MatrixEta;
 typedef Eigen::Matrix<double, Eigen::Dynamic, 4> MatrixVlist;
 
@@ -32,16 +42,19 @@ typedef Eigen::Matrix<double, Eigen::Dynamic, 4> MatrixVlist;
  */
 class Data {
    protected:
-     bool _is_bool, _is_string, _is_int, _is_double;
+     //bool _is_bool, _is_string, _is_int, _is_double;
      bool _is_none;
      // data
      data_type _data;
    public:
+     Data() : _is_none(true) {};
+     /*
      Data() {_is_bool    =false; 
              _is_string  =false;
              _is_int     =false;
              _is_double  =false;
              _is_none    =true;};
+     */
      /*
      Data(bool   d) {_is_bool=true  ; _is_none=false; _data=d;};
      Data(int    d) {_is_int=true   ; _is_none=false; _data=d;};
@@ -59,8 +72,6 @@ class Data {
 
 };
 
-typedef std::map<string, Data> map_s_D;
-
 /*! Container for TODO specifiers for BQC program.
  *
  *  Contains the options names and their values. 
@@ -69,10 +80,8 @@ typedef std::map<string, Data> map_s_D;
  */
 class Options {
    protected:
-      //map_s_b _opts_s_b;
-      //map_s_i _opts_s_i;
-      //map_s_d _opts_s_d;
       map_s_D _opts_s_D;
+
    public:
       // initialize default options
       Options();
@@ -80,10 +89,6 @@ class Options {
       // add/change option values
       void add   (string s)              {_opts_s_D[s] = Data(true);};
       void add   (string s, data_type d) {_opts_s_D[s] = Data(d);};
-/*      void add   (string s, bool b)   {_opts_s_D[s] = Data(b);};
-      void addInt(string s, int i)    {_opts_s_D[s] = Data(i);};
-      void addDbl(string s, double d) {_opts_s_D[s] = Data(d);};
-*/
 
       data_type operator[](string key) {return _opts_s_D[key].get();};
 };
@@ -130,14 +135,6 @@ class BasisSet {
        int _nbfns;
        /// number of PGTO's
        int _ngmx;
-/*
-       /// offsets for _ncmx
-       VectorXi _noffsn;
-       /// offsets for _nbfns
-       VectorXi _noffsb;
-       /// offsets for _ngmx
-       VectorXi _noffsg;
-*/
        /// PGTO cartesian coordinates, coefficients and exponents
        MatrixEta _eta;
        /// Atomic coordinates and numbers
@@ -157,7 +154,6 @@ class BasisSet {
 
 };
 
-typedef boost::shared_ptr<BasisSet> BasisSetPtr;
 
 
 /*! Defines a single fragment of the system.
@@ -179,9 +175,6 @@ class Fragment {
         };
 };
 
-typedef boost::shared_ptr<Fragment> FragmentPtr;
-typedef std::vector<boost::shared_ptr<Fragment> > FragmentPtrVector;
-typedef boost::shared_ptr<Options> OptionsPtr;
 
 /*! The entire molecular system.
  *
@@ -198,7 +191,6 @@ class System {
        void eval_nuclear_repulsion_energy(void) {};
 };
 
-typedef boost::shared_ptr<System> SystemPtr;
 
 /*! \fn Read BQC input file.
  *
