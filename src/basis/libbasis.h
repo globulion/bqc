@@ -127,6 +127,7 @@ class BasisSet {
        Eigen::MatrixXd get_S();
 
        void normalize_pgto(void) {};
+       void print(std::ostream& out = std::cout) const;
 
     protected: 
        /// number of PGTO's centers

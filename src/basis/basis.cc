@@ -80,7 +80,7 @@ boost::shared_ptr<System> read_bqc_input(const char* input) {
         BasisSetPtr B (new BasisSet(ncmx, nbfns, ngmx, 
                                     ntype, ncntr, nfirst, nlast,
                                     vlist, eta) );
-
+ 
         B->normalize_pgto();
 
         // create Fragment object
@@ -129,3 +129,18 @@ Eigen::MatrixXd BasisSet::get_S () {
       return _S;
 }
 */
+
+/*! Print BasisSet object.
+ *
+ *
+ */
+void BasisSet::print(std::ostream& out) const {
+     out << " ::-> BasisSet" << std::endl;
+};
+
+std::ostream &operator<<(std::ostream &out, const BasisSet &bfs)
+{
+     bfs.print(out);
+     return out;
+};
+
