@@ -21,6 +21,7 @@ set (CMAKE_COLOR_MAKEFILE ON)
 set(CMAKE_CXX_FLAGS "-g -Wall")
 
 # Requirements
+# EIGEN3
 set( EIGEN3_INCLUDE_DIR "$ENV{EIGEN3_INCLUDE_DIR}" )
 if( NOT EIGEN3_INCLUDE_DIR )
     message( FATAL_ERROR "
@@ -29,9 +30,21 @@ if( NOT EIGEN3_INCLUDE_DIR )
           export EIGEN3_INCLUDE_DIR=<path to Eigen3>
 ")
 endif()
+
+# BOOST
+set( BOOST_INCLUDE_DIR "$ENV{BOOST_INCLUDE_DIR}")
+if( NOT BOOST_INCLUDE_DIR )
+    message( FATAL_ERROR "
+ Please point the environment variable BOOST_INCLUDE_DIR to the include directory of your Boost installation.
+     Type:
+          export BOOST_INCLUDE_DIR=<path to boost>
+")
+endif()
+
 #find_package(PkgConfig)
 #pkg_search_module(Eigen3 REQUIRED eigen3)
 include_directories ("${EIGEN3_INCLUDE_DIR}")
+include_directories ("${BOOST_INCLUDE_DIR}")
 
 # Options
 option (USE_EIGEN   "Use high-performance mathematical library system"  ON )  # recommended
